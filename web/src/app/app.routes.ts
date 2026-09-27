@@ -102,6 +102,12 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/settings/lidarr-settings').then((m) => m.LidarrSettings),
           },
+          {
+            path: 'integrations/lastfm',
+            title: 'Last.fm settings',
+            loadComponent: () =>
+              import('./features/settings/lastfm-settings').then((m) => m.LastfmSettings),
+          },
           settingsPlaceholder('discovery', 'Discovery', 'How recommendations are chosen and refreshed.'),
           settingsPlaceholder('users', 'Users', 'People who can use this Offbeat server.'),
           {

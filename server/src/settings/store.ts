@@ -34,6 +34,10 @@ export class SettingsStore {
       .run();
   }
 
+  delete(key: string) {
+    this.db.delete(settings).where(eq(settings.key, key)).run();
+  }
+
   has(key: string): boolean {
     return !!this.db.select({ key: settings.key }).from(settings).where(eq(settings.key, key)).get();
   }

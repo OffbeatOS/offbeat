@@ -112,9 +112,9 @@ The MusicBrainz ID (MBID) is the join key across every service. Pages are routed
 
 **Cover Art Archive.** Album art by release group MBID, proxied and cached. When it has no cover, Offbeat falls back to the one Lidarr has, then to a flat placeholder (`GET /images/album/:mbid` picks the source).
 
-**Last.fm (planned, recommended).** `artist.getSimilar`, `artist.getTopTags`, `artist.getInfo`, `tag.getTopArtists`, `user.getTopArtists`.
+**ListenBrainz (built in, no key).** The default source for discovery, so recommendations work with no API key. Similar artists come from the ListenBrainz Labs similarity data, keyed by MBID, so no name matching is needed. Users can add a ListenBrainz username in Settings, Account to weight seeds by their listening history (checked with `/1/user/<name>/listen-count` when saved).
 
-**ListenBrainz (planned, optional).** Per-user listening history as an alternative to Last.fm.
+**Last.fm (optional, preferred when present).** An admin adds an API key in onboarding or Settings, Integrations; it is checked with Last.fm, stored encrypted, and only its last four characters reach the browser. When connected, Last.fm is the preferred source for similar artists and tags, alongside ListenBrainz. Users can add a Last.fm username in Settings, Account (checked with `user.getInfo`). Methods: `artist.getSimilar`, `artist.getTopTags`, `artist.getInfo`, `tag.getTopArtists`, `user.getTopArtists`. Paced at five requests per second.
 
 **Navidrome (phase 4).** Subsonic API for publishing flow libraries and smart playlists.
 
@@ -171,6 +171,8 @@ All routes live under `/api/v1`. Implemented:
 - `GET /setup/state`, `POST /setup/admin`, `POST /setup/lidarr/test`, `POST /setup/lidarr`
 - `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
 - `GET /settings/lidarr`, `PUT /settings/lidarr`
+- `GET /settings/lastfm`, `PUT /settings/lastfm` (checked with Last.fm), `DELETE /settings/lastfm` (admin)
+- `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service)
 - `GET /library`, `POST /library/refresh`
 - `GET /search?q=`
 - `GET /artists/:mbid`, `POST /artists/:mbid` (add), `PATCH /artists/:mbid` (monitoring)

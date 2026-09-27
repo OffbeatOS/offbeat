@@ -26,14 +26,14 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 - [x] Activity screen: queue, history, failures, retry
 - [x] Bottom bar shows live download activity
 
-## Phase 2: Discovery
+## Phase 2: Discovery (in progress)
 
-- Recommendation engine (see [architecture](docs/architecture.md#discovery-engine))
-- Discover page with sections, mode switch, feedback, quick add
-- Blocklist (artists and tags)
-- Last.fm connection (optional step in onboarding, and in Settings), moved from phase 1 since discovery is its first use
-- Per-user Last.fm and ListenBrainz usernames
-- Scheduled refresh with a manual trigger
+- [ ] Recommendation engine (see [architecture](docs/architecture.md#discovery-engine))
+- [ ] Discover page with sections, mode switch, feedback, quick add
+- [ ] Blocklist (artists and tags)
+- [x] Last.fm connection (optional step in onboarding, and in Settings), moved from phase 1 since discovery is its first use
+- [x] Per-user Last.fm and ListenBrainz usernames
+- [ ] Scheduled refresh with a manual trigger
 
 ## Phase 3: Multi-user and extras
 

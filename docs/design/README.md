@@ -19,6 +19,8 @@ These are standalone HTML files exported from a design tool. They use its small 
 | `Activity.dc.html` | Activity (requests, downloads, failures) | Phase 1 |
 | `Flows.dc.html` | Flow list and editor | Phase 4 |
 | `Shows.dc.html` | Shows (concert listings) | Phase 3 |
+| `Tag.dc.html` | Tag page (Explore by Tag) | Phase 2 |
+| `SettingsDiscovery.dc.html` | Settings, Discovery and blocklist | Phase 2 |
 
 Empty, loading, and error states are not in the mockups. Build them for every screen in the same style (see `ob-empty-state`).
 
