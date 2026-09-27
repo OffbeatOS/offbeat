@@ -9,7 +9,7 @@
     "url": "git+https://github.com/xwolvos/offbeat.git"
   },
   "engines": {
-    "node": ">=22.22.3"
+    "node": "^22.22.3 || >=24.15.0"
   },
   "workspaces": [
     "shared",

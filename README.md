@@ -39,7 +39,7 @@ Integrations and discovery settings are configured in the web UI. Environment va
 
 ## Development
 
-Requires Node 22.22.3 or newer (Angular 22 needs it).
+Requires Node 22.22.3+ or 24.15+ (Angular 22 needs it). `.nvmrc` pins the version CI and Docker use; with nvm or fnm, `nvm use` picks it up. `npm install` refuses to run on an older Node.
 
 ```sh
 npm install

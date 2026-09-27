@@ -1,24 +1,29 @@
 # syntax=docker/dockerfile:1
 
+# Keep in sync with .nvmrc. Angular 22 requires Node 22.22.3 or newer.
+ARG NODE_VERSION=22.23.3
+
 # Build stage: install everything, compile shared, web, and server, then drop
 # dev dependencies so only runtime packages are copied forward.
-FROM node:22-alpine AS build
+FROM node:${NODE_VERSION}-alpine AS build
 WORKDIR /src
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 COPY shared/package.json shared/
 COPY server/package.json server/
 COPY web/package.json web/
-# better-sqlite3 ships prebuilt binaries for linuxmusl amd64 and arm64, but npm
-# still tries node-gyp because a binding.gyp is present. No install script in
-# the tree is needed (the rest are dev tools with platform prebuilds), so skip them.
+# better-sqlite3 13 has no install script: its N-API binaries for every
+# platform (including linuxmusl amd64 and arm64) ship inside the package and
+# are picked at load time. npm still runs node-gyp because binding.gyp exists,
+# which fails without a toolchain, so skip scripts. The remaining install
+# scripts belong to dev tools that also ship platform prebuilds.
 RUN npm ci --no-audit --no-fund --ignore-scripts
 
 COPY . .
 RUN npm run build && npm prune --omit=dev --no-audit --no-fund
 
 # Runtime stage
-FROM node:22-alpine
+FROM node:${NODE_VERSION}-alpine
 RUN apk add --no-cache su-exec tini
 
 ENV NODE_ENV=production \
@@ -36,6 +41,9 @@ COPY --from=build /src/server/package.json ./server/
 COPY --from=build /src/server/dist ./server/dist
 COPY --from=build /src/server/drizzle ./server/drizzle
 COPY --from=build /src/web/dist/web/browser ./web/dist/web/browser
+
+# Fail the build (per architecture) if the SQLite binary cannot load.
+RUN node -e "new (require('better-sqlite3'))(':memory:').prepare('select 1').get()"
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
