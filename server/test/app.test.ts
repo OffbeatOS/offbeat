@@ -81,6 +81,34 @@ describe.each(['', '/music'])('with BASE_URL %j', (baseUrl) => {
   });
 });
 
+describe('status healthcheck', () => {
+  it('fails when the database is unusable', async () => {
+    const db = openDatabase(':memory:');
+    const app = await buildApp({
+      config: { baseUrl: '', trustProxy: false, logLevel: 'error' },
+      db,
+      webRoot: null,
+      logger: false,
+    });
+    db.$client.close();
+    const res = await app.inject('/api/v1/status');
+    expect(res.statusCode).toBe(500);
+  });
+
+  it('fails when migrations have not been applied', async () => {
+    const db = openDatabase(':memory:');
+    db.$client.exec('delete from __drizzle_migrations');
+    const app = await buildApp({
+      config: { baseUrl: '', trustProxy: false, logLevel: 'error' },
+      db,
+      webRoot: null,
+      logger: false,
+    });
+    const res = await app.inject('/api/v1/status');
+    expect(res.statusCode).toBe(500);
+  });
+});
+
 describe('with a subpath BASE_URL', () => {
   it('redirects the bare subpath to its trailing slash form', async () => {
     const app = await makeApp('/music');
