@@ -101,6 +101,14 @@ describe('search', () => {
     const { call } = await setup();
     expect((await call('GET', '/search?q=a')).statusCode).toBe(400);
   });
+
+  it("still finds artists while Lidarr's album lookup is down", async () => {
+    const { call, fake } = await setup();
+    fake.failAlbumLookup = true;
+    const res = await call('GET', '/search?q=boards%20of%20canada');
+    expect(res.statusCode).toBe(200);
+    expect(res.json<SearchResponse>().top).toMatchObject({ kind: 'artist', artist: { name: 'Boards of Canada' } });
+  });
 });
 
 describe('adding an artist', () => {

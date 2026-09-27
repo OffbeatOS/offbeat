@@ -23,6 +23,8 @@ export interface FakeCatalog {
   hits: string[];
   /** While true, queue requests get no answer at all (a stuck Lidarr). */
   stallQueue: boolean;
+  /** While true, album lookups fail the way Lidarr does when its metadata service is down. */
+  failAlbumLookup: boolean;
   close(): Promise<void>;
 }
 
@@ -91,7 +93,7 @@ export async function startFakeCatalog(
   const history: Record<string, unknown>[] = [];
   const removals: FakeCatalog['removals'] = [];
   const hits: string[] = [];
-  const control = { stallQueue: false };
+  const control = { stallQueue: false, failAlbumLookup: false };
   const apiKey = randomBytes(16).toString('hex');
   const library = new Map<number, FakeArtist>();
   const writes: FakeCatalog['writes'] = [];
@@ -167,6 +169,7 @@ export async function startFakeCatalog(
       return json(res, 200, matches.map(lookupResource));
     }
     if (path === 'album/lookup') {
+      if (control.failAlbumLookup) return json(res, 503, { message: 'metadata unavailable' });
       const term = (url.searchParams.get('term') ?? '').toLowerCase();
       const matches = WORLD.flatMap((a) =>
         a.albums
@@ -344,6 +347,12 @@ export async function startFakeCatalog(
     },
     set stallQueue(value: boolean) {
       control.stallQueue = value;
+    },
+    get failAlbumLookup() {
+      return control.failAlbumLookup;
+    },
+    set failAlbumLookup(value: boolean) {
+      control.failAlbumLookup = value;
     },
     close: async () => {
       await Promise.all([close(lidarr), close(musicbrainz)]);

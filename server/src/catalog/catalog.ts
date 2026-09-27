@@ -67,10 +67,18 @@ export class Catalog {
 
   async search(query: string): Promise<SearchResponse> {
     const client = this.client();
-    const [artistResults, albumResults] = await Promise.all([
+    // Lidarr's metadata service sometimes fails one kind of lookup and not the
+    // other: show what did come back, and fail only when both do.
+    const [artistLookup, albumLookup] = await Promise.allSettled([
       this.cachedLookup(`artist:${query}`, () => client.lookupArtists(query)),
       this.cachedLookup(`album:${query}`, () => client.lookupAlbums(query)),
     ]);
+    if (artistLookup.status === 'rejected' && albumLookup.status === 'rejected') throw artistLookup.reason;
+    for (const failed of [artistLookup, albumLookup]) {
+      if (failed.status === 'rejected') this.log.warn({ err: failed.reason, query }, 'Search lookup failed; showing partial results');
+    }
+    const artistResults = artistLookup.status === 'fulfilled' ? artistLookup.value : [];
+    const albumResults = albumLookup.status === 'fulfilled' ? albumLookup.value : [];
 
     const wanted = normalize(query);
     const seen = new Set<string>();
