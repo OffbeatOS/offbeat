@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
-import type { AddAlbumRequest, AddResult, ReleaseStatus, ReleaseSummary } from '@offbeat/shared';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output, signal } from '@angular/core';
+import type { AddAlbumRequest, AddResult, AlbumDetail, ReleaseStatus, ReleaseSummary } from '@offbeat/shared';
 import { ActivityStore } from '../../core/activity-store';
 import { Api, ApiError } from '../../core/api';
 import { Icon } from '../icon/icon';
@@ -64,7 +64,13 @@ export class ReleaseAction {
   /** Emitted when a background add finishes successfully. */
   readonly added = output<AddResult>();
 
-  private readonly override = signal<ReleaseStatus | null>(null);
+  /** Local status until the page hands over fresh data for this release (then it resets). */
+  private readonly override = linkedSignal<ReleaseSummary, ReleaseStatus | null>({
+    source: this.release,
+    computation: () => null,
+  });
+  /** Whether the activity stream had this release last time, to notice when it leaves. */
+  private wasActive = false;
   /** The add result that existed before this component's own add, so stale ones are ignored. */
   private baseline: AddResult | undefined;
   private waiting = false;
@@ -89,6 +95,13 @@ export class ReleaseAction {
   });
 
   constructor() {
+    // Imported, removed, or retried: the status from page load is stale now, so ask again.
+    effect(() => {
+      const item = this.store.byAlbum().get(this.release().mbid);
+      const active = !!item && item.state !== 'adding';
+      if (this.wasActive && !active) void this.refreshStatus();
+      this.wasActive = active;
+    });
     effect(() => {
       const result = this.store.addResults().get(this.release().mbid);
       if (!this.waiting || !result || result === this.baseline) return;
@@ -101,6 +114,15 @@ export class ReleaseAction {
         this.error.set(result.error ?? 'Could not add this album');
       }
     });
+  }
+
+  private async refreshStatus() {
+    try {
+      const album = await this.api.get<AlbumDetail>(`albums/${this.release().mbid}`);
+      this.override.set(album.status);
+    } catch {
+      // keep what is shown; the next page load corrects it
+    }
   }
 
   protected async add(event: Event) {

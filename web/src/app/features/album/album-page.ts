@@ -72,6 +72,8 @@ export class AlbumPage {
   });
 
   private readonly store = inject(ActivityStore);
+  /** Whether the activity stream had this album last time, to notice when it leaves. */
+  private wasActive = false;
   private addBaseline: AddResult | undefined;
   private waitingForAdd = false;
 
@@ -92,6 +94,14 @@ export class AlbumPage {
 
   constructor() {
     effect(() => void this.load(this.mbid()));
+    // Imported, removed, or retried: reload to show the album as Lidarr now has it.
+    effect(() => {
+      const album = this.album();
+      const item = album ? this.store.byAlbum().get(album.mbid) : undefined;
+      const active = !!item && item.state !== 'adding';
+      if (this.wasActive && !active) void this.reload();
+      this.wasActive = active;
+    });
     // A background add finished: reload to show the album as Lidarr now has it.
     effect(() => {
       const album = this.album();

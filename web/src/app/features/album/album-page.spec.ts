@@ -2,7 +2,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AlbumDetail } from '@offbeat/shared';
+import type { ActivityItem, AlbumDetail } from '@offbeat/shared';
+import { ActivityStore } from '../../core/activity-store';
 import { AlbumPage } from './album-page';
 
 const MBID = '11111111-0000-4000-8000-000000000002';
@@ -31,11 +32,15 @@ function album(extra: Partial<AlbumDetail>): AlbumDetail {
   };
 }
 
-async function render(detail: AlbumDetail) {
+function configure() {
   TestBed.configureTestingModule({
     imports: [AlbumPage],
     providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
   });
+}
+
+async function render(detail: AlbumDetail, { configured = false } = {}) {
+  if (!configured) configure();
   const fixture = TestBed.createComponent(AlbumPage);
   fixture.componentRef.setInput('mbid', MBID);
   fixture.detectChanges();
@@ -46,6 +51,11 @@ async function render(detail: AlbumDetail) {
   fixture.detectChanges();
   const el = fixture.nativeElement as HTMLElement;
   return {
+    settle: async () => {
+      await new Promise((resolve) => setTimeout(resolve));
+      await fixture.whenStable();
+      fixture.detectChanges();
+    },
     status: () => el.querySelector('.status')?.textContent?.trim() ?? null,
     buttons: () => [...el.querySelectorAll('.actions button')].map((b) => b.textContent?.trim()),
     statusColumn: () => !!el.querySelector('.track-head .right'),
@@ -106,5 +116,44 @@ describe('AlbumPage states', () => {
     expect(page.buttons()).toEqual(['Add Album']);
     expect(page.statusColumn()).toBe(false);
     expect(page.missingTitles()).toEqual([]);
+  });
+});
+
+describe('AlbumPage after a download', () => {
+  it('reloads once its import leaves Activity, so it never shows a stale Wanted', async () => {
+    const importing: ActivityItem = {
+      id: 'queue:1',
+      state: 'importing',
+      albumMbid: MBID,
+      albumTitle: 'Untrue',
+      artistMbid: null,
+      artistName: 'Burial',
+      coverUrl: null,
+      progress: 1,
+      detail: 'Importing into your library',
+      reason: null,
+      messages: [],
+      source: 'Added in Lidarr',
+      canRetry: false,
+      canCancel: false,
+      lidarrLink: null,
+    };
+    const snapshot = (inProgress: ActivityItem[]) => ({ attention: [], inProgress, completed: [], updatedAt: 'now', error: null });
+    configure();
+    const store = TestBed.inject(ActivityStore);
+    store.snapshot.set(snapshot([importing]));
+    const page = await render(album({ monitored: true, trackFileCount: 0, trackCount: 2, status: { kind: 'requested' } }), {
+      configured: true,
+    });
+
+    // Lidarr finished: the item leaves the stream, and the page asks for the album again.
+    store.snapshot.set(snapshot([]));
+    await page.settle();
+    TestBed.inject(HttpTestingController)
+      .expectOne(`api/v1/albums/${MBID}`)
+      .flush(album({ monitored: true, trackFileCount: 2, trackCount: 2, status: { kind: 'in-library' } }));
+    await page.settle();
+    expect(page.status()).toBeNull();
+    expect(page.buttons()).toEqual(['Monitored']);
   });
 });
