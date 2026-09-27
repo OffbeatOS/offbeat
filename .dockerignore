@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/.angular
+**/coverage
+**/*.tsbuildinfo
+config
+server/config
+.git
+.github
+.playwright-mcp
+.vscode
+docs
+*.md
