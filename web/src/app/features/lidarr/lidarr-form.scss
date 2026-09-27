@@ -75,6 +75,13 @@ form {
   gap: 14px;
 }
 
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 560px;
+}
+
 .actions {
   display: flex;
   align-items: center;

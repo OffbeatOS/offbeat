@@ -51,25 +51,26 @@ export const routes: Routes = [
         'No recommendations yet',
         'Picks based on your library will show up here once Lidarr is connected.',
       ),
-      placeholder(
-        'search',
-        'Search',
-        'search',
-        'Search is not available yet',
-        'Find artists and albums to add to your library.',
-      ),
+      {
+        path: 'search',
+        title: 'Search',
+        loadComponent: () => import('./features/search/search-page').then((m) => m.SearchPage),
+      },
       {
         path: 'library',
         title: 'Library',
         loadComponent: () => import('./features/library/library-page').then((m) => m.LibraryPage),
       },
-      placeholder(
-        'artist/:mbid',
-        'Artist',
-        'discover',
-        'Artist pages are on the way',
-        'Albums, status, and one-click add will live here.',
-      ),
+      {
+        path: 'artist/:mbid',
+        title: 'Artist',
+        loadComponent: () => import('./features/artist/artist-page').then((m) => m.ArtistPage),
+      },
+      {
+        path: 'album/:mbid',
+        title: 'Album',
+        loadComponent: () => import('./features/album/album-page').then((m) => m.AlbumPage),
+      },
       placeholder(
         'activity',
         'Activity',

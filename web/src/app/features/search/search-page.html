@@ -1,0 +1,114 @@
+<label class="box">
+  <span class="visually-hidden">Search artists and albums</span>
+  <ob-icon name="search" [size]="20" [strokeWidth]="2" />
+  <input
+    #box
+    type="search"
+    placeholder="Artists and albums"
+    autocomplete="off"
+    spellcheck="false"
+    [value]="query()"
+    (input)="onInput($event)"
+  />
+  @if (state().kind === 'loading') {
+    <span class="searching" role="status">Searching</span>
+  }
+</label>
+
+@switch (state().kind) {
+  @case ('idle') {
+    <ob-empty-state icon="search" heading="Search for artists and albums" message="Results show what is already in your library." />
+  }
+  @case ('error') {
+    <ob-empty-state icon="alert" heading="Search failed" [message]="errorMessage()" />
+  }
+}
+
+@if (result(); as r) {
+  <div class="results" [class.stale]="state().kind === 'loading'">
+    @if (!r.top && r.artists.length === 0) {
+      <ob-empty-state icon="search" heading="No results" [message]="'Nothing found for “' + r.query + '”.'" />
+    } @else {
+      <div class="split">
+        @if (r.top; as top) {
+          <section>
+            <h2>Top Result</h2>
+            <div class="top">
+              @if (top.kind === 'artist') {
+                <a class="circle" [routerLink]="['/artist', top.artist.mbid]">
+                  @if (top.artist.imageUrl) {
+                    <img [src]="top.artist.imageUrl" alt="" />
+                  } @else {
+                    <span>{{ top.artist.name.charAt(0) }}</span>
+                  }
+                </a>
+                <div class="top-text">
+                  <a class="top-name" [routerLink]="['/artist', top.artist.mbid]">{{ top.artist.name }}</a>
+                  <span class="top-meta">Artist{{ top.artist.genres.length ? ', ' + top.artist.genres.join(', ') : '' }}</span>
+                </div>
+                <div class="top-actions">
+                  @if (top.artist.inLibrary) {
+                    <a class="pill" [routerLink]="['/artist', top.artist.mbid]">
+                      <ob-icon name="check" [size]="15" [strokeWidth]="2.6" />In Library
+                    </a>
+                    @if (top.albumsInLibrary !== null && top.albumCount) {
+                      <span class="count">{{ top.albumsInLibrary }} of {{ top.albumCount }} albums</span>
+                    }
+                  } @else {
+                    <button class="pill" type="button" [disabled]="addingArtist()" (click)="addTopArtist()">
+                      <ob-icon name="plus" [size]="15" [strokeWidth]="2.4" />{{ addingArtist() ? 'Adding' : 'Add Artist' }}
+                    </button>
+                    <a class="ghost" [routerLink]="['/artist', top.artist.mbid]">View</a>
+                  }
+                </div>
+                @if (addError()) {
+                  <p class="error" role="alert">{{ addError() }}</p>
+                }
+              } @else {
+                <a class="square" [routerLink]="['/album', top.album.mbid]">
+                  <ob-cover [src]="top.album.coverUrl" />
+                </a>
+                <div class="top-text">
+                  <a class="top-name" [routerLink]="['/album', top.album.mbid]">{{ top.album.title }}</a>
+                  <span class="top-meta">{{ meta(top.album) }} by {{ top.album.artistName }}</span>
+                </div>
+                <ob-release-action class="large" [release]="top.album" />
+              }
+            </div>
+          </section>
+        }
+
+        @if (r.albums.length) {
+          <section>
+            <h2>Albums</h2>
+            <ul class="rows">
+              @for (album of r.albums; track album.mbid) {
+                <li>
+                  <a [routerLink]="['/album', album.mbid]">
+                    <ob-cover class="thumb" [src]="album.coverUrl" radius="6px" />
+                    <span class="row-text">
+                      <span class="row-title">{{ album.title }}</span>
+                      <span class="row-meta">{{ meta(album) }}{{ r.top?.kind === 'album' ? ', ' + album.artistName : '' }}</span>
+                    </span>
+                  </a>
+                  <ob-release-action [release]="album" />
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      </div>
+
+      @if (r.artists.length) {
+        <section>
+          <h2>More Artists</h2>
+          <div class="circles">
+            @for (artist of r.artists.slice(0, 6); track artist.mbid) {
+              <ob-artist-circle [artist]="artist" />
+            }
+          </div>
+        </section>
+      }
+    }
+  </div>
+}

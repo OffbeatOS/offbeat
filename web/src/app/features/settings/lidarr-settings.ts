@@ -49,7 +49,7 @@ import { SettingsSection } from './settings-section';
       description="Use the address Offbeat can see from its container, not necessarily the one in your browser."
     >
       @if (loaded()) {
-        <ob-lidarr-form [existing]="existing()" submitLabel="Save" (saved)="onSaved($event)" />
+        <ob-lidarr-form [existing]="existing()" [showAddOptions]="true" submitLabel="Save" (saved)="onSaved($event)" />
       }
       @if (error()) {
         <p class="error">{{ error() }}</p>

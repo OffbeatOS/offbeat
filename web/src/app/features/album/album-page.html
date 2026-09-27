@@ -1,0 +1,99 @@
+@if (album(); as a) {
+  <a class="back" [routerLink]="['/artist', a.artistMbid]">
+    <ob-icon name="chevron-left" [size]="14" [strokeWidth]="2.2" />{{ a.artistName }}
+  </a>
+
+  <header>
+    <ob-cover class="art" [src]="a.coverUrl" radius="10px" />
+    <div class="text">
+      <span class="overline">{{ a.type }}</span>
+      <h1>{{ a.title }}</h1>
+      <a class="artist" [routerLink]="['/artist', a.artistMbid]">{{ a.artistName }}</a>
+      @if (meta()) {
+        <span class="meta">{{ meta() }}</span>
+      }
+      @if (statusLine()) {
+        <span class="status" [class.wanted]="statusLine() === 'Wanted'">{{ statusLine() }}</span>
+      }
+      <div class="actions">
+        @if (canAdd()) {
+          <button class="accent" type="button" [disabled]="!!busy()" (click)="add()">
+            <ob-icon name="plus" [size]="16" [strokeWidth]="2.4" />{{ busy() === 'add' ? 'Adding' : 'Add Album' }}
+          </button>
+        } @else {
+          <button
+            class="primary"
+            type="button"
+            [class.off]="!a.monitored"
+            [attr.aria-pressed]="a.monitored"
+            [disabled]="!!busy()"
+            (click)="toggleMonitored()"
+          >
+            @if (a.monitored) {
+              <ob-icon name="check" [size]="16" [strokeWidth]="2.4" />Monitored
+            } @else {
+              Unmonitored
+            }
+          </button>
+          @if (missing() > 0) {
+            <button class="secondary" type="button" [disabled]="!!busy() || searchQueued()" (click)="searchMissing()">
+              {{ searchQueued() ? 'Search started' : busy() === 'search' ? 'Starting search' : 'Search Missing' }}
+            </button>
+          }
+        }
+      </div>
+      @if (actionError()) {
+        <p class="error" role="alert">{{ actionError() }}</p>
+      }
+    </div>
+  </header>
+
+  @if (a.tracks.length) {
+    <section class="tracks" [class.with-status]="showTrackStatus()">
+      <div class="track-head">
+        <span>#</span><span>Title</span>
+        @if (showTrackStatus()) {
+          <span class="right">Status</span>
+        }
+      </div>
+      <ol>
+        @for (track of a.tracks; track $index) {
+          <li [class.missing]="showTrackStatus() && track.hasFile === false">
+            <span class="n">{{ track.position }}</span>
+            <span class="title">{{ track.title }}</span>
+            @if (showTrackStatus() && track.hasFile === false) {
+              <span class="right">Missing</span>
+            }
+          </li>
+        }
+      </ol>
+    </section>
+  } @else {
+    <ob-empty-state icon="library" heading="No track list yet" message="MusicBrainz has no official release with tracks for this album." />
+  }
+
+  @if (a.more.length) {
+    <section class="more">
+      <h2>More by {{ a.artistName }}</h2>
+      <div class="grid">
+        @for (release of a.more; track release.mbid) {
+          <ob-album-card [release]="release" />
+        }
+      </div>
+    </section>
+  }
+} @else if (loadError(); as error) {
+  <ob-empty-state
+    icon="alert"
+    [heading]="error.status === 404 ? 'Album not found' : 'Could not load this album'"
+    [message]="error.message"
+  >
+    @if (error.status !== 404) {
+      <button class="btn btn-outline btn-sm" type="button" (click)="load()">Try again</button>
+    }
+  </ob-empty-state>
+} @else {
+  <header aria-busy="true" aria-label="Loading album">
+    <span class="art ghost"></span>
+  </header>
+}

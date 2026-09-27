@@ -103,6 +103,32 @@
     </div>
   </div>
 
+  @if (showAddOptions()) {
+    <div class="divider"></div>
+
+    <div class="defaults">
+      <div class="defaults-head">
+        <h2>When you add something</h2>
+        <span>Applies to one-click adds from Search, Artist, and Album pages.</span>
+      </div>
+      <div class="options">
+        <ob-toggle
+          formControlName="addMonitored"
+          label="Monitor new artists"
+          hint="Adding a whole artist monitors their albums. Adding one album always monitors just that album."
+        />
+        <ob-toggle
+          formControlName="searchOnAdd"
+          label="Search when adding"
+          hint="Ask Lidarr to look for releases right away instead of waiting for its next check."
+        />
+        <ob-field label="Tag added artists" hint="Optional Lidarr tag, for example offbeat. Letters, numbers, dots, dashes, or underscores.">
+          <input class="input" formControlName="addTag" placeholder="No tag" autocomplete="off" spellcheck="false" />
+        </ob-field>
+      </div>
+    </div>
+  }
+
   <div class="actions">
     <p class="form-error" role="alert">{{ saveError() }}</p>
     <button class="btn btn-primary" type="submit" [disabled]="!options() || saving()">

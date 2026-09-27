@@ -15,7 +15,9 @@ import { formatBytes } from '../../shared/format';
   template: `
     <a [routerLink]="['/artist', artist().mbid]" [class.row]="layout() === 'list'">
       <span class="art" aria-hidden="true">
-        <span class="initial">{{ initial() }}</span>
+        @if (!imageLoaded()) {
+          <span class="initial">{{ initial() }}</span>
+        }
         @if (artist().imageUrl && !imageFailed()) {
           <img
             [src]="artist().imageUrl"

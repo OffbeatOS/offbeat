@@ -21,6 +21,7 @@ import { merge } from 'rxjs';
 import { Api, ApiError } from '../../core/api';
 import { FormField } from '../../shared/form-field/form-field';
 import { Icon } from '../../shared/icon/icon';
+import { Toggle } from '../../shared/toggle/toggle';
 
 type Status =
   | { kind: 'idle' }
@@ -35,7 +36,7 @@ type Status =
  */
 @Component({
   selector: 'ob-lidarr-form',
-  imports: [ReactiveFormsModule, FormField, Icon],
+  imports: [ReactiveFormsModule, FormField, Icon, Toggle],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './lidarr-form.scss',
   templateUrl: './lidarr-form.html',
@@ -47,6 +48,8 @@ export class LidarrForm implements OnInit {
   /** Saved settings when editing; null during first-run setup. */
   readonly existing = input<LidarrSettingsView | null>(null);
   readonly submitLabel = input('Continue');
+  /** Settings shows how adds behave; onboarding keeps the defaults. */
+  readonly showAddOptions = input(false);
   readonly saved = output<LidarrSettingsView>();
 
   protected readonly status = signal<Status>({ kind: 'idle' });
@@ -65,12 +68,15 @@ export class LidarrForm implements OnInit {
     qualityProfileId: [{ value: 0, disabled: true }, Validators.min(1)],
     metadataProfileId: [{ value: 0, disabled: true }, Validators.min(1)],
     rootFolderPath: [{ value: '', disabled: true }, Validators.required],
+    addMonitored: [true],
+    searchOnAdd: [true],
+    addTag: ['', Validators.pattern(/^[A-Za-z0-9._-]*$/)],
   });
 
   ngOnInit() {
     const existing = this.existing();
     if (existing) {
-      this.form.patchValue(existing);
+      this.form.patchValue({ ...existing, addTag: existing.addTag ?? '' });
       // Loads the dropdowns with the saved key, keeping the saved choices.
       void this.test(existing);
     }
@@ -113,6 +119,9 @@ export class LidarrForm implements OnInit {
       metadataProfileId: Number(value.metadataProfileId),
       rootFolderPath: value.rootFolderPath,
       ...(value.apiKey.trim() ? { apiKey: value.apiKey } : {}),
+      ...(this.showAddOptions()
+        ? { addMonitored: value.addMonitored, searchOnAdd: value.searchOnAdd, addTag: value.addTag.trim() || null }
+        : {}),
     };
     this.saving.set(true);
     this.saveError.set('');

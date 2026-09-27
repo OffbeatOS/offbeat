@@ -1,0 +1,85 @@
+@if (artist(); as a) {
+  <header class="hero">
+    @if (a.bannerUrl && !bannerFailed()) {
+      <img class="banner" [src]="a.bannerUrl" alt="" (error)="bannerFailed.set(true)" />
+    } @else if (a.imageUrl) {
+      <img class="banner blurred" [src]="a.imageUrl" alt="" />
+    }
+    <span class="shade" aria-hidden="true"></span>
+    <div class="hero-text">
+      <span class="overline">Artist</span>
+      <h1>{{ a.name }}</h1>
+      @if (a.genres.length || a.disambiguation) {
+        <span class="genres">{{ a.genres.length ? a.genres.join(', ') : a.disambiguation }}</span>
+      }
+      <div class="actions">
+        @if (a.inLibrary) {
+          <button
+            class="primary"
+            type="button"
+            [class.off]="!a.monitored"
+            [attr.aria-pressed]="a.monitored"
+            [disabled]="busy()"
+            (click)="toggleMonitored()"
+          >
+            @if (a.monitored) {
+              <ob-icon name="check" [size]="16" [strokeWidth]="2.6" />Monitored
+            } @else {
+              Unmonitored
+            }
+          </button>
+        } @else {
+          <button class="primary" type="button" [disabled]="busy()" (click)="addArtist()">
+            <ob-icon name="plus" [size]="16" [strokeWidth]="2.4" />{{ busy() ? 'Adding' : 'Add Artist' }}
+          </button>
+        }
+      </div>
+      @if (actionError()) {
+        <p class="error" role="alert">{{ actionError() }}</p>
+      }
+    </div>
+  </header>
+
+  <div class="body">
+    <section>
+      <div class="section-head">
+        <h2>Discography</h2>
+        @if (filters().length > 2) {
+          <div class="pills" role="group" aria-label="Release type">
+            @for (f of filters(); track f.id) {
+              <button type="button" [attr.aria-pressed]="filter() === f.id" (click)="filter.set(f.id)">{{ f.label }}</button>
+            }
+          </div>
+        }
+      </div>
+      @if (releases().length) {
+        <div class="grid">
+          @for (release of releases(); track release.mbid) {
+            <ob-album-card [release]="release" (added)="onAlbumAdded()" />
+          }
+        </div>
+      } @else {
+        <ob-empty-state icon="library" heading="No releases found" message="MusicBrainz has no albums or EPs listed for this artist yet." />
+      }
+    </section>
+  </div>
+} @else if (loadError(); as error) {
+  <ob-empty-state
+    icon="alert"
+    [heading]="error.status === 404 ? 'Artist not found' : 'Could not load this artist'"
+    [message]="error.message"
+  >
+    @if (error.status !== 404) {
+      <button class="btn btn-outline btn-sm" type="button" (click)="load()">Try again</button>
+    }
+  </ob-empty-state>
+} @else {
+  <header class="hero loading" aria-busy="true" aria-label="Loading artist"></header>
+  <div class="body">
+    <div class="grid skeleton">
+      @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+        <span class="ghost"></span>
+      }
+    </div>
+  </div>
+}

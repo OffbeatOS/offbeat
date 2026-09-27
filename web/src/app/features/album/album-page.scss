@@ -1,0 +1,255 @@
+@use '../../shared/mixins';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  padding: var(--page-pad-top) var(--page-pad-x) 48px;
+}
+
+.back {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+header {
+  display: flex;
+  align-items: flex-end;
+  gap: 36px;
+  margin-top: -16px;
+}
+
+.art {
+  width: 280px;
+  flex-shrink: 0;
+
+  &.ghost {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    background: var(--surface);
+  }
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 4px;
+  min-width: 0;
+}
+
+.overline {
+  @include mixins.text-overline;
+  color: var(--text-3);
+}
+
+h1 {
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.artist {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.meta {
+  font-size: 14px;
+  color: var(--text-3);
+}
+
+.status {
+  font-size: 13px;
+  color: var(--text-2);
+
+  &.wanted {
+    color: var(--status-progress);
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.primary,
+.secondary,
+.accent {
+  height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 22px;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.primary {
+  background: var(--text);
+  color: var(--bg);
+
+  &.off {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+}
+
+.secondary {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+// The one accent-colored action on the page (PLAN.md: accent for quick add).
+.accent {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.error {
+  font-size: 13px;
+  color: var(--status-failed);
+}
+
+.tracks {
+  display: flex;
+  flex-direction: column;
+  max-width: 900px;
+
+  ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.track-head,
+li {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  padding: 0 12px;
+}
+
+.with-status .track-head,
+.with-status li {
+  grid-template-columns: 48px minmax(0, 1fr) 140px;
+}
+
+.track-head {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--divider);
+  @include mixins.text-overline;
+  font-size: 12px;
+  color: var(--text-4);
+}
+
+li {
+  height: 44px;
+  border-bottom: 1px solid var(--surface-input);
+}
+
+.n {
+  font-size: 14px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Only missing tracks are marked, so a full album is not a wall of checkmarks.
+li.missing .title {
+  color: var(--text-3);
+}
+
+.right {
+  text-align: right;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.track-head .right {
+  font-size: 12px;
+  color: var(--text-4);
+}
+
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  h2 {
+    @include mixins.text-section;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 1200px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}
+
+@include mixins.mobile {
+  :host {
+    padding: 60px 20px 32px;
+    gap: 28px;
+  }
+
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    margin-top: 0;
+  }
+
+  .art {
+    width: 200px;
+  }
+
+  h1 {
+    font-size: 34px;
+  }
+
+  .with-status .track-head,
+  .with-status li {
+    grid-template-columns: 36px minmax(0, 1fr) 72px;
+  }
+
+  .track-head,
+  li {
+    padding: 0 4px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
