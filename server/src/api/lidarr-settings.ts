@@ -77,6 +77,7 @@ export const lidarrSettingsRoutes: FastifyPluginAsync<LidarrRoutesOptions> = asy
     };
     saveLidarr(app.settings, stored);
     request.log.info({ url }, 'Lidarr settings saved');
+    app.library.sync().catch(() => undefined); // refresh the cache for the new connection
     return toView(stored);
   };
 

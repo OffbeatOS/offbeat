@@ -4,6 +4,8 @@ import type { LoginLimiter } from './auth/login-limiter.js';
 import type { Config } from './config.js';
 import { SecretBox } from './crypto/secret-box.js';
 import type { Db } from './db/index.js';
+import { ArtworkCache } from './library/artwork.js';
+import { Library } from './library/library.js';
 import { SettingsStore } from './settings/store.js';
 import { registerWeb } from './web.js';
 
@@ -11,6 +13,8 @@ declare module 'fastify' {
   interface FastifyInstance {
     db: Db;
     settings: SettingsStore;
+    library: Library;
+    artwork: ArtworkCache;
   }
 }
 
@@ -19,6 +23,8 @@ export interface AppOptions {
   db: Db;
   /** Contents of `secret.key`; encrypts stored credentials. */
   secretKey: Buffer;
+  /** Where proxied artwork is cached (config/cache/images). */
+  imageCacheDir: string;
   /** Directory holding the built Angular app, or null to serve only the API. */
   webRoot: string | null;
   logger?: FastifyServerOptions['logger'];
@@ -32,6 +38,7 @@ export async function buildApp({
   config,
   db,
   secretKey,
+  imageCacheDir,
   webRoot,
   logger,
   loginLimiter,
@@ -43,7 +50,10 @@ export async function buildApp({
   });
 
   app.decorate('db', db);
-  app.decorate('settings', new SettingsStore(db, new SecretBox(secretKey)));
+  const settings = new SettingsStore(db, new SecretBox(secretKey));
+  app.decorate('settings', settings);
+  app.decorate('library', new Library(db, settings, app.log, upstreamTimeoutMs));
+  app.decorate('artwork', new ArtworkCache(imageCacheDir, app.log));
 
   await app.register(api, {
     prefix: `${config.baseUrl}/api/v1`,

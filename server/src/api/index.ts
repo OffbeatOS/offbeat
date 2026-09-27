@@ -4,6 +4,7 @@ import type { LoginLimiter } from '../auth/login-limiter.js';
 import { registerAuthGuard } from '../auth/guard.js';
 import { authRoutes } from './auth.js';
 import { HttpError, apiErrorHandler, errorBody } from './errors.js';
+import { libraryRoutes } from './library.js';
 import { lidarrSettingsRoutes } from './lidarr-settings.js';
 import { setupRoutes } from './setup.js';
 import { statusRoutes } from './status.js';
@@ -48,6 +49,7 @@ export const api: FastifyPluginAsync<ApiOptions> = async (app, { baseUrl, loginL
   await app.register(setupRoutes, { cookie });
   await app.register(authRoutes, { cookie, limiter: loginLimiter });
   await app.register(lidarrSettingsRoutes, { timeoutMs: upstreamTimeoutMs });
+  await app.register(libraryRoutes);
 
   app.setNotFoundHandler((request, reply) => {
     reply.code(404).send(errorBody(404, `No route for ${request.method} ${request.url}`));

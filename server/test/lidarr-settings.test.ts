@@ -1,3 +1,4 @@
+import { tmpImageDir } from './helpers.js';
 import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -26,6 +27,7 @@ async function signedInAdmin() {
     config: { baseUrl: '', trustProxy: false, logLevel: 'error' },
     db,
     secretKey: randomBytes(32),
+    imageCacheDir: tmpImageDir(),
     webRoot: null,
     logger: false,
     upstreamTimeoutMs: 300,

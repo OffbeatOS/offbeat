@@ -1,3 +1,4 @@
+import { Cron } from 'croner';
 import { fileURLToPath } from 'node:url';
 import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
@@ -13,14 +14,27 @@ async function main() {
   const secretKey = loadOrCreateSecretKey(paths.secretKey);
   const db = openDatabase(paths.database);
 
-  const app = await buildApp({ config, db, secretKey, webRoot: WEB_ROOT });
+  const app = await buildApp({
+    config,
+    db,
+    secretKey,
+    imageCacheDir: paths.imageCache,
+    webRoot: WEB_ROOT,
+  });
   app.log.info(`Offbeat ${VERSION}, config dir ${paths.root}`);
+
+  // Keep the library cache warm: once at boot, then every 15 minutes.
+  const librarySync = new Cron('*/15 * * * *', { protect: true }, () => {
+    app.library.sync().catch(() => undefined);
+  });
+  app.library.sync().catch(() => undefined);
 
   let closing = false;
   const shutdown = async (signal: string) => {
     if (closing) return;
     closing = true;
     app.log.info(`${signal} received, shutting down`);
+    librarySync.stop();
     await app.close();
     db.$client.close();
     process.exit(0);

@@ -1,3 +1,4 @@
+import { tmpImageDir } from './helpers.js';
 import { randomBytes } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -28,6 +29,7 @@ async function makeApp(baseUrl: string) {
     config: { baseUrl, trustProxy: false, logLevel: 'error' },
     db: openDatabase(':memory:'),
     secretKey: randomBytes(32),
+    imageCacheDir: tmpImageDir(),
     webRoot,
     logger: false,
   });
@@ -90,6 +92,7 @@ describe('status healthcheck', () => {
       config: { baseUrl: '', trustProxy: false, logLevel: 'error' },
       db,
       secretKey: randomBytes(32),
+      imageCacheDir: tmpImageDir(),
       webRoot: null,
       logger: false,
     });
@@ -105,6 +108,7 @@ describe('status healthcheck', () => {
       config: { baseUrl: '', trustProxy: false, logLevel: 'error' },
       db,
       secretKey: randomBytes(32),
+      imageCacheDir: tmpImageDir(),
       webRoot: null,
       logger: false,
     });

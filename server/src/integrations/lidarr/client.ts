@@ -1,10 +1,25 @@
 import type { LidarrOptions, LidarrProfile, LidarrRootFolder } from '@offbeat/shared';
+import Bottleneck from 'bottleneck';
 import { z } from 'zod';
 
 /** A Lidarr call that failed, with a message written for the person configuring it. */
 export class LidarrError extends Error {}
 
 const DEFAULT_TIMEOUT_MS = 8000;
+
+/**
+ * One limiter per Lidarr instance, shared by every client for it, so a burst
+ * of artwork requests or a sync cannot flood Lidarr.
+ */
+const limiters = new Map<string, Bottleneck>();
+function limiterFor(baseUrl: string) {
+  let limiter = limiters.get(baseUrl);
+  if (!limiter) {
+    limiter = new Bottleneck({ maxConcurrent: 6, minTime: 10 });
+    limiters.set(baseUrl, limiter);
+  }
+  return limiter;
+}
 
 /**
  * Accepts what people paste: trailing slashes, a URL base such as `/lidarr`,
@@ -26,6 +41,37 @@ export function normalizeLidarrUrl(raw: string): string {
 
 const statusSchema = z.object({ appName: z.string(), version: z.string() });
 const profileSchema = z.object({ id: z.number(), name: z.string() });
+const imageSchema = z.object({
+  coverType: z.string(),
+  url: z.string().nullish(),
+  remoteUrl: z.string().nullish(),
+});
+
+const artistSchema = z.object({
+  id: z.number(),
+  artistName: z.string(),
+  sortName: z.string().nullish(),
+  foreignArtistId: z.string(),
+  monitored: z.boolean(),
+  added: z.string(),
+  genres: z.array(z.string()).nullish(),
+  images: z.array(imageSchema).nullish(),
+  statistics: z
+    .object({
+      albumCount: z.number().nullish(),
+      trackCount: z.number().nullish(),
+      trackFileCount: z.number().nullish(),
+      sizeOnDisk: z.number().nullish(),
+    })
+    .nullish(),
+});
+export type LidarrArtist = z.infer<typeof artistSchema>;
+
+const missingPageSchema = z.object({
+  totalRecords: z.number(),
+  records: z.array(z.object({ artistId: z.number() })),
+});
+
 const rootFolderSchema = z.object({
   path: z.string(),
   freeSpace: z.number().nullish(),
@@ -77,19 +123,76 @@ export class LidarrClient {
     };
   }
 
-  private async get<T extends z.ZodType>(path: string, schema: T): Promise<z.infer<T>> {
-    const url = `${this.baseUrl}/api/v1/${path}`;
-    let response: Response;
+  /** Every artist in Lidarr. */
+  artists(): Promise<LidarrArtist[]> {
+    return this.get('artist', z.array(artistSchema));
+  }
+
+  /** Monitored albums with no files, counted per Lidarr artist id. */
+  async missingAlbumCounts(): Promise<Map<number, number>> {
+    const counts = new Map<number, number>();
+    const pageSize = 1000;
+    for (let page = 1; page <= 200; page++) {
+      const result = await this.get(
+        `wanted/missing?page=${page}&pageSize=${pageSize}&monitored=true&includeArtist=false`,
+        missingPageSchema,
+      );
+      for (const { artistId } of result.records) counts.set(artistId, (counts.get(artistId) ?? 0) + 1);
+      if (page * pageSize >= result.totalRecords || result.records.length === 0) break;
+    }
+    return counts;
+  }
+
+  /**
+   * Fetches artwork from Lidarr's MediaCover endpoint, which needs the API key.
+   * Only paths under this Lidarr's own `/MediaCover/` are allowed, so a
+   * malformed artist record can never make Offbeat send the key elsewhere.
+   * Returns null when Lidarr has no such image.
+   */
+  async mediaCover(path: string): Promise<{ body: Buffer; contentType: string } | null> {
+    const base = new URL(this.baseUrl);
+    const target = new URL(path, base.origin);
+    const allowedPrefix = `${base.pathname.replace(/\/$/, '')}/MediaCover/`;
+    if (target.origin !== base.origin || !target.pathname.startsWith(allowedPrefix)) {
+      throw new LidarrError('Refusing to fetch artwork outside Lidarr');
+    }
+    const response = await this.send(target.toString(), 'image/*');
+    if (response.status === 404) return null;
+    this.assertOk(response);
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.startsWith('image/')) return null;
+    return { body: Buffer.from(await response.arrayBuffer()), contentType };
+  }
+
+  private async send(url: string, accept: string): Promise<Response> {
     try {
-      response = await fetch(url, {
-        headers: { 'X-Api-Key': this.apiKey, Accept: 'application/json' },
-        signal: AbortSignal.timeout(this.timeoutMs),
-        redirect: 'manual',
-      });
+      return await limiterFor(this.baseUrl).schedule(() =>
+        fetch(url, {
+          headers: { 'X-Api-Key': this.apiKey, Accept: accept },
+          signal: AbortSignal.timeout(this.timeoutMs),
+          redirect: 'manual',
+        }),
+      );
     } catch (error) {
       throw new LidarrError(this.describeNetworkError(error));
     }
+  }
 
+  private async get<T extends z.ZodType>(path: string, schema: T): Promise<z.infer<T>> {
+    const response = await this.send(`${this.baseUrl}/api/v1/${path}`, 'application/json');
+    this.assertOk(response);
+
+    const body: unknown = await response.json().catch(() => undefined);
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      throw new LidarrError(
+        "That address answered, but not like Lidarr's API. Check the port and any URL base.",
+      );
+    }
+    return parsed.data;
+  }
+
+  private assertOk(response: Response) {
     if (response.status === 401 || response.status === 403) {
       throw new LidarrError('Lidarr rejected the API key. Copy it again from Settings, General in Lidarr.');
     }
@@ -106,15 +209,6 @@ export class LidarrClient {
     if (!response.ok) {
       throw new LidarrError(`Lidarr returned an error (HTTP ${response.status}). Check its logs.`);
     }
-
-    const body: unknown = await response.json().catch(() => undefined);
-    const parsed = schema.safeParse(body);
-    if (!parsed.success) {
-      throw new LidarrError(
-        "That address answered, but not like Lidarr's API. Check the port and any URL base.",
-      );
-    }
-    return parsed.data;
   }
 
   private describeNetworkError(error: unknown): string {

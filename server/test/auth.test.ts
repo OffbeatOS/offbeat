@@ -1,3 +1,4 @@
+import { tmpImageDir } from './helpers.js';
 import fastifyCookie from '@fastify/cookie';
 import Fastify from 'fastify';
 import { randomBytes } from 'node:crypto';
@@ -19,6 +20,7 @@ async function makeApp(baseUrl = '', loginLimiter?: LoginLimiter, trustProxy = f
     config: { baseUrl, trustProxy, logLevel: 'error' },
     db: openDatabase(':memory:'),
     secretKey: randomBytes(32),
+    imageCacheDir: tmpImageDir(),
     webRoot: null,
     logger: false,
     loginLimiter,
