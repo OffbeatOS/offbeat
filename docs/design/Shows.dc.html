@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Offbeat Shows</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#111113}
+a{color:#F2F2F2;text-decoration:none}a:hover{color:#FFFFFF}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1024px; display: grid; grid-template-columns: 232px 1fr; grid-template-rows: 1fr 72px; background: #111113; color: #F2F2F2; font-family: 'Instrument Sans', -apple-system, 'Helvetica Neue', sans-serif; overflow: hidden">
+
+<nav aria-label="Main" style="grid-row: 1; background: #161618; border-right: 1px solid #222226; padding: 28px 14px; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; align-items: baseline; gap: 2px; padding: 0 12px">
+<span style="font-size: 22px; font-weight: 700; letter-spacing: -0.03em">offbeat</span>
+<span style="width: 7px; height: 7px; border-radius: 50%; background: #FF6B4A; transform: translateY(-9px)"></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M15.5 8.5l-2 5-5 2 2-5z"></path></svg>Discover</a>
+<a href="Search.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M16.5 16.5L21 21"></path></svg>Search</a>
+<a href="Library.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v16M10 4v16M14.5 5l4 14"></path></svg>Library</a>
+<a href="Activity.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M4 19h16"></path></svg>Activity</a>
+<a href="Flows.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12c3-6 6-6 9 0s6 6 9 0"></path></svg>Flows</a>
+<a href="Shows.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; background: #232327; color: #FF6B4A; font-size: 14px; font-weight: 600"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"></path></svg><span style="color: #F2F2F2">Shows</span></a>
+</div>
+<div style="flex-grow: 1"></div>
+<a href="Settings.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>Settings</a>
+</nav>
+
+<main style="grid-row: 1; padding: 40px 48px 0; display: flex; flex-direction: column; gap: 28px; overflow: hidden">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.025em">Shows</h1>
+<span style="font-size: 14px; color: #9A9AA0">Upcoming concerts from artists you have or might like</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<button style="height: 38px; padding: 0 14px; border: 1px solid #2C2C31; border-radius: 9px; background: #1A1A1D; color: #F2F2F2; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"></path><circle cx="12" cy="10" r="2.3"></circle></svg>
+Chicago, IL
+</button>
+<button style="height: 38px; padding: 0 12px; border: 1px solid #2C2C31; border-radius: 9px; background: #1A1A1D; color: #F2F2F2; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px">Within 50 mi<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
+</div>
+</div>
+
+<div role="group" aria-label="Filter" style="display: flex; gap: 6px">
+<button aria-pressed="true" style="height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: #F2F2F2; color: #111113; font-size: 13px; font-weight: 600">All</button>
+<button style="height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: #1E1E21; color: #C4C4CA; font-size: 13px; font-weight: 500">Your Library</button>
+<button style="height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: #1E1E21; color: #C4C4CA; font-size: 13px; font-weight: 500">Recommended</button>
+<button style="height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: #1E1E21; color: #C4C4CA; font-size: 13px; font-weight: 500">Trending</button>
+</div>
+
+<sc-for list="{{months}}" as="mo" hint-placeholder-count="2">
+<section style="display: flex; flex-direction: column">
+<h2 style="margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #9A9AA0">{{mo.name}}</h2>
+<sc-for list="{{mo.shows}}" as="s" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 24px; padding: 14px 0; border-bottom: 1px solid #1F1F23">
+<div style="width: 56px; display: flex; flex-direction: column; align-items: center; gap: 1px; flex-shrink: 0">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: #FF6B4A">{{s.mon}}</span>
+<span style="font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1">{{s.day}}</span>
+<span style="font-size: 12px; color: #9A9AA0">{{s.dow}}</span>
+</div>
+<a href="Artist.dc.html" style="display: flex; align-items: center; gap: 16px; width: 380px">
+<div style="width: 56px; height: 56px; border-radius: 50%; background: {{s.color}}; flex-shrink: 0"></div>
+<div style="display: flex; flex-direction: column; gap: 3px">
+<span style="font-size: 16px; font-weight: 600">{{s.artist}}</span>
+<span style="font-size: 13px; color: {{s.reasonColor}}">{{s.reason}}</span>
+</div>
+</a>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 3px">
+<span style="font-size: 14px; font-weight: 500">{{s.venue}}</span>
+<span style="font-size: 13px; color: #9A9AA0">{{s.where}}</span>
+</div>
+<a href="#" style="height: 36px; padding: 0 16px; border: 1px solid #34343A; border-radius: 18px; color: #E4E4E8; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px">Tickets<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"></path></svg></a>
+</div>
+</sc-for>
+</section>
+</sc-for>
+</main>
+
+<footer style="grid-column: 1 / span 2; grid-row: 2; background: #19191C; border-top: 1px solid #25252A; display: flex; align-items: center; justify-content: space-between; padding: 0 28px">
+<div style="display: flex; align-items: center; gap: 16px">
+<div style="width: 44px; height: 44px; border-radius: 6px; background: #2C333D"></div>
+<div style="display: flex; flex-direction: column; gap: 6px; width: 260px">
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span style="font-weight: 600">Antidawn</span><span style="color: #6CB4FF">64%</span></div>
+<div style="height: 3px; border-radius: 2px; background: #2E2E33"><div style="width: 64%; height: 3px; border-radius: 2px; background: #6CB4FF"></div></div>
+<span style="font-size: 12px; color: #9A9AA0">Downloading, 1 more in queue</span>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 20px; font-size: 13px">
+<span style="display: flex; align-items: center; gap: 6px; color: #FF8A7A"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>1 failed</span>
+<a href="Activity.dc.html" style="color: #F2F2F2; font-weight: 600">View activity</a>
+</div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1024}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const lib = '#B4B4BA';
+    const rec = '#9A9AA0';
+    return {
+      months: [
+        { name: 'October', shows: [
+          { mon: 'OCT', day: '9', dow: 'Thu', artist: 'Four Tet', reason: 'In your library', reasonColor: lib, venue: '[Venue name]', where: 'Chicago, IL', color: '#2F3F3A' },
+          { mon: 'OCT', day: '17', dow: 'Fri', artist: 'Andy Stott', reason: 'Because you like Burial', reasonColor: rec, venue: '[Venue name]', where: 'Chicago, IL', color: '#3A4250' },
+          { mon: 'OCT', day: '24', dow: 'Fri', artist: 'Khruangbin', reason: 'Because you like Bonobo', reasonColor: rec, venue: '[Venue name]', where: 'Milwaukee, WI, 42 mi', color: '#5A3A34' }
+        ] },
+        { name: 'November', shows: [
+          { mon: 'NOV', day: '2', dow: 'Sun', artist: 'Nils Frahm', reason: 'Because you like Ólafur Arnalds', reasonColor: rec, venue: '[Venue name]', where: 'Chicago, IL', color: '#4B4136' },
+          { mon: 'NOV', day: '14', dow: 'Fri', artist: 'Jamie xx', reason: 'In your library', reasonColor: lib, venue: '[Venue name]', where: 'Chicago, IL', color: '#3E3552' },
+          { mon: 'NOV', day: '21', dow: 'Fri', artist: 'Mount Kimbie', reason: 'Trending', reasonColor: rec, venue: '[Venue name]', where: 'Evanston, IL, 14 mi', color: '#4D3038' }
+        ] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

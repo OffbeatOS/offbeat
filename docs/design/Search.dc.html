@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Offbeat Search</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#111113}
+a{color:#F2F2F2;text-decoration:none}a:hover{color:#FFFFFF}
+button,input{font-family:inherit}button{cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1024px; display: grid; grid-template-columns: 232px 1fr; grid-template-rows: 1fr 72px; background: #111113; color: #F2F2F2; font-family: 'Instrument Sans', -apple-system, 'Helvetica Neue', sans-serif; overflow: hidden">
+
+<nav aria-label="Main" style="grid-row: 1; background: #161618; border-right: 1px solid #222226; padding: 28px 14px; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; align-items: baseline; gap: 2px; padding: 0 12px">
+<span style="font-size: 22px; font-weight: 700; letter-spacing: -0.03em">offbeat</span>
+<span style="width: 7px; height: 7px; border-radius: 50%; background: #FF6B4A; transform: translateY(-9px)"></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M15.5 8.5l-2 5-5 2 2-5z"></path></svg>Discover</a>
+<a href="Search.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; background: #232327; color: #FF6B4A; font-size: 14px; font-weight: 600"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M16.5 16.5L21 21"></path></svg><span style="color: #F2F2F2">Search</span></a>
+<a href="Library.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v16M10 4v16M14.5 5l4 14"></path></svg>Library</a>
+<a href="Activity.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M4 19h16"></path></svg>Activity</a>
+<a href="Flows.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12c3-6 6-6 9 0s6 6 9 0"></path></svg>Flows</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"></path></svg>Shows</a>
+</div>
+<div style="flex-grow: 1"></div>
+<a href="Settings.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>Settings</a>
+</nav>
+
+<main style="grid-row: 1; padding: 40px 48px 0; display: flex; flex-direction: column; gap: 40px; overflow: hidden">
+<label style="position: relative; display: block">
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search artists and albums</span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9A9AA0" stroke-width="1.8" stroke-linecap="round" style="position: absolute; left: 18px; top: 16px"><circle cx="11" cy="11" r="7"></circle><path d="M16.5 16.5L21 21"></path></svg>
+<input type="search" value="boards of canada" style="width: 100%; box-sizing: border-box; height: 52px; padding: 0 20px 0 50px; border: 1px solid #2C2C31; border-radius: 12px; background: #1A1A1D; color: #F2F2F2; font-size: 17px; outline: none">
+</label>
+
+<div style="display: grid; grid-template-columns: 420px 1fr; gap: 40px">
+<section style="display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">Top Result</h2>
+<div style="background: #18181B; border-radius: 14px; padding: 28px; display: flex; flex-direction: column; gap: 20px">
+<div style="width: 120px; height: 120px; border-radius: 50%; background: #45503A"></div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 30px; font-weight: 700; letter-spacing: -0.02em">Boards of Canada</span>
+<span style="font-size: 14px; color: #9A9AA0">Artist, IDM, Ambient</span>
+</div>
+<div style="display: flex; gap: 10px">
+<a href="Artist.dc.html" style="height: 40px; padding: 0 18px; border-radius: 20px; background: #F2F2F2; color: #111113; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>In Library</a>
+<span style="height: 40px; padding: 0 16px; display: flex; align-items: center; font-size: 13px; color: #9A9AA0">2 of 4 albums</span>
+</div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">Albums</h2>
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{albums}}" as="al" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 16px; padding: 10px 0; border-bottom: 1px solid #1F1F23">
+<div style="width: 56px; height: 56px; border-radius: 6px; background: {{al.color}}; flex-shrink: 0"></div>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 15px; font-weight: 500">{{al.title}}</span>
+<span style="font-size: 13px; color: #9A9AA0">{{al.meta}}</span>
+</div>
+<sc-if value="{{al.inLib}}" hint-placeholder-val="{{ false }}">
+<span style="display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; color: #B4B4BA"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>In Library</span>
+</sc-if>
+<sc-if value="{{al.canAdd}}" hint-placeholder-val="{{ false }}">
+<button style="height: 30px; padding: 0 12px; border: 1px solid #34343A; border-radius: 15px; background: transparent; color: #E4E4E8; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 5px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>Add</button>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</section>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 18px">
+<h2 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">Related Artists</h2>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px">
+<sc-for list="{{related}}" as="s" hint-placeholder-count="6">
+<a href="Artist.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 12px">
+<div style="width: 132px; height: 132px; border-radius: 50%; background: {{s.color}}"></div>
+<span style="font-size: 14px; font-weight: 500">{{s.name}}</span>
+</a>
+</sc-for>
+</div>
+</section>
+</main>
+
+<footer style="grid-column: 1 / span 2; grid-row: 2; background: #19191C; border-top: 1px solid #25252A; display: flex; align-items: center; justify-content: space-between; padding: 0 28px">
+<div style="display: flex; align-items: center; gap: 16px">
+<div style="width: 44px; height: 44px; border-radius: 6px; background: #2C333D"></div>
+<div style="display: flex; flex-direction: column; gap: 6px; width: 260px">
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span style="font-weight: 600">Antidawn</span><span style="color: #6CB4FF">64%</span></div>
+<div style="height: 3px; border-radius: 2px; background: #2E2E33"><div style="width: 64%; height: 3px; border-radius: 2px; background: #6CB4FF"></div></div>
+<span style="font-size: 12px; color: #9A9AA0">Downloading, 1 more in queue</span>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 20px; font-size: 13px">
+<span style="display: flex; align-items: center; gap: 6px; color: #FF8A7A"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>1 failed</span>
+<a href="Activity.dc.html" style="color: #F2F2F2; font-weight: 600">View activity</a>
+</div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1024}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      albums: [
+        { title: 'Music Has the Right to Children', meta: 'Album, 1998', color: '#4A5A3E', inLib: true, canAdd: false },
+        { title: 'Geogaddi', meta: 'Album, 2002', color: '#5A3E3E', inLib: true, canAdd: false },
+        { title: 'The Campfire Headphase', meta: 'Album, 2005', color: '#5B4A30', inLib: false, canAdd: true },
+        { title: "Tomorrow's Harvest", meta: 'Album, 2013', color: '#35404A', inLib: false, canAdd: true }
+      ],
+      related: [
+        { name: 'Bibio', color: '#4B4136' },
+        { name: 'Tycho', color: '#5A4632' },
+        { name: 'Aphex Twin', color: '#3A3A48' },
+        { name: 'Helios', color: '#2F4048' },
+        { name: 'Casino Versus Japan', color: '#483A4A' },
+        { name: 'Lusine', color: '#3A4838' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

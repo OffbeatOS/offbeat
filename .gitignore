@@ -13,6 +13,5 @@ coverage/
 .DS_Store
 Thumbs.db
 
-docs/
 # Personal Claude Code settings
 .claude/settings.local.json

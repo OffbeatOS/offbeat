@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Offbeat Library</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#111113}
+a{color:#F2F2F2;text-decoration:none}a:hover{color:#FFFFFF}
+button,input{font-family:inherit}button{cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1024px; display: grid; grid-template-columns: 232px 1fr; grid-template-rows: 1fr 72px; background: #111113; color: #F2F2F2; font-family: 'Instrument Sans', -apple-system, 'Helvetica Neue', sans-serif; overflow: hidden">
+
+<nav aria-label="Main" style="grid-row: 1; background: #161618; border-right: 1px solid #222226; padding: 28px 14px; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; align-items: baseline; gap: 2px; padding: 0 12px">
+<span style="font-size: 22px; font-weight: 700; letter-spacing: -0.03em">offbeat</span>
+<span style="width: 7px; height: 7px; border-radius: 50%; background: #FF6B4A; transform: translateY(-9px)"></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M15.5 8.5l-2 5-5 2 2-5z"></path></svg>Discover</a>
+<a href="Search.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M16.5 16.5L21 21"></path></svg>Search</a>
+<a href="Library.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; background: #232327; color: #FF6B4A; font-size: 14px; font-weight: 600"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v16M10 4v16M14.5 5l4 14"></path></svg><span style="color: #F2F2F2">Library</span></a>
+<a href="Activity.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M4 19h16"></path></svg>Activity</a>
+<a href="Flows.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12c3-6 6-6 9 0s6 6 9 0"></path></svg>Flows</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"></path></svg>Shows</a>
+</div>
+<div style="flex-grow: 1"></div>
+<a href="Settings.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>Settings</a>
+</nav>
+
+<main style="grid-row: 1; padding: 40px 48px 0; display: flex; flex-direction: column; gap: 28px; overflow: hidden">
+<div style="display: flex; align-items: baseline; gap: 14px">
+<h1 style="margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.025em">Library</h1>
+<span style="font-size: 15px; color: #9A9AA0">248 artists</span>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div role="group" aria-label="Filter" style="display: flex; gap: 6px">
+<button aria-pressed="true" style="height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: #F2F2F2; color: #111113; font-size: 13px; font-weight: 600">All</button>
+<button style="height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: #1E1E21; color: #C4C4CA; font-size: 13px; font-weight: 500">Monitored</button>
+<button style="height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: #1E1E21; color: #C4C4CA; font-size: 13px; font-weight: 500">Missing Albums</button>
+<button style="height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: #1E1E21; color: #C4C4CA; font-size: 13px; font-weight: 500">Recently Added</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<label style="position: relative; display: block">
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Filter library</span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9A9AA0" stroke-width="2" stroke-linecap="round" style="position: absolute; left: 12px; top: 10px"><circle cx="11" cy="11" r="7"></circle><path d="M16.5 16.5L21 21"></path></svg>
+<input type="text" placeholder="Filter" style="width: 200px; height: 36px; box-sizing: border-box; padding: 0 12px 0 36px; border: 1px solid #2C2C31; border-radius: 9px; background: #1A1A1D; color: #F2F2F2; font-size: 13px; outline: none">
+</label>
+<button style="height: 36px; padding: 0 12px; border: 1px solid #2C2C31; border-radius: 9px; background: #1A1A1D; color: #E4E4E8; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px">Name A to Z<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button>
+<div role="group" aria-label="View" style="display: flex; gap: 2px; padding: 3px; background: #1E1E21; border-radius: 9px">
+<button aria-label="Grid view" aria-pressed="true" style="width: 32px; height: 30px; border: 0; border-radius: 7px; background: #34343A; color: #F2F2F2; display: flex; align-items: center; justify-content: center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6.5" height="6.5" rx="1"></rect><rect x="13.5" y="4" width="6.5" height="6.5" rx="1"></rect><rect x="4" y="13.5" width="6.5" height="6.5" rx="1"></rect><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1"></rect></svg></button>
+<button aria-label="List view" style="width: 32px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: #A6A6AC; display: flex; align-items: center; justify-content: center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+</div>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: 24px; row-gap: 30px">
+<sc-for list="{{artists}}" as="a" hint-placeholder-count="21">
+<a href="Artist.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 10px">
+<div style="width: 128px; height: 128px; border-radius: 50%; background: {{a.color}}"></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 2px">
+<span style="font-size: 14px; font-weight: 500">{{a.name}}</span>
+<span style="font-size: 12px; color: {{a.noteColor}}">{{a.note}}</span>
+</div>
+</a>
+</sc-for>
+</div>
+</main>
+
+<footer style="grid-column: 1 / span 2; grid-row: 2; background: #19191C; border-top: 1px solid #25252A; display: flex; align-items: center; justify-content: space-between; padding: 0 28px">
+<div style="display: flex; align-items: center; gap: 16px">
+<div style="width: 44px; height: 44px; border-radius: 6px; background: #2C333D"></div>
+<div style="display: flex; flex-direction: column; gap: 6px; width: 260px">
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span style="font-weight: 600">Antidawn</span><span style="color: #6CB4FF">64%</span></div>
+<div style="height: 3px; border-radius: 2px; background: #2E2E33"><div style="width: 64%; height: 3px; border-radius: 2px; background: #6CB4FF"></div></div>
+<span style="font-size: 12px; color: #9A9AA0">Downloading, 1 more in queue</span>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 20px; font-size: 13px">
+<span style="display: flex; align-items: center; gap: 6px; color: #FF8A7A"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>1 failed</span>
+<a href="Activity.dc.html" style="color: #F2F2F2; font-weight: 600">View activity</a>
+</div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1024}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const names = ['Aphex Twin', 'Bibio', 'Boards of Canada', 'Bonobo', 'Burial', 'Caribou', 'Cocteau Twins', 'Floating Points', 'Four Tet', 'Jamie xx', 'Khruangbin', 'Massive Attack', 'Mount Kimbie', 'Nils Frahm', 'Portishead', 'Radiohead', 'Sade', 'Slowdive', 'Sufjan Stevens', 'Thom Yorke', 'Tycho'];
+    const colors = ['#3A3A48', '#4B4136', '#45503A', '#3B4A3A', '#2A323D', '#5B4A2E', '#4A3A52', '#274055', '#2F3F3A', '#3E3552', '#5A3A34', '#302F38', '#4D3038', '#4B4136', '#3A4248', '#40383A', '#4A3E36', '#3A4550', '#4A4436', '#35383F', '#5A4632'];
+    const notes = { 'Burial': 'Downloading', 'Boards of Canada': '2 missing', 'Caribou': '1 missing', 'Slowdive': 'Unmonitored' };
+    return {
+      artists: names.map((n, i) => ({
+        name: n,
+        color: colors[i],
+        note: notes[n] || ' ',
+        noteColor: notes[n] === 'Downloading' ? '#6CB4FF' : '#9A9AA0'
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

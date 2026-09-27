@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Offbeat Setup</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#111113}
+a{color:#F2F2F2;text-decoration:none}a:hover{color:#FFFFFF}
+button,input,select{font-family:inherit}button{cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1024px; background: #111113; color: #F2F2F2; font-family: 'Instrument Sans', -apple-system, 'Helvetica Neue', sans-serif; display: flex; flex-direction: column; align-items: center; overflow: hidden">
+
+<div style="width: 100%; box-sizing: border-box; padding: 32px 48px; display: flex; align-items: baseline; gap: 2px">
+<span style="font-size: 22px; font-weight: 700; letter-spacing: -0.03em">offbeat</span>
+<span style="width: 7px; height: 7px; border-radius: 50%; background: #FF6B4A; transform: translateY(-9px)"></span>
+</div>
+
+<div style="width: 560px; display: flex; flex-direction: column; gap: 40px; padding-top: 40px">
+<ol aria-label="Setup steps" style="margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="4">
+<li style="display: flex; flex-direction: column; gap: 10px">
+<div style="height: 3px; border-radius: 2px; background: {{s.bar}}"></div>
+<span style="font-size: 12px; font-weight: 600; color: {{s.fg}}">{{s.label}}</span>
+</li>
+</sc-for>
+</ol>
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<h1 style="margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.025em">Connect Lidarr</h1>
+<p style="margin: 0; font-size: 15px; line-height: 1.55; color: #A6A6AC">Offbeat adds artists and albums through Lidarr, so it needs to reach your Lidarr server. Use the address Offbeat can see from its container, not necessarily the one in your browser.</p>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 20px">
+<label style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 13px; font-weight: 600; color: #C4C4CA">Lidarr URL</span>
+<input type="url" value="http://lidarr:8686" style="height: 46px; box-sizing: border-box; padding: 0 14px; border: 1px solid #2C2C31; border-radius: 10px; background: #1A1A1D; color: #F2F2F2; font-size: 15px; outline: none">
+</label>
+<label style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 13px; font-weight: 600; color: #C4C4CA">API Key</span>
+<input type="password" value="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" style="height: 46px; box-sizing: border-box; padding: 0 14px; border: 1px solid #2C2C31; border-radius: 10px; background: #1A1A1D; color: #F2F2F2; font-size: 15px; outline: none">
+<span style="font-size: 12px; color: #9A9AA0">Found in Lidarr under Settings, General</span>
+</label>
+<div style="display: flex; align-items: center; gap: 14px">
+<button style="height: 40px; padding: 0 16px; border: 1px solid #34343A; border-radius: 20px; background: transparent; color: #E4E4E8; font-size: 13px; font-weight: 600">Test Connection</button>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #B4B4BA"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>Connected</span>
+</div>
+</div>
+
+<div style="height: 1px; background: #222226"></div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 600">Defaults for new artists</h2>
+<span style="font-size: 13px; color: #9A9AA0">Loaded from your Lidarr. You can change these later, or per add.</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: -20px">
+<sc-for list="{{selects}}" as="f" hint-placeholder-count="3">
+<label style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 13px; font-weight: 600; color: #C4C4CA">{{f.label}}</span>
+<span style="position: relative; display: block">
+<select style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 34px 0 12px; border: 1px solid #2C2C31; border-radius: 10px; background: #1A1A1D; color: #F2F2F2; font-size: 14px; appearance: none; -webkit-appearance: none"><option>{{f.value}}</option></select>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9A9AA0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; right: 12px; top: 16px; pointer-events: none"><path d="M6 9l6 6 6-6"></path></svg>
+</span>
+</label>
+</sc-for>
+</div>
+
+<div style="display: flex; justify-content: space-between; padding-top: 8px">
+<button style="height: 44px; padding: 0 20px; border: 0; border-radius: 22px; background: transparent; color: #B4B4BA; font-size: 14px; font-weight: 600">Back</button>
+<button style="height: 44px; padding: 0 26px; border: 0; border-radius: 22px; background: #F2F2F2; color: #111113; font-size: 14px; font-weight: 600">Continue</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1024}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const steps = ['Account', 'Lidarr', 'Navidrome', 'Last.fm'];
+    return {
+      steps: steps.map((l, i) => ({
+        label: (i + 1) + '. ' + l,
+        bar: i < 1 ? '#8E8E95' : (i === 1 ? '#FF6B4A' : '#2A2A2F'),
+        fg: i === 1 ? '#F2F2F2' : (i < 1 ? '#A6A6AC' : '#8E8E95')
+      })),
+      selects: [
+        { label: 'Quality Profile', value: 'Lossless' },
+        { label: 'Metadata Profile', value: 'Standard' },
+        { label: 'Root Folder', value: '/music' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

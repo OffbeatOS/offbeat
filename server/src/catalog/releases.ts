@@ -54,7 +54,7 @@ export function albumTrackTotal(album: LidarrAlbum): number {
   return stats?.totalTrackCount || stats?.trackCount || 0;
 }
 
-/** Status chip rules from PLAN.md, applied to a Lidarr album. */
+/** Status chip rules (docs/design), applied to a Lidarr album. */
 export function lidarrStatus(album: LidarrAlbum): ReleaseStatus {
   const files = album.statistics?.trackFileCount ?? 0;
   const total = albumTrackTotal(album);

@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Offbeat Flows</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#111113}
+a{color:#F2F2F2;text-decoration:none}a:hover{color:#FFFFFF}
+button,input{font-family:inherit}button{cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1024px; display: grid; grid-template-columns: 232px 1fr; grid-template-rows: 1fr 72px; background: #111113; color: #F2F2F2; font-family: 'Instrument Sans', -apple-system, 'Helvetica Neue', sans-serif; overflow: hidden">
+
+<nav aria-label="Main" style="grid-row: 1; background: #161618; border-right: 1px solid #222226; padding: 28px 14px; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; align-items: baseline; gap: 2px; padding: 0 12px">
+<span style="font-size: 22px; font-weight: 700; letter-spacing: -0.03em">offbeat</span>
+<span style="width: 7px; height: 7px; border-radius: 50%; background: #FF6B4A; transform: translateY(-9px)"></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M15.5 8.5l-2 5-5 2 2-5z"></path></svg>Discover</a>
+<a href="Search.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M16.5 16.5L21 21"></path></svg>Search</a>
+<a href="Library.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v16M10 4v16M14.5 5l4 14"></path></svg>Library</a>
+<a href="Activity.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M4 19h16"></path></svg>Activity</a>
+<a href="Flows.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; background: #232327; color: #FF6B4A; font-size: 14px; font-weight: 600"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12c3-6 6-6 9 0s6 6 9 0"></path></svg><span style="color: #F2F2F2">Flows</span></a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"></path></svg>Shows</a>
+</div>
+<div style="flex-grow: 1"></div>
+<a href="Settings.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #B4B4BA; font-size: 14px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>Settings</a>
+</nav>
+
+<main style="grid-row: 1; display: grid; grid-template-columns: 280px 1fr 380px; overflow: hidden">
+<div style="border-right: 1px solid #1F1F23; padding: 40px 20px; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 0 8px">
+<h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.025em">Flows</h1>
+<button aria-label="New flow" style="width: 34px; height: 34px; border: 0; border-radius: 17px; background: #232327; color: #F2F2F2; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<a href="#" style="display: flex; flex-direction: column; gap: 3px; padding: 12px; border-radius: 10px; background: #1E1E21">
+<span style="font-size: 15px; font-weight: 600">Weekly Flow</span>
+<span style="font-size: 12px; color: #9A9AA0">40 tracks, refreshes Monday</span>
+</a>
+<a href="#" style="display: flex; flex-direction: column; gap: 3px; padding: 12px; border-radius: 10px">
+<span style="font-size: 15px; font-weight: 500">Late Night</span>
+<span style="font-size: 12px; color: #9A9AA0">25 tracks, refreshes daily</span>
+</a>
+<a href="#" style="display: flex; flex-direction: column; gap: 3px; padding: 12px; border-radius: 10px">
+<span style="font-size: 15px; font-weight: 500">UK Garage Deep Dive</span>
+<span style="font-size: 12px; color: #9A9AA0">Draft</span>
+</a>
+</div>
+<div style="height: 1px; background: #1F1F23; margin: 4px 8px"></div>
+<span style="padding: 0 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #9A9AA0">Imported Playlists</span>
+<a href="#" style="display: flex; flex-direction: column; gap: 3px; padding: 12px; border-radius: 10px">
+<span style="font-size: 15px; font-weight: 500">Road Trip 2025</span>
+<span style="font-size: 12px; color: #9A9AA0">58 of 62 tracks found</span>
+</a>
+</div>
+
+<div style="padding: 40px 40px 0; display: flex; flex-direction: column; gap: 32px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em">Weekly Flow</h2>
+<span style="font-size: 13px; color: #9A9AA0">Next refresh Monday at 6:00 AM</span>
+</div>
+<div style="display: flex; gap: 8px">
+<button style="height: 38px; padding: 0 16px; border: 1px solid #34343A; border-radius: 19px; background: transparent; color: #E4E4E8; font-size: 13px; font-weight: 600">Run Now</button>
+<button style="height: 38px; padding: 0 18px; border: 0; border-radius: 19px; background: #F2F2F2; color: #111113; font-size: 13px; font-weight: 600">Save</button>
+</div>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 14px">
+<h3 style="margin: 0; font-size: 15px; font-weight: 600">Schedule</h3>
+<div style="display: flex; align-items: center; gap: 16px">
+<div role="group" aria-label="Refresh days" style="display: flex; gap: 6px">
+<sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+<button aria-pressed="{{d.on}}" style="width: 38px; height: 38px; border: 0; border-radius: 19px; background: {{d.bg}}; color: {{d.fg}}; font-size: 13px; font-weight: 600">{{d.label}}</button>
+</sc-for>
+</div>
+<span style="font-size: 13px; color: #9A9AA0">at</span>
+<button style="height: 38px; padding: 0 14px; border: 1px solid #2C2C31; border-radius: 9px; background: #1A1A1D; color: #F2F2F2; font-size: 14px; font-weight: 500">6:00 AM</button>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<h3 style="margin: 0; font-size: 15px; font-weight: 600">Track Count</h3>
+<span style="font-size: 14px; font-weight: 600">40</span>
+</div>
+<div style="position: relative; height: 4px; border-radius: 2px; background: #2E2E33">
+<div style="width: 40%; height: 4px; border-radius: 2px; background: #F2F2F2"></div>
+<div style="position: absolute; left: 40%; top: -8px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: #FFFFFF"></div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h3 style="margin: 0; font-size: 15px; font-weight: 600">Source Mix</h3>
+<span style="font-size: 13px; color: #9A9AA0">Where tracks come from. Always adds up to 100%.</span>
+</div>
+<sc-for list="{{mix}}" as="m" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: 110px 1fr 44px; align-items: center; gap: 16px">
+<span style="font-size: 14px; font-weight: 500">{{m.label}}</span>
+<div style="position: relative; height: 4px; border-radius: 2px; background: #2E2E33">
+<div style="width: {{m.pct}}; height: 4px; border-radius: 2px; background: #F2F2F2"></div>
+<div style="position: absolute; left: {{m.pct}}; top: -8px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: #FFFFFF"></div>
+</div>
+<span style="font-size: 14px; color: #B4B4BA; text-align: right">{{m.pct}}</span>
+</div>
+</sc-for>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 14px">
+<h3 style="margin: 0; font-size: 15px; font-weight: 600">Focus</h3>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<span style="height: 34px; padding: 0 8px 0 14px; border-radius: 17px; background: #232327; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px">Future Garage<button aria-label="Remove Future Garage" style="width: 22px; height: 22px; border: 0; border-radius: 11px; background: transparent; color: #9A9AA0; display: flex; align-items: center; justify-content: center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></span>
+<span style="height: 34px; padding: 0 8px 0 14px; border-radius: 17px; background: #232327; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px">Dub Techno<button aria-label="Remove Dub Techno" style="width: 22px; height: 22px; border: 0; border-radius: 11px; background: transparent; color: #9A9AA0; display: flex; align-items: center; justify-content: center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></span>
+<span style="height: 34px; padding: 0 8px 0 14px; border-radius: 17px; background: #232327; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px">Burial<button aria-label="Remove Burial" style="width: 22px; height: 22px; border: 0; border-radius: 11px; background: transparent; color: #9A9AA0; display: flex; align-items: center; justify-content: center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></span>
+<button style="height: 34px; padding: 0 14px; border: 1px dashed #3A3A40; border-radius: 17px; background: transparent; color: #B4B4BA; font-size: 13px; font-weight: 500">Add tag or artist</button>
+</div>
+<label style="display: flex; align-items: center; justify-content: space-between; padding-top: 8px">
+<span style="display: flex; flex-direction: column; gap: 3px">
+<span style="font-size: 14px; font-weight: 500">Deep Dive</span>
+<span style="font-size: 13px; color: #9A9AA0">Favor lesser-known artists over popular ones</span>
+</span>
+<span style="width: 44px; height: 26px; border-radius: 13px; background: #FF6B4A; position: relative; flex-shrink: 0"><span style="position: absolute; right: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF"></span></span>
+</label>
+</section>
+</div>
+
+<aside style="background: #151517; border-left: 1px solid #1F1F23; padding: 40px 28px 0; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h3 style="margin: 0; font-size: 17px; font-weight: 600">Preview</h3>
+<span style="font-size: 13px; color: #9A9AA0">A sample of what this flow would pick right now</span>
+</div>
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{preview}}" as="t" hint-placeholder-count="8">
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #1F1F23">
+<div style="width: 40px; height: 40px; border-radius: 5px; background: {{t.color}}; flex-shrink: 0"></div>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0">
+<span style="font-size: 14px; font-weight: 500">{{t.title}}</span>
+<span style="font-size: 12px; color: #9A9AA0">{{t.artist}}</span>
+</div>
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #8E8E95">{{t.src}}</span>
+</div>
+</sc-for>
+</div>
+<button style="align-self: flex-start; height: 34px; padding: 0 14px; border: 0; border-radius: 17px; background: #232327; color: #E4E4E8; font-size: 13px; font-weight: 600">Shuffle Preview</button>
+</aside>
+</main>
+
+<footer style="grid-column: 1 / span 2; grid-row: 2; background: #19191C; border-top: 1px solid #25252A; display: flex; align-items: center; justify-content: space-between; padding: 0 28px">
+<div style="display: flex; align-items: center; gap: 16px">
+<div style="width: 44px; height: 44px; border-radius: 6px; background: #2C333D"></div>
+<div style="display: flex; flex-direction: column; gap: 6px; width: 260px">
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span style="font-weight: 600">Antidawn</span><span style="color: #6CB4FF">64%</span></div>
+<div style="height: 3px; border-radius: 2px; background: #2E2E33"><div style="width: 64%; height: 3px; border-radius: 2px; background: #6CB4FF"></div></div>
+<span style="font-size: 12px; color: #9A9AA0">Downloading, 1 more in queue</span>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 20px; font-size: 13px">
+<span style="display: flex; align-items: center; gap: 6px; color: #FF8A7A"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>1 failed</span>
+<a href="Activity.dc.html" style="color: #F2F2F2; font-weight: 600">View activity</a>
+</div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1024}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const on = ['M'];
+    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    return {
+      days: labels.map((l, i) => {
+        const active = i === 0;
+        return { label: l, on: active ? 'true' : 'false', bg: active ? '#F2F2F2' : '#1E1E21', fg: active ? '#111113' : '#C4C4CA' };
+      }),
+      mix: [
+        { label: 'Discover', pct: '50%' },
+        { label: 'Focus', pct: '20%' },
+        { label: 'Library', pct: '20%' },
+        { label: 'Trending', pct: '10%' }
+      ],
+      preview: [
+        { title: 'Numb', artist: 'Andy Stott', src: 'Discover', color: '#3A4250' },
+        { title: 'Archangel', artist: 'Burial', src: 'Focus', color: '#2F3A33' },
+        { title: 'Says', artist: 'Nils Frahm', src: 'Discover', color: '#4B4136' },
+        { title: 'Kerala', artist: 'Bonobo', src: 'Library', color: '#3B4A3A' },
+        { title: 'Maria También', artist: 'Khruangbin', src: 'Discover', color: '#5A3A34' },
+        { title: "Can't Do Without You", artist: 'Caribou', src: 'Trending', color: '#5B4A2E' },
+        { title: 'Loud Places', artist: 'Jamie xx', src: 'Library', color: '#3E3552' },
+        { title: 'Near Dark', artist: 'Burial', src: 'Focus', color: '#2F3A33' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

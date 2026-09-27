@@ -4,7 +4,7 @@ import { Api, ApiError } from '../../core/api';
 import { Icon } from '../icon/icon';
 
 /**
- * The status chip for a release, or its Add button (PLAN.md status chip rules):
+ * The status chip for a release, or its Add button (status chip rules in docs/design):
  * In Library, "N missing" (partial), Wanted (monitored, no files yet), Add.
  * Adding locks the button, so repeated clicks send one request.
  */

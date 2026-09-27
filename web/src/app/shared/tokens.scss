@@ -1,4 +1,4 @@
-// Design tokens (PLAN.md section 8). Use these everywhere; never hard-code a color.
+// Design tokens (docs/design/README.md). Use these everywhere; never hard-code a color.
 // Loaded once from styles.scss. Breakpoints and type roles live in _mixins.scss.
 
 :root {
@@ -24,7 +24,7 @@
   --text-2: #b4b4ba;
   --text-3: #9a9aa0;
   --text-4: #8e8e95;
-  // Used by the mockups for specific roles; not in the PLAN.md table.
+  // Used by the mockups for specific roles; listed in docs/design too.
   --text-soft: #e4e4e8; // outlined button labels, tag pills
   --text-label: #c4c4ca; // form field labels
   --text-lead: #a6a6ac; // intro paragraphs, inactive segments

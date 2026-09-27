@@ -1,4 +1,4 @@
-// Enforces the "no em dashes anywhere" working agreement (PLAN.md section 1)
+// Enforces the "no em dashes anywhere" working agreement (CONTRIBUTING.md)
 // across source, docs, and config. Exits non-zero and lists every hit.
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -27,7 +27,7 @@ function walk(dir) {
 walk('.');
 
 if (hits.length > 0) {
-  console.error(`Em dashes are not allowed (PLAN.md section 1). Found ${hits.length}:`);
+  console.error(`Em dashes are not allowed (see CONTRIBUTING.md). Found ${hits.length}:`);
   for (const hit of hits) console.error(`  ${hit}`);
   process.exit(1);
 }
