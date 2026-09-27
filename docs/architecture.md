@@ -43,7 +43,7 @@ Backing up Offbeat means backing up this folder.
 
 ## Settings live in the UI
 
-Environment variables cover deployment only. Everything else (Lidarr URL and key, add defaults, discovery tuning) is configured through onboarding and Settings, and stored in SQLite. Sections that hold credentials are encrypted as a whole with AES-256-GCM using `secret.key`.
+Environment variables cover deployment only. Everything else (Lidarr URL and key, add defaults, discovery tuning) is configured through onboarding and Settings, and stored in SQLite. Add defaults out of the box: adding an artist monitors their latest album and future releases, adding one album monitors just that album, Lidarr searches right away, and everything Offbeat adds is tagged `offbeat`. Sections that hold credentials are encrypted as a whole with AES-256-GCM using `secret.key`.
 
 | Variable | Purpose |
 | --- | --- |
@@ -110,7 +110,7 @@ The MusicBrainz ID (MBID) is the join key across every service. Pages are routed
 
 **MusicBrainz.** Release groups and track lists for artists not in Lidarr. Hard limit of 1 request per second with a descriptive `User-Agent` (`Offbeat/<version> ( https://github.com/OffbeatOS/offbeat )`). Responses are cached in SQLite for a week and served stale if MusicBrainz is unavailable.
 
-**Cover Art Archive.** Album art by release group MBID, proxied and cached.
+**Cover Art Archive.** Album art by release group MBID, proxied and cached. When it has no cover, Offbeat falls back to the one Lidarr has, then to a flat placeholder (`GET /images/album/:mbid` picks the source).
 
 **Last.fm (planned, recommended).** `artist.getSimilar`, `artist.getTopTags`, `artist.getInfo`, `tag.getTopArtists`, `user.getTopArtists`.
 
@@ -177,7 +177,7 @@ All routes live under `/api/v1`. Implemented:
 - `GET /albums/:mbid`, `POST /albums/:mbid` (add), `PATCH /albums/:mbid` (monitoring), `POST /albums/:mbid/search`
 - `GET /activity`, `POST /activity/:id/retry`, `DELETE /activity/:id` (cancel a download)
 - `GET /events` (Server-Sent Events: `activity` snapshots and `add-result`)
-- `GET /images/artist/:id`, `GET /images/remote` (signed)
+- `GET /images/artist/:id`, `GET /images/album/:mbid`, `GET /images/remote` (signed)
 
 Planned: `/discover` and `/blocklist` (phase 2), `/users` (phase 3), `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
 
@@ -186,5 +186,7 @@ Planned: `/discover` and `/blocklist` (phase 2), `/users` (phase 3), `/flows` an
 - Every route is under `/api/v1` from day one.
 - `BASE_URL` works from day one; retrofitting a subpath into an SPA is painful.
 - The Lidarr URL Offbeat uses is the one reachable from its container (often `http://lidarr:8686`), not the browser URL. Onboarding says so.
+- Every upstream request has one deadline that covers the whole exchange, body included (`server/src/integrations/http.ts`). `AbortSignal.timeout()` alone can be garbage collected mid-body and never fire.
+- Background loops start themselves (Activity polling starts in the app's `onReady` hook) and a stuck iteration is abandoned, never left to stop the loop.
 - Render from cache first, refresh in the background. Pages should never wait on upstream APIs they do not need.
 - Offbeat never writes directly into the user's music library. Library changes go through Lidarr; generated flow files go in Offbeat's own folder.

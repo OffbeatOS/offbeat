@@ -16,10 +16,9 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 - [x] Dockerfile (multi-stage, Alpine, PUID/PGID) and a docker-compose example
 - [x] GitHub Actions: lint, typecheck, test, and a multi-arch (amd64 and arm64) image pushed to GHCR on version tags
 
-## Phase 1: Library and requests (in progress)
+## Phase 1: Library and requests (done)
 
 - [x] Onboarding wizard: admin account, Lidarr connection with test, profile and folder dropdowns
-- [ ] Optional Last.fm step in onboarding
 - [x] Local accounts and sessions
 - [x] Lidarr client with caching
 - [x] Library screen
@@ -32,6 +31,7 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 - Recommendation engine (see [architecture](docs/architecture.md#discovery-engine))
 - Discover page with sections, mode switch, feedback, quick add
 - Blocklist (artists and tags)
+- Last.fm connection (optional step in onboarding, and in Settings), moved from phase 1 since discovery is its first use
 - Per-user Last.fm and ListenBrainz usernames
 - Scheduled refresh with a manual trigger
 
@@ -40,6 +40,7 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 - Users and permissions (add artists, add albums, change monitoring, delete, access flows)
 - Reverse-proxy header auth, optional local-network auto-login
 - Notifications (Gotify, generic webhooks)
+- Lidarr webhook receiver (Settings, Connect, Webhook in Lidarr) for instant Activity updates on grab and import; polling stays as the fallback
 - Shows via Ticketmaster
 - Admin password reset CLI
 
