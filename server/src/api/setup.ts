@@ -10,6 +10,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { type SessionCookieOptions, setSessionCookie } from '../auth/guard.js';
 import { hashPassword } from '../auth/password.js';
+import { isLidarrConfigured } from '../integrations/lidarr/settings.js';
 import { createSession } from '../auth/sessions.js';
 import type { Db } from '../db/index.js';
 import { users } from '../db/schema.js';
@@ -27,7 +28,7 @@ const hasUsers = (db: Db) => (db.select({ n: count() }).from(users).get()?.n ?? 
 
 export const setupRoutes: FastifyPluginAsync<{ cookie: SessionCookieOptions }> = async (app, { cookie }) => {
   app.get('/setup/state', { config: { public: true } }, async (): Promise<SetupState> => {
-    return { needsAdmin: !hasUsers(app.db) };
+    return { needsAdmin: !hasUsers(app.db), lidarrConfigured: isLidarrConfigured(app.settings) };
   });
 
   /** Creates the first admin and signs them in. Refused once any user exists. */

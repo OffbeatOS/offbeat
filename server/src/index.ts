@@ -10,10 +10,10 @@ const WEB_ROOT = fileURLToPath(new URL('../../web/dist/web/browser', import.meta
 async function main() {
   const config = loadConfig();
   const paths = prepareConfigDir(config.configDir);
-  loadOrCreateSecretKey(paths.secretKey);
+  const secretKey = loadOrCreateSecretKey(paths.secretKey);
   const db = openDatabase(paths.database);
 
-  const app = await buildApp({ config, db, webRoot: WEB_ROOT });
+  const app = await buildApp({ config, db, secretKey, webRoot: WEB_ROOT });
   app.log.info(`Offbeat ${VERSION}, config dir ${paths.root}`);
 
   let closing = false;

@@ -18,6 +18,7 @@ async function makeApp(baseUrl = '', loginLimiter?: LoginLimiter, trustProxy = f
   return buildApp({
     config: { baseUrl, trustProxy, logLevel: 'error' },
     db: openDatabase(':memory:'),
+    secretKey: randomBytes(32),
     webRoot: null,
     logger: false,
     loginLimiter,
@@ -34,7 +35,7 @@ function sessionCookie(res: { cookies: { name: string; value: string }[] }) {
 describe('first-run setup', () => {
   it('reports that an admin is needed, then creates one and signs them in', async () => {
     const app = await makeApp();
-    expect((await app.inject('/api/v1/setup/state')).json()).toEqual({ needsAdmin: true });
+    expect((await app.inject('/api/v1/setup/state')).json()).toEqual({ needsAdmin: true, lidarrConfigured: false });
 
     const res = await app.inject({ method: 'POST', url: '/api/v1/setup/admin', payload: admin });
     expect(res.statusCode).toBe(201);
@@ -45,7 +46,7 @@ describe('first-run setup', () => {
 
     const me = await app.inject({ url: '/api/v1/auth/me', headers: { cookie: sessionCookie(res) } });
     expect(me.json()).toEqual({ user: { id: 1, username: 'Admin', role: 'admin' } });
-    expect((await app.inject('/api/v1/setup/state')).json()).toEqual({ needsAdmin: false });
+    expect((await app.inject('/api/v1/setup/state')).json()).toEqual({ needsAdmin: false, lidarrConfigured: false });
   });
 
   it('refuses a second admin once setup is done', async () => {

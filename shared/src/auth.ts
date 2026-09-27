@@ -16,6 +16,8 @@ export interface LoginRequest {
 export interface SetupState {
   /** True until the first admin account exists; the app sends everyone to onboarding. */
   needsAdmin: boolean;
+  /** False until an admin saves a working Lidarr connection; admins are sent back to onboarding. */
+  lidarrConfigured: boolean;
 }
 
 export interface CreateAdminRequest {

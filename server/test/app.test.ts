@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -26,6 +27,7 @@ async function makeApp(baseUrl: string) {
   return buildApp({
     config: { baseUrl, trustProxy: false, logLevel: 'error' },
     db: openDatabase(':memory:'),
+    secretKey: randomBytes(32),
     webRoot,
     logger: false,
   });
@@ -87,6 +89,7 @@ describe('status healthcheck', () => {
     const app = await buildApp({
       config: { baseUrl: '', trustProxy: false, logLevel: 'error' },
       db,
+      secretKey: randomBytes(32),
       webRoot: null,
       logger: false,
     });
@@ -101,6 +104,7 @@ describe('status healthcheck', () => {
     const app = await buildApp({
       config: { baseUrl: '', trustProxy: false, logLevel: 'error' },
       db,
+      secretKey: randomBytes(32),
       webRoot: null,
       logger: false,
     });
