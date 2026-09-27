@@ -1,5 +1,6 @@
 import fastifyCookie from '@fastify/cookie';
 import Fastify from 'fastify';
+import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { apiErrorHandler } from '../src/api/errors.js';
 import { buildApp } from '../src/app.js';
@@ -9,11 +10,13 @@ import { SESSION_TTL_MS, createSession, resolveSession } from '../src/auth/sessi
 import { openDatabase } from '../src/db/index.js';
 import { users } from '../src/db/schema.js';
 
-const admin = { username: 'Admin', password: 'correct horse battery' };
+/** Fresh credentials per run; no real or shared passwords live in the tests. */
+const password = () => randomBytes(12).toString('base64url');
+const admin = { username: 'Admin', password: password() };
 
-async function makeApp(baseUrl = '', loginLimiter?: LoginLimiter) {
+async function makeApp(baseUrl = '', loginLimiter?: LoginLimiter, trustProxy = false) {
   return buildApp({
-    config: { baseUrl, trustProxy: false, logLevel: 'error' },
+    config: { baseUrl, trustProxy, logLevel: 'error' },
     db: openDatabase(':memory:'),
     webRoot: null,
     logger: false,
@@ -51,7 +54,7 @@ describe('first-run setup', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/v1/setup/admin',
-      payload: { username: 'intruder', password: 'another password' },
+      payload: { username: 'intruder', password: password() },
     });
     expect(res.statusCode).toBe(409);
     expect(app.db.select().from(users).all()).toHaveLength(1);
@@ -66,8 +69,8 @@ describe('first-run setup', () => {
   });
 
   it.each([
-    [{ username: 'ab', password: 'long enough pw' }, /username/],
-    [{ username: 'has space', password: 'long enough pw' }, /username/],
+    [{ username: 'ab', password: password() }, /username/],
+    [{ username: 'has space', password: password() }, /username/],
     [{ username: 'fine', password: 'short' }, /password/],
   ])('validates %j', async (payload, message) => {
     const app = await makeApp();
@@ -108,12 +111,12 @@ describe('login and logout', () => {
     const wrong = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
-      payload: { username: 'Admin', password: 'nope nope nope' },
+      payload: { username: 'Admin', password: password() },
     });
     const unknown = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
-      payload: { username: 'ghost', password: 'nope nope nope' },
+      payload: { username: 'ghost', password: password() },
     });
     expect(wrong.statusCode).toBe(401);
     expect(unknown.statusCode).toBe(401);
@@ -126,7 +129,7 @@ describe('login and logout', () => {
       app.inject({
         method: 'POST',
         url: '/api/v1/auth/login',
-        payload: { username: 'Admin', password: 'wrong wrong' },
+        payload: { username: 'Admin', password: password() },
       });
     expect((await attempt()).statusCode).toBe(401);
     expect((await attempt()).statusCode).toBe(401);
@@ -140,7 +143,7 @@ describe('login and logout', () => {
     const login = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: admin });
     const cookie = sessionCookie(login);
 
-    const out = await app.inject({ method: 'POST', url: '/api/v1/auth/logout', headers: { cookie } });
+    const out = await app.inject({ method: 'POST', url: '/api/v1/auth/logout', headers: { cookie }, payload: {} });
     expect(out.statusCode).toBe(204);
     // Replaying the old cookie must not work.
     const me = await app.inject({ url: '/api/v1/auth/me', headers: { cookie } });
@@ -227,5 +230,94 @@ describe('route guard', () => {
     const res = await app.inject({ url: '/private', headers: { cookie: 'offbeat_session=forged' } });
     expect(res.statusCode).toBe(401);
     expect(res.cookies.find((c) => c.name === 'offbeat_session')?.value).toBe('');
+  });
+});
+
+describe('hardening', () => {
+  async function withAdmin(options: { limiter?: LoginLimiter; trustProxy?: boolean } = {}) {
+    const app = await makeApp('', options.limiter, options.trustProxy);
+    await app.inject({ method: 'POST', url: '/api/v1/setup/admin', payload: admin });
+    return app;
+  }
+
+  it.each([
+    ['text/plain', 'a cross-site form with enctype text/plain'],
+    ['multipart/form-data; boundary=x', 'a cross-site multipart form'],
+  ])('rejects %s bodies on writes (%s)', async (type) => {
+    const app = await withAdmin();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      headers: { 'content-type': type },
+      payload: JSON.stringify(admin),
+    });
+    expect(res.statusCode).toBe(415);
+  });
+
+  it('rejects body-less writes without a JSON content type', async () => {
+    const app = await withAdmin();
+    const login = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: admin });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/logout',
+      headers: { cookie: sessionCookie(login) },
+    });
+    expect(res.statusCode).toBe(415);
+  });
+
+  it('refuses a second account that differs only by case, at the database level', async () => {
+    const app = await withAdmin();
+    expect(() =>
+      app.db.insert(users).values({ username: 'ADMIN', passwordHash: 'x' }).run(),
+    ).toThrow(/UNIQUE/);
+  });
+
+  it('only marks the cookie Secure for HTTPS reported by a trusted proxy', async () => {
+    const httpsHeaders = { 'x-forwarded-proto': 'https' };
+    const trusted = await makeApp('', undefined, true);
+    const res = await trusted.inject({
+      method: 'POST',
+      url: '/api/v1/setup/admin',
+      headers: httpsHeaders,
+      payload: admin,
+    });
+    expect(res.cookies.find((c) => c.name === 'offbeat_session')).toMatchObject({ secure: true, sameSite: 'Lax' });
+
+    const untrusted = await makeApp('', undefined, false);
+    const spoofed = await untrusted.inject({
+      method: 'POST',
+      url: '/api/v1/setup/admin',
+      headers: httpsHeaders,
+      payload: admin,
+    });
+    expect(spoofed.cookies.find((c) => c.name === 'offbeat_session')?.secure).toBeFalsy();
+  });
+
+  it('throttles by the real client IP behind a trusted proxy', async () => {
+    const app = await withAdmin({ limiter: new LoginLimiter(1, 60_000), trustProxy: true });
+    const attempt = (ip: string) =>
+      app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/login',
+        headers: { 'x-forwarded-for': ip },
+        payload: { username: 'Admin', password: password() },
+      });
+    expect((await attempt('203.0.113.1')).statusCode).toBe(401);
+    expect((await attempt('203.0.113.1')).statusCode).toBe(429);
+    // A different client behind the same proxy is not locked out.
+    expect((await attempt('203.0.113.2')).statusCode).toBe(401);
+  });
+
+  it('ignores X-Forwarded-For when the proxy is not trusted, so it cannot dodge throttling', async () => {
+    const app = await withAdmin({ limiter: new LoginLimiter(1, 60_000), trustProxy: false });
+    const attempt = (ip: string) =>
+      app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/login',
+        headers: { 'x-forwarded-for': ip },
+        payload: { username: 'Admin', password: password() },
+      });
+    expect((await attempt('203.0.113.1')).statusCode).toBe(401);
+    expect((await attempt('203.0.113.99')).statusCode).toBe(429);
   });
 });
