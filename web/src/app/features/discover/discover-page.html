@@ -1,0 +1,138 @@
+<header class="head">
+  <h1>Discover</h1>
+  <div class="modes" role="group" aria-label="Discovery mode">
+    @for (m of modes; track m.id) {
+      <button type="button" [attr.aria-pressed]="current() === m.id" (click)="choose(m.id)">{{ m.label }}</button>
+    }
+  </div>
+</header>
+
+@if (error()) {
+  <p class="notice" role="alert"><ob-icon name="alert" [size]="15" [strokeWidth]="2" />{{ error() }}</p>
+}
+
+@if (!data() && !error()) {
+  <div class="loading" aria-busy="true" aria-label="Loading recommendations">
+    <div class="row">
+      @for (i of [1, 2, 3]; track i) {
+        <span class="ghost pick-ghost"></span>
+      }
+    </div>
+  </div>
+} @else if (firstRun()) {
+  <div class="first-run" role="status">
+    <span class="pulse" aria-hidden="true"></span>
+    <div>
+      <p class="lead">Finding artists for you</p>
+      <p>The first time takes a minute or two while Offbeat looks at your library. This page updates by itself.</p>
+    </div>
+  </div>
+} @else if (data(); as d) {
+  @if (d.items.length === 0) {
+    @if (d.seedCount === 0) {
+      <ob-empty-state
+        icon="library"
+        heading="Nothing to go on yet"
+        message="Recommendations start from the artists in your library. Add a few from Search, then come back."
+      />
+    } @else {
+      <ob-empty-state
+        icon="discover"
+        heading="No recommendations right now"
+        [message]="d.error ?? 'Try another mode, or check back after the next refresh.'"
+      />
+    }
+  } @else {
+    <section class="picks-section">
+      <div class="section-head">
+        <h2>Top Picks for You</h2>
+        <span class="meta">{{ refreshed() }}</span>
+        @if (picks().length > 3) {
+          <span class="arrows">
+            <button type="button" aria-label="Previous picks" (click)="scroll(pickRow, -1)"><ob-icon name="chevron-left" [size]="18" /></button>
+            <button type="button" aria-label="More picks" (click)="scroll(pickRow, 1)"><ob-icon name="chevron-right" [size]="18" /></button>
+          </span>
+        }
+      </div>
+      @if (addError()) {
+        <p class="add-error" role="alert">{{ addError() }}</p>
+      }
+      <div class="scroller picks" #pickRow>
+        @for (pick of picks(); track pick.mbid) {
+          <article class="pick">
+            <a [routerLink]="['/artist', pick.mbid]">
+              <span class="art">
+                <span class="initial" aria-hidden="true">{{ pick.name.charAt(0) }}</span>
+                @if (pick.imageUrl) {
+                  <img [src]="pick.imageUrl" alt="" loading="lazy" decoding="async" />
+                }
+              </span>
+              <span class="text">
+                <span class="reason">{{ reason(pick) }}</span>
+                <span class="name">{{ pick.name }}</span>
+                @if (pick.genres.length) {
+                  <span class="genres">{{ pick.genres.slice(0, 2).join(', ') }}</span>
+                }
+              </span>
+            </a>
+            <ob-quick-add
+              class="add"
+              [mbid]="pick.mbid"
+              [name]="pick.name"
+              [inLibrary]="pick.inLibrary"
+              (done)="onAdded(pick)"
+              (failed)="addError.set($event)"
+            />
+          </article>
+        }
+      </div>
+    </section>
+
+    @if (d.albums.length) {
+      <section>
+        <div class="section-head">
+          <h2>Albums to Start With</h2>
+          @if (d.albums.length > 6) {
+            <span class="arrows">
+              <button type="button" aria-label="Previous albums" (click)="scroll(albumRow, -1)"><ob-icon name="chevron-left" [size]="18" /></button>
+              <button type="button" aria-label="More albums" (click)="scroll(albumRow, 1)"><ob-icon name="chevron-right" [size]="18" /></button>
+            </span>
+          }
+        </div>
+        <div class="scroller albums" #albumRow>
+          @for (album of d.albums; track album.mbid) {
+            <a class="album" [routerLink]="['/album', album.mbid]">
+              <ob-cover [src]="album.coverUrl" />
+              <span class="text">
+                <span class="title">{{ album.title }}</span>
+                <span class="artist">{{ album.artistName }}</span>
+              </span>
+            </a>
+          }
+        </div>
+      </section>
+    }
+
+    @if (d.tags.length) {
+      <section>
+        <h2>Explore by Tag</h2>
+        <div class="tags">
+          @for (tag of d.tags; track tag) {
+            <a class="tag" [routerLink]="['/tag', tag]">{{ tag }}</a>
+          }
+        </div>
+      </section>
+    }
+
+    @if (!d.sources.lastfm) {
+      <p class="upgrade">
+        These picks come from ListenBrainz.
+        @if (session.user()?.role === 'admin') {
+          <a routerLink="/settings/integrations/lastfm">Connect Last.fm</a> for sharper recommendations and deeper cuts.
+        } @else {
+          An admin can connect Last.fm for sharper recommendations and deeper cuts.
+        }
+      </p>
+    }
+  }
+}

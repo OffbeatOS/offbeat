@@ -38,6 +38,8 @@ function setup({ lastfm = false, listenbrainzFails = false } = {}) {
     }),
     popularity: vi.fn(async (mbids: string[]) => new Map(mbids.map((m) => [m, byId.get(m) === 'Rancid' ? 900_000 : 2_000]))),
     userTopArtists: vi.fn(async () => []),
+    // The second album is the one people play.
+    releaseGroupPopularity: vi.fn(async (mbids: string[]) => new Map(mbids.map((m, i) => [m, i === 1 ? 5000 : 100]))),
   } as unknown as ListenBrainzClient;
   const lastfmClient = {
     // Last.fm knows Mad Caddies by name only, and adds weight to Lagwagon.
@@ -63,6 +65,18 @@ function setup({ lastfm = false, listenbrainzFails = false } = {}) {
       { name: 'punk rock', count: 5 },
       { name: 'skate punk', count: 3 },
     ]),
+    // Each artist: an early album, their best known one, and a live album that never counts.
+    releaseGroups: vi.fn(async (mbid: string) => {
+      const name = byId.get(mbid) ?? 'Someone';
+      return [
+        { id: `${mbid.slice(0, 30)}01`, title: `${name} Debut`, 'primary-type': 'Album', 'secondary-types': [], 'first-release-date': '1991-01-01' },
+        { id: `${mbid.slice(0, 30)}02`, title: `${name} Classic`, 'primary-type': 'Album', 'secondary-types': [], 'first-release-date': '1994-01-01' },
+        { id: `${mbid.slice(0, 30)}03`, title: `${name} Live`, 'primary-type': 'Album', 'secondary-types': ['Live'], 'first-release-date': '1999-01-01' },
+      ];
+    }),
+    artistsTagged: vi.fn(async () =>
+      ['Operation Ivy', 'Lagwagon', 'NOFX'].map((name) => ({ mbid: id(name), name, disambiguation: null })),
+    ),
   } as unknown as MusicBrainzClient;
   const lookups: string[] = [];
   const lidarr = {
@@ -128,6 +142,29 @@ describe('Discovery', () => {
     expect(balanced.items.map((i) => i.mbid)).not.toContain(WRONG_FACE_TO_FACE);
     // Both sources agree on Lagwagon, so it is near the top (refreshes vary the order a little).
     expect(names.slice(0, 2)).toContain('Lagwagon');
+  });
+
+  it("picks each top artist's most played studio album to start with, and the genres to explore", async () => {
+    const { discovery, userId } = setup();
+    await discovery.refresh(userId);
+    const page = discovery.read(userId, 'balanced');
+    expect(page.albums.map((a) => a.title)).toEqual(['Lagwagon Classic', 'No Use for a Name Classic', 'Rancid Classic']);
+    expect(page.albums[0]).toMatchObject({ type: 'Album', year: 1994, artistName: 'Lagwagon', status: { kind: 'available' } });
+    expect(page.tags).toEqual(['Punk Rock', 'Skate Punk']);
+  });
+
+  it('builds a tag page: best known first, what is recommended, and related genres from the recommendations', async () => {
+    const { discovery, userId } = setup();
+    await discovery.refresh(userId);
+    const page = await discovery.tag(userId, 'Punk Rock');
+    // Rancid is the most popular in this world, but not tagged; NOFX is in the library.
+    expect(page.artists.map((a) => [a.name, a.recommended, a.inLibrary])).toEqual([
+      ['Operation Ivy', true, false],
+      ['Lagwagon', true, false],
+      ['NOFX', false, true],
+    ]);
+    expect(page.albums.map((a) => a.title)).toContain('Operation Ivy Classic');
+    expect(page.related).toEqual(['Skate Punk']);
   });
 
   it('caches upstream answers between refreshes', async () => {

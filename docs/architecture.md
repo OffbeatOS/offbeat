@@ -153,7 +153,7 @@ Works with no API key: ListenBrainz is always a source, and a Last.fm key adds a
 
 Every upstream answer is cached in `source_cache` (similar artists and popularity 7 days, lookups 30 days, listening stats 1 day) and served stale if a source is down. `server/scripts/discover-sample.ts` prints a sample per mode and source mix for reviewing quality.
 
-Discover sections: Top Picks for You, Albums to Start With, Explore by Tag, and (phase 3) Local Shows. Users can reorder or hide sections.
+Discover sections: Top Picks for You (with quick add), Albums to Start With (each top pick's most played studio album: MusicBrainz release groups ranked by ListenBrainz listeners), Explore by Tag (genres across the recommendations, weighted by score), and (phase 3) Local Shows. Users can reorder or hide sections (slice 5). A tag page lists the best-known artists MusicBrainz tags with that genre (ranked by ListenBrainz listeners), their starting albums, and the genres that go with it in the user's recommendations.
 
 ## Data model
 
@@ -180,7 +180,8 @@ All routes live under `/api/v1`. Implemented:
 - `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
 - `GET /settings/lidarr`, `PUT /settings/lidarr`
 - `GET /settings/lastfm`, `PUT /settings/lastfm` (checked with Last.fm), `DELETE /settings/lastfm` (admin)
-- `GET /discover?mode=safer|balanced|deeper`, `POST /discover/refresh`
+- `GET /discover?mode=safer|balanced|deeper` (Top Picks, Albums to Start With, Explore by Tag), `POST /discover/refresh`
+- `GET /tags/:tag` (a tag page)
 - `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service)
 - `GET /library`, `POST /library/refresh`
 - `GET /search?q=`

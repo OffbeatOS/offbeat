@@ -232,6 +232,24 @@ export class Catalog {
     return (await this.lidarrAlbums(lidarrArtistId)).find((a) => a.foreignAlbumId === releaseGroupMbid);
   }
 
+  /**
+   * Current statuses of albums shown outside an artist page (Discover, tag
+   * pages): only albums by library artists can have one besides Add.
+   */
+  async withStatuses(albums: ReleaseSummary[]): Promise<ReleaseSummary[]> {
+    const byArtist = new Map<string, Map<string, ReleaseStatus>>();
+    for (const artistMbid of new Set(albums.map((a) => a.artistMbid))) {
+      const row = this.library.byMbid(artistMbid);
+      if (!row) continue;
+      const lidarr = await this.lidarrAlbums(row.lidarrId).catch(() => []);
+      byArtist.set(artistMbid, new Map(lidarr.map((al) => [al.foreignAlbumId, lidarrStatus(al)])));
+    }
+    return albums.map((album) => ({
+      ...album,
+      status: this.pendingOr(album.mbid, byArtist.get(album.artistMbid)?.get(album.mbid) ?? { kind: 'available' }),
+    }));
+  }
+
   /** Drops cached album statuses, for example after a download finished. */
   forgetAlbums() {
     this.albumCache.clear();

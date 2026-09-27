@@ -20,6 +20,9 @@ const similarSchema = z.array(z.object({ artist_mbid: z.string(), name: z.string
 const popularitySchema = z.array(
   z.object({ artist_mbid: z.string(), total_user_count: z.number().nullish(), total_listen_count: z.number().nullish() }),
 );
+const releaseGroupPopularitySchema = z.array(
+  z.object({ release_group_mbid: z.string(), total_user_count: z.number().nullish() }),
+);
 const topArtistsSchema = z.object({
   payload: z.object({
     artists: z.array(
@@ -88,6 +91,23 @@ export class ListenBrainzClient {
       const parsed = popularitySchema.safeParse(await response.json().catch(() => undefined));
       if (!parsed.success) throw new ListenBrainzError('ListenBrainz popularity answered in an unexpected format');
       for (const row of parsed.data) if (row.total_user_count != null) result.set(row.artist_mbid, row.total_user_count);
+    }
+    return result;
+  }
+
+  /** How many ListenBrainz users play each release group; unknown ones are left out. */
+  async releaseGroupPopularity(mbids: string[]): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+    for (let i = 0; i < mbids.length; i += 100) {
+      const response = await this.send(`${this.url}/popularity/release-group`, {
+        method: 'POST',
+        body: JSON.stringify({ release_group_mbids: mbids.slice(i, i + 100) }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) throw new ListenBrainzError(`ListenBrainz album popularity failed (HTTP ${response.status})`);
+      const parsed = releaseGroupPopularitySchema.safeParse(await response.json().catch(() => undefined));
+      if (!parsed.success) throw new ListenBrainzError('ListenBrainz album popularity answered in an unexpected format');
+      for (const row of parsed.data) if (row.total_user_count != null) result.set(row.release_group_mbid, row.total_user_count);
     }
     return result;
   }

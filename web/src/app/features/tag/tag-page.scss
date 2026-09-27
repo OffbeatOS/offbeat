@@ -1,0 +1,256 @@
+@use '../../shared/mixins';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  padding: var(--page-pad-top) var(--page-pad-x) 48px;
+  min-width: 0;
+
+  @include mixins.mobile {
+    gap: 30px;
+    padding: 24px 20px 32px;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+
+  @include mixins.mobile {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.overline {
+  @include mixins.text-overline;
+  color: var(--text-3);
+}
+
+h1 {
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  overflow-wrap: anywhere;
+
+  @include mixins.mobile {
+    font-size: 40px;
+  }
+}
+
+.hide {
+  flex-shrink: 0;
+}
+
+section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  h2 {
+    @include mixins.text-section;
+  }
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.see-all {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--grid-gap);
+
+  @include mixins.mobile {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 14px;
+  }
+}
+
+.artist {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  text-align: center;
+}
+
+.art-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 150px;
+  margin-bottom: 8px;
+}
+
+.art {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-2);
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--text-4);
+
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &:hover img {
+    filter: brightness(1.08);
+  }
+}
+
+.add {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  --quick-add-size: 38px;
+}
+
+@media (hover: hover) {
+  .add:not(.done) {
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .artist:hover .add,
+  .artist:focus-within .add {
+    opacity: 1;
+  }
+}
+
+.name {
+  max-width: 100%;
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.album {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+
+  &:hover ob-cover {
+    filter: brightness(1.08);
+  }
+
+  .text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+
+    > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .title {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .by {
+    font-size: 13px;
+    color: var(--text-3);
+  }
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tag {
+  height: 38px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-soft);
+  font-size: 14px;
+  font-weight: 500;
+
+  &:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--status-failed);
+}
+
+.quiet {
+  font-size: 14px;
+  color: var(--text-3);
+}
+
+.loading {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--grid-gap);
+
+  @include mixins.mobile {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.ghost {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--surface);
+}

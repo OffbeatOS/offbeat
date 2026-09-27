@@ -15,6 +15,9 @@ export class MusicBrainzError extends Error {}
 /** MusicBrainz has no such entity (HTTP 404). */
 export class MusicBrainzNotFound extends MusicBrainzError {}
 
+const artistSearchSchema = z.object({
+  artists: z.array(z.object({ id: z.string(), name: z.string(), disambiguation: z.string().nullish(), score: z.number().nullish() })),
+});
 const artistGenresSchema = z.object({
   genres: z.array(z.object({ name: z.string(), count: z.number() })).nullish(),
 });
@@ -115,6 +118,17 @@ export class MusicBrainzClient {
       if (error instanceof MusicBrainzNotFound) return [];
       throw error;
     }
+  }
+
+  /**
+   * Artists tagged with a genre, most relevant first. MusicBrainz genres are
+   * tags on its curated list, so this is an artist search on that tag.
+   */
+  async artistsTagged(tag: string, limit = 100): Promise<{ mbid: string; name: string; disambiguation: string | null }[]> {
+    // Quotes and backslashes would break out of the Lucene phrase.
+    const query = encodeURIComponent(`tag:"${tag.replace(/["\\]/g, '')}"`);
+    const result = await this.get(`artist?query=${query}&limit=${limit}&fmt=json`, artistSearchSchema);
+    return result.artists.map((a) => ({ mbid: a.id, name: a.name, disambiguation: a.disambiguation || null }));
   }
 
   /** Track list of a release group's earliest official release. */

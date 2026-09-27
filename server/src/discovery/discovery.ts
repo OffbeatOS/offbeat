@@ -1,4 +1,4 @@
-import type { DiscoverResponse, Recommendation } from '@offbeat/shared';
+import type { DiscoverResponse, Recommendation, ReleaseSummary, TagArtist } from '@offbeat/shared';
 import { Cron } from 'croner';
 import { and, eq } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
@@ -8,6 +8,7 @@ import type { LastfmClient } from '../integrations/lastfm/client.js';
 import type { LidarrClient, LidarrLookupArtist } from '../integrations/lidarr/client.js';
 import type { ListenBrainzClient } from '../integrations/listenbrainz/client.js';
 import type { MusicBrainzClient } from '../integrations/musicbrainz/client.js';
+import { releaseType, yearOf } from '../catalog/releases.js';
 import type { ImageUrls } from '../library/image-urls.js';
 import type { Library } from '../library/library.js';
 import {
@@ -59,6 +60,12 @@ const RESOLVE_LIMIT = 120;
  * only this many per mode are looked up in a refresh (cached for later ones).
  */
 const MUSICBRAINZ_GENRE_LIMIT = 30;
+/** Albums to Start With: one per top pick, this many per mode. */
+const STARTER_ALBUMS = 12;
+/** Explore by Tag: genres shown per mode. */
+const TAGS_SHOWN = 10;
+/** Artists shown on a tag page. */
+const TAG_ARTISTS = 30;
 /** Candidates whose popularity is looked up for Deeper. */
 const POPULARITY_LIMIT = 400;
 
@@ -125,7 +132,8 @@ export class Discovery {
       .from(recommendations)
       .where(and(eq(recommendations.userId, userId), eq(recommendations.mode, mode)))
       .get();
-    const stored = row ? (JSON.parse(row.payload) as Pick<DiscoverResponse, 'items' | 'seedCount' | 'sources'>) : null;
+    const stored = row ? (JSON.parse(row.payload) as StoredPayload) : null;
+    const library = new Set(this.library.read().artists.map((a) => a.mbid));
     return {
       mode,
       generatedAt: row ? row.generatedAt.toISOString() : null,
@@ -133,8 +141,55 @@ export class Discovery {
       error: this.errors.get(userId) ?? null,
       seedCount: stored?.seedCount ?? 0,
       sources: stored?.sources ?? { listenbrainz: true, lastfm: false },
-      items: stored?.items ?? [],
+      // Added since the refresh (a quick add): shown as in the library until the next one drops it.
+      items: (stored?.items ?? []).map((item) => ({ ...item, inLibrary: library.has(item.mbid) })),
+      albums: stored?.albums ?? [],
+      tags: stored?.tags ?? [],
     };
+  }
+
+  /**
+   * A tag page: artists MusicBrainz tags with this genre, the best known
+   * first (ListenBrainz listeners), with their most played album, and the
+   * genres that go with it in the user's own recommendations.
+   */
+  async tag(userId: number, tag: string): Promise<{ artists: TagArtist[]; albums: ReleaseSummary[]; related: string[] }> {
+    const found = await this.cache.get(`mb:tagged:${tag.toLowerCase()}`, MAX_AGE.similar, () =>
+      this.sources.musicbrainz.artistsTagged(tag),
+    );
+    const listeners = await this.popularity(found.map((a) => a.mbid));
+    const ranked = [...found]
+      .filter((a) => a.mbid !== VARIOUS_ARTISTS)
+      .sort((a, b) => (listeners.get(b.mbid) ?? 0) - (listeners.get(a.mbid) ?? 0))
+      .slice(0, TAG_ARTISTS);
+    const library = new Set(this.library.read().artists.map((a) => a.mbid));
+    const recommended = new Set(MODES.flatMap((mode) => this.read(userId, mode).items.map((i) => i.mbid)));
+    const artists = await Promise.all(
+      ranked.map(async (a): Promise<TagArtist> => {
+        const lookup = await this.lookup(a.mbid);
+        return {
+          mbid: a.mbid,
+          name: lookup?.artistName ?? a.name,
+          disambiguation: lookup?.disambiguation || a.disambiguation,
+          imageUrl: this.images.remote(artistImage(lookup)),
+          inLibrary: library.has(a.mbid),
+          recommended: recommended.has(a.mbid),
+        };
+      }),
+    );
+    const albums = await this.starterAlbums(artists.slice(0, STARTER_ALBUMS));
+
+    // Related: genres that appear alongside this one on the user's recommendations.
+    const wanted = tag.toLowerCase();
+    const counts = new Map<string, number>();
+    for (const mode of MODES) {
+      for (const item of this.read(userId, mode).items) {
+        if (!item.genres.some((g) => g.toLowerCase() === wanted)) continue;
+        for (const genre of item.genres) if (genre.toLowerCase() !== wanted) counts.set(genre, (counts.get(genre) ?? 0) + 1);
+      }
+    }
+    const related = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([g]) => g);
+    return { artists, albums, related };
   }
 
   private async refreshNow(userId: number) {
@@ -143,14 +198,20 @@ export class Discovery {
       const seeds = await this.seedsFor(userId);
       const computed = await this.compute(seeds, { random: seededRandom(started ^ userId) });
       const items = await this.enrich(computed);
+      const extras = {} as Record<DiscoveryMode, { albums: ReleaseSummary[]; tags: string[] }>;
+      for (const mode of MODES) {
+        extras[mode] = { albums: await this.starterAlbums(items[mode].slice(0, STARTER_ALBUMS)), tags: topTags(items[mode]) };
+      }
       const generatedAt = new Date();
       this.db.transaction((tx) => {
         for (const mode of MODES) {
           const payload = JSON.stringify({
             items: items[mode],
+            albums: extras[mode].albums,
+            tags: extras[mode].tags,
             seedCount: computed.seeds.length,
             sources: computed.sources,
-          });
+          } satisfies StoredPayload);
           tx.insert(recommendations)
             .values({ userId, mode, payload, generatedAt })
             .onConflictDoUpdate({
@@ -278,13 +339,13 @@ export class Discovery {
     for (const mode of MODES) {
       result[mode] = computed.modes[mode].map((r) => {
         const artist = lookups.get(r.mbid) ?? null;
-        const image = artist?.images?.find((i) => i.coverType === 'poster') ?? artist?.images?.find((i) => i.coverType === 'fanart');
+        const image = artistImage(artist);
         return {
           mbid: r.mbid,
           name: artist?.artistName ?? r.name,
           disambiguation: artist?.disambiguation || null,
           genres: genres.get(r.mbid) ?? [],
-          imageUrl: this.images.remote(image?.remoteUrl),
+          imageUrl: this.images.remote(image),
           score: r.score,
           reason: r.reason,
           seeds: r.seeds,
@@ -326,6 +387,45 @@ export class Discovery {
       result.set(mbid, pickGenres(found, { artistName: nameOf(mbid, name), source: 'musicbrainz' }));
     }
     return result;
+  }
+
+  /**
+   * Each artist's most played album (ListenBrainz listeners) among its
+   * studio albums on MusicBrainz, one per artist, in the artists' order.
+   */
+  private async starterAlbums(artists: { mbid: string; name: string }[]): Promise<ReleaseSummary[]> {
+    const albums: ReleaseSummary[] = [];
+    for (const artist of artists) {
+      const album = await this.cache
+        .get(`start:${artist.mbid}`, MAX_AGE.similar, async () => {
+          const groups = (await this.sources.musicbrainz.releaseGroups(artist.mbid)).filter(
+            (g) => releaseType(g['primary-type'], g['secondary-types']) === 'Album' && g['first-release-date'],
+          );
+          if (!groups.length) return null;
+          const listeners = await this.sources.listenbrainz
+            .releaseGroupPopularity(groups.map((g) => g.id))
+            .catch(() => new Map<string, number>());
+          const best = [...groups].sort(
+            (a, b) =>
+              (listeners.get(b.id) ?? 0) - (listeners.get(a.id) ?? 0) ||
+              (a['first-release-date'] ?? '').localeCompare(b['first-release-date'] ?? ''),
+          )[0]!;
+          return { mbid: best.id, title: best.title, year: yearOf(best['first-release-date']) };
+        })
+        .catch(() => null);
+      if (!album) continue;
+      albums.push({
+        mbid: album.mbid,
+        title: album.title,
+        type: 'Album',
+        year: album.year,
+        coverUrl: this.images.releaseGroupCover(album.mbid),
+        artistMbid: artist.mbid,
+        artistName: artist.name,
+        status: { kind: 'available' },
+      });
+    }
+    return albums;
   }
 
   private async similar(artist: { mbid: string; name: string }, lastfm: LastfmClient | null): Promise<SimilarLists> {
@@ -397,6 +497,28 @@ export class Discovery {
       })
       .catch(() => null);
   }
+}
+
+/** What a refresh stores per user and mode. */
+interface StoredPayload {
+  items: Recommendation[];
+  albums: ReleaseSummary[];
+  tags: string[];
+  seedCount: number;
+  sources: { listenbrainz: boolean; lastfm: boolean };
+}
+
+/** An artist's picture from Lidarr's lookup: the poster, else the fanart. */
+function artistImage(artist: LidarrLookupArtist | null | undefined): string | null {
+  const image = artist?.images?.find((i) => i.coverType === 'poster') ?? artist?.images?.find((i) => i.coverType === 'fanart');
+  return image?.remoteUrl ?? null;
+}
+
+/** Explore by Tag: genres across the recommendations, weighted by each pick's score. */
+function topTags(items: Recommendation[]): string[] {
+  const weights = new Map<string, number>();
+  for (const item of items) for (const genre of item.genres) weights.set(genre, (weights.get(genre) ?? 0) + item.score);
+  return [...weights].sort((a, b) => b[1] - a[1]).slice(0, TAGS_SHOWN).map(([genre]) => genre);
 }
 
 /** Every artist the ListenBrainz lists mention. */

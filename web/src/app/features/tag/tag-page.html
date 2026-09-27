@@ -1,0 +1,109 @@
+<header class="head">
+  <div class="titles">
+    <span class="overline">Tag</span>
+    <h1>{{ tag() }}</h1>
+  </div>
+  <ob-toggle
+    class="hide"
+    label="Hide artists in my library"
+    [ngModel]="hideLibrary()"
+    (ngModelChange)="hideLibrary.set($event)"
+  />
+</header>
+
+@if (error()) {
+  <p class="notice" role="alert"><ob-icon name="alert" [size]="15" [strokeWidth]="2" />{{ error() }}</p>
+} @else if (!data()) {
+  <div class="loading" aria-busy="true" aria-label="Loading tag">
+    @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+      <span class="ghost"></span>
+    }
+  </div>
+} @else if (data(); as d) {
+  @if (d.artists.length === 0) {
+    <ob-empty-state
+      icon="discover"
+      heading="Nothing tagged {{ tag() }} yet"
+      message="MusicBrainz has no artists with this genre. Try a related one."
+    />
+  } @else {
+    <section>
+      <div class="section-head">
+        <h2>Top Artists</h2>
+        @if (moreArtists()) {
+          <button class="see-all" type="button" (click)="allArtists.set(!allArtists())">
+            {{ allArtists() ? 'Show fewer' : 'See all' }}
+          </button>
+        }
+      </div>
+      @if (addError()) {
+        <p class="notice" role="alert">{{ addError() }}</p>
+      }
+      @if (artists().length) {
+        <div class="grid artists">
+          @for (artist of artists(); track artist.mbid) {
+            <div class="artist">
+              <div class="art-wrap">
+                <a class="art" [routerLink]="['/artist', artist.mbid]" [attr.aria-label]="artist.name">
+                  <span aria-hidden="true">{{ artist.name.replace('The ', '').charAt(0) }}</span>
+                  @if (artist.imageUrl) {
+                    <img [src]="artist.imageUrl" alt="" loading="lazy" decoding="async" />
+                  }
+                </a>
+                <ob-quick-add
+                  class="add"
+                  [mbid]="artist.mbid"
+                  [name]="artist.name"
+                  [inLibrary]="isInLibrary(artist)"
+                  (done)="onAdded(artist)"
+                  (failed)="addError.set($event)"
+                />
+              </div>
+              <a class="name" [routerLink]="['/artist', artist.mbid]">{{ artist.name }}</a>
+              @if (note(artist); as n) {
+                <span class="note">{{ n }}</span>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="quiet">Every top artist for this tag is already in your library.</p>
+      }
+    </section>
+
+    @if (albums().length) {
+      <section>
+        <div class="section-head">
+          <h2>Top Albums</h2>
+          @if (moreAlbums()) {
+            <button class="see-all" type="button" (click)="allAlbums.set(!allAlbums())">
+              {{ allAlbums() ? 'Show fewer' : 'See all' }}
+            </button>
+          }
+        </div>
+        <div class="grid albums">
+          @for (album of albums(); track album.mbid) {
+            <a class="album" [routerLink]="['/album', album.mbid]">
+              <ob-cover [src]="album.coverUrl" />
+              <span class="text">
+                <span class="title">{{ album.title }}</span>
+                <span class="by">{{ album.artistName }}</span>
+              </span>
+            </a>
+          }
+        </div>
+      </section>
+    }
+
+    @if (d.related.length) {
+      <section>
+        <h2>Related Tags</h2>
+        <div class="tags">
+          @for (t of d.related; track t) {
+            <a class="tag" [routerLink]="['/tag', t]">{{ t }}</a>
+          }
+        </div>
+      </section>
+    }
+  }
+}
