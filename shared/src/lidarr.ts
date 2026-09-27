@@ -25,6 +25,13 @@ export interface LidarrOptions {
   rootFolders: LidarrRootFolder[];
 }
 
+/**
+ * Which albums to monitor when a whole artist is added: the latest album
+ * (the default, a gentle start for discovery), everything, or none of the
+ * existing ones. Future releases are monitored in every case.
+ */
+export type ArtistMonitorChoice = 'latest' | 'all' | 'future';
+
 /** Defaults applied when Offbeat adds an artist. */
 export interface LidarrDefaults {
   qualityProfileId: number;
@@ -32,6 +39,8 @@ export interface LidarrDefaults {
   rootFolderPath: string;
   /** Monitor artists added as a whole (album adds always monitor just that album). Default true. */
   addMonitored?: boolean;
+  /** With `addMonitored`, which albums of a newly added artist to monitor. Default 'latest'. */
+  addMonitorAlbums?: ArtistMonitorChoice;
   /** Ask Lidarr to search for what was just added. Default true. */
   searchOnAdd?: boolean;
   /** Lidarr tag applied to everything Offbeat adds, or null for none. */

@@ -50,7 +50,7 @@ async function signedInAdmin() {
 
 const defaults = { qualityProfileId: 2, metadataProfileId: 1, rootFolderPath: '/music' };
 /** What the view reports for add behavior when the form never set it. */
-const addDefaults = { addMonitored: true, searchOnAdd: true, addTag: null };
+const addDefaults = { addMonitored: true, addMonitorAlbums: 'latest', searchOnAdd: true, addTag: 'offbeat' };
 
 describe('normalizeLidarrUrl', () => {
   it.each([

@@ -115,8 +115,19 @@
         <ob-toggle
           formControlName="addMonitored"
           label="Monitor new artists"
-          hint="Adding a whole artist monitors their albums. Adding one album always monitors just that album."
+          hint="Adding a whole artist monitors the albums chosen below. Adding one album always monitors just that album."
         />
+        @if (form.controls.addMonitored.value) {
+          <ob-field label="Albums to monitor" hint="Which albums to get when you add a whole artist. You can add more from the Artist page.">
+            <span class="select">
+              <select class="input" formControlName="addMonitorAlbums">
+                @for (choice of monitorChoices; track choice.value) {
+                  <option [ngValue]="choice.value">{{ choice.label }}</option>
+                }
+              </select>
+            </span>
+          </ob-field>
+        }
         <ob-toggle
           formControlName="searchOnAdd"
           label="Search when adding"

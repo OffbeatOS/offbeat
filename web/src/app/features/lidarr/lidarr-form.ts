@@ -12,6 +12,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import type {
+  ArtistMonitorChoice,
   LidarrOptions,
   LidarrSettingsRequest,
   LidarrSettingsView,
@@ -62,6 +63,12 @@ export class LidarrForm implements OnInit {
     return status.kind === 'failed' ? status.message : '';
   });
 
+  protected readonly monitorChoices: { value: ArtistMonitorChoice; label: string }[] = [
+    { value: 'latest', label: 'Latest album and future releases' },
+    { value: 'all', label: 'All albums and future releases' },
+    { value: 'future', label: 'Only future releases' },
+  ];
+
   protected readonly form = inject(FormBuilder).nonNullable.group({
     url: ['', Validators.required],
     apiKey: [''],
@@ -69,8 +76,9 @@ export class LidarrForm implements OnInit {
     metadataProfileId: [{ value: 0, disabled: true }, Validators.min(1)],
     rootFolderPath: [{ value: '', disabled: true }, Validators.required],
     addMonitored: [true],
+    addMonitorAlbums: ['latest' as ArtistMonitorChoice],
     searchOnAdd: [true],
-    addTag: ['', Validators.pattern(/^[A-Za-z0-9._-]*$/)],
+    addTag: ['offbeat', Validators.pattern(/^[A-Za-z0-9._-]*$/)],
   });
 
   ngOnInit() {
@@ -120,7 +128,12 @@ export class LidarrForm implements OnInit {
       rootFolderPath: value.rootFolderPath,
       ...(value.apiKey.trim() ? { apiKey: value.apiKey } : {}),
       ...(this.showAddOptions()
-        ? { addMonitored: value.addMonitored, searchOnAdd: value.searchOnAdd, addTag: value.addTag.trim() || null }
+        ? {
+            addMonitored: value.addMonitored,
+            addMonitorAlbums: value.addMonitorAlbums,
+            searchOnAdd: value.searchOnAdd,
+            addTag: value.addTag.trim() || null,
+          }
         : {}),
     };
     this.saving.set(true);

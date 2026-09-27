@@ -14,7 +14,14 @@ afterEach(async () => {
   await Promise.all(fakes.splice(0).map((f) => f.close()));
 });
 
-async function setup(addSettings: { addMonitored?: boolean; searchOnAdd?: boolean; addTag?: string | null } = {}) {
+async function setup(
+  addSettings: {
+    addMonitored?: boolean;
+    addMonitorAlbums?: 'latest' | 'all' | 'future';
+    searchOnAdd?: boolean;
+    addTag?: string | null;
+  } = {},
+) {
   const fake = await startFakeCatalog();
   fakes.push(fake);
   const db = openDatabase(':memory:');
@@ -135,15 +142,36 @@ describe('adding an artist', () => {
     expect(fake.writes.filter((w) => w.method === 'POST' && w.path === 'artist')).toHaveLength(1);
   });
 
-  it('with default settings, monitors everything and asks Lidarr to search', async () => {
+  it('with default settings, monitors the latest album and future releases, searches, and tags offbeat', async () => {
     const { call, fake } = await setup();
     await call('POST', `/artists/${BOC.mbid}`, {});
     const post = fake.writes.find((w) => w.path === 'artist')!.body as Record<string, unknown>;
-    expect(post).toMatchObject({ monitored: true, addOptions: { monitor: 'all', searchForMissingAlbums: true } });
+    expect(post).toMatchObject({
+      monitored: true,
+      monitorNewItems: 'all',
+      addOptions: { monitor: 'latest', searchForMissingAlbums: true },
+      tags: [fake.tags.find((t) => t.label === 'offbeat')!.id],
+    });
+  });
+
+  it('can monitor the whole discography instead', async () => {
+    const { call, fake } = await setup({ addMonitorAlbums: 'all' });
+    await call('POST', `/artists/${BOC.mbid}`, {});
+    const post = fake.writes.find((w) => w.path === 'artist')!.body as Record<string, unknown>;
+    expect(post).toMatchObject({ monitored: true, monitorNewItems: 'all', addOptions: { monitor: 'all' } });
   });
 });
 
 describe('adding a single album', () => {
+  it('with default settings, monitors the artist but only this album, with no future releases', async () => {
+    const { app, call, fake } = await setup();
+    const result = await addAlbum(app, call, GEOGADDI.mbid, BOC.mbid);
+    expect(result).toMatchObject({ ok: true });
+    const post = fake.writes.find((w) => w.path === 'artist')!.body as Record<string, unknown>;
+    expect(post).toMatchObject({ monitored: true, monitorNewItems: 'none', addOptions: { monitor: 'none', searchForMissingAlbums: false } });
+    expect(fake.commands.filter((c) => c.name === 'AlbumSearch')).toHaveLength(1);
+  });
+
   it('adds the artist with nothing monitored, then monitors only that album', async () => {
     const { app, call, fake } = await setup(safe);
     const result = await addAlbum(app, call, GEOGADDI.mbid, BOC.mbid);

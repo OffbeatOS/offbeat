@@ -238,7 +238,9 @@ export class Catalog {
         const settings = this.requireSettings();
         const added = await this.createArtist(mbid, settings, {
           monitored: settings.addMonitored,
-          monitorAlbums: settings.addMonitored ? 'all' : 'none',
+          monitorAlbums: settings.addMonitored ? settings.addMonitorAlbums : 'none',
+          // A monitored artist keeps getting new releases.
+          monitorNewItems: settings.addMonitored ? 'all' : 'none',
           search: settings.addMonitored && settings.searchOnAdd,
         });
         this.record(userId, mbid, null, added.id, null);
@@ -258,9 +260,11 @@ export class Catalog {
 
       let lidarrArtistId = this.library.byMbid(artistMbid)?.lidarrId;
       if (!lidarrArtistId) {
+        // Only the album asked for: no back catalog, and no future releases either.
         const added = await this.createArtist(artistMbid, settings, {
           monitored: settings.addMonitored,
           monitorAlbums: 'none',
+          monitorNewItems: 'none',
           search: false,
         });
         lidarrArtistId = added.id;
@@ -297,7 +301,12 @@ export class Catalog {
   private async createArtist(
     mbid: string,
     settings: StoredLidarr,
-    choice: { monitored: boolean; monitorAlbums: 'all' | 'none'; search: boolean },
+    choice: {
+      monitored: boolean;
+      monitorAlbums: 'latest' | 'all' | 'future' | 'none';
+      monitorNewItems: 'all' | 'none';
+      search: boolean;
+    },
   ) {
     const client = this.client();
     const lookup = await this.lookupByMbid(mbid, { fresh: true });
@@ -316,7 +325,7 @@ export class Catalog {
       metadataProfileId: settings.metadataProfileId,
       rootFolderPath: settings.rootFolderPath,
       monitored: choice.monitored,
-      monitorNewItems: choice.monitorAlbums,
+      monitorNewItems: choice.monitorNewItems,
       tags,
       addOptions: { monitor: choice.monitorAlbums, searchForMissingAlbums: choice.search },
     };

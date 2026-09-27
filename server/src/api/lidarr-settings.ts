@@ -15,6 +15,7 @@ const saveBody = testBody.extend({
   metadataProfileId: z.number().int(),
   rootFolderPath: z.string().min(1),
   addMonitored: z.boolean().optional(),
+  addMonitorAlbums: z.enum(['latest', 'all', 'future']).optional(),
   searchOnAdd: z.boolean().optional(),
   addTag: z
     .string()
@@ -85,8 +86,10 @@ export const lidarrSettingsRoutes: FastifyPluginAsync<LidarrRoutesOptions> = asy
       rootFolderPath: body.rootFolderPath,
       // Omitted fields keep their saved value, so onboarding never resets them.
       addMonitored: body.addMonitored ?? previous?.addMonitored ?? true,
+      addMonitorAlbums: body.addMonitorAlbums ?? previous?.addMonitorAlbums ?? 'latest',
       searchOnAdd: body.searchOnAdd ?? previous?.searchOnAdd ?? true,
-      addTag: body.addTag === undefined ? (previous?.addTag ?? null) : body.addTag || null,
+      // New installs tag what Offbeat adds, for filtering in Lidarr and for cleanup later.
+      addTag: body.addTag === undefined ? (previous ? previous.addTag : 'offbeat') : body.addTag || null,
     };
     saveLidarr(app.settings, stored);
     request.log.info({ url }, 'Lidarr settings saved');
