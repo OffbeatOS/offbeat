@@ -1,6 +1,8 @@
 # offbeat
 
 [![CI](https://github.com/OffbeatOS/offbeat/actions/workflows/ci.yml/badge.svg)](https://github.com/OffbeatOS/offbeat/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/OffbeatOS/offbeat?sort=semver)](https://github.com/OffbeatOS/offbeat/releases/latest)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Foffbeatos%2Foffbeat-2496ED?logo=docker&logoColor=white)](https://github.com/OffbeatOS/offbeat/pkgs/container/offbeat)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Self-hosted music discovery for Lidarr. Find new artists based on what you already have, add them to Lidarr in one click, and follow downloads as they land. Native streaming is planned.

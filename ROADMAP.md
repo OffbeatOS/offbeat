@@ -39,7 +39,13 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 
 - Users and permissions (add artists, add albums, change monitoring, delete, access flows)
 - Reverse-proxy header auth, optional local-network auto-login
-- Notifications (Gotify, generic webhooks)
+- Notifications
+  - Channels: ntfy, Discord, Gotify, and generic webhooks
+  - Events: album imported, download failed, import blocked, and new release from a monitored artist
+  - Each channel chooses which events it receives, with a Send Test button
+  - Admin-configured channels at first; per-user preferences follow the users and permissions work
+  - Messages link back to the album or artist in Offbeat when a base URL is set
+  - Failed deliveries are retried and logged, and never block the rest of Offbeat
 - Lidarr webhook receiver (Settings, Connect, Webhook in Lidarr) for instant Activity updates on grab and import; polling stays as the fallback
 - Shows via Ticketmaster
 - Admin password reset CLI
@@ -70,5 +76,27 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 ## Open decisions
 
 - **Preview source (phase 5).** Which service provides short previews for artists not in the library.
+
+## Later
+
+Ideas for after Phase 5, roughly grouped. Not scheduled or committed.
+
+- **Inbox:** a per-user feed of new and upcoming releases from library artists, nearby shows, and personalized discoveries, with read, saved and dismissed states
+- **Artist news:** optional RSS feeds matched against library and recommended artists, shown in the Inbox
+- **Synced playlists:** playlists that stay in sync with Spotify, Last.fm or ListenBrainz, beyond one-time imports
+- **Profile:** favorites and listening history
+- **Wanted view:** missing albums and quality upgrades from Lidarr, in Activity
+- **Theming:** light mode and alternate color palettes
+- **Admin tools:** storage health checks, a scheduled tasks page, and a server-wide date format
+- **More playback destinations:** Plex and Jellyfin, including per-user Plex accounts
+- **More listening history sources:** Koito, plus scrobbling from Offbeat's own player
+- **Authentication:** native OpenID Connect login; group-based roles, trusted proxy IPs and a logout URL for proxy auth
+- **Public API:** API keys and published endpoint documentation
+- **Docs site:** GitHub Pages documentation once the README outgrows itself
+
+## Non-goals
+
+- **Replacing Lidarr.** Offbeat is built on top of Lidarr. Library management, monitoring, indexers and download clients stay in Lidarr.
+- **Downloading from streaming services.** No integrations that pull audio from streaming platforms against their terms.
 
 Have an opinion? Start a thread in [Discussions](https://github.com/OffbeatOS/offbeat/discussions).
