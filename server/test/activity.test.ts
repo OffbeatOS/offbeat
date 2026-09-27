@@ -247,46 +247,60 @@ describe('polling', () => {
     off();
   });
 
-  it('polls quickly for a while after a search, before anything shows up in the queue', async () => {
-    const { app, fake } = await setup({ activeMs: 20, watchedIdleMs: 10_000, burstMs: 500 });
+  /** Resolves once the published snapshot has something in progress, or false after `ms`. */
+  function seesDownload(app: Awaited<ReturnType<typeof setup>>['app'], ms: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        off();
+        resolve(false);
+      }, ms);
+      const off = app.activity.subscribe((e) => {
+        if (e.type === 'activity' && e.data.inProgress.length > 0) {
+          clearTimeout(timer);
+          off();
+          resolve(true);
+        }
+      });
+    });
+  }
+
+  it('polls quickly for a while after a search, so a quick download is not missed', async () => {
+    const { app, fake } = await setup({ activeMs: 20, watchedIdleMs: 10_000, burstMs: 400 });
     app.activity.start();
     const off = app.activity.subscribe(() => undefined);
-    const count = () => fake.hits.filter((h) => h === 'queue').length;
-    await new Promise((r) => setTimeout(r, 100));
+    await app.activity.refresh();
 
-    const before = count();
     await app.activity.expectMovement();
-    await new Promise((r) => setTimeout(r, 400));
-    // Idle, this would be no polls at all; a small download can come and go in that gap.
-    const burst = count() - before;
-    expect(burst).toBeGreaterThanOrEqual(3);
+    fake.queue.push(queueRecord({ id: 1 })); // grabbed after the search, between idle polls
+    expect(await seesDownload(app, 1000)).toBe(true);
 
-    // The window closes and polling slows down again.
-    await new Promise((r) => setTimeout(r, 300));
-    const settled = count();
-    await new Promise((r) => setTimeout(r, 400));
-    expect(count() - settled).toBeLessThanOrEqual(1);
+    // Once the window has passed with nothing moving, polling is slow again.
+    fake.queue.length = 0;
+    await app.activity.wake();
+    await new Promise((r) => setTimeout(r, 600));
+    fake.queue.push(queueRecord({ id: 2 }));
+    expect(await seesDownload(app, 500)).toBe(false);
     off();
   });
 
   it('notices a grab started in Lidarr itself and polls quickly', async () => {
-    const { app, fake } = await setup({ activeMs: 20, watchedIdleMs: 250, burstMs: 2000, historyEveryMs: 0 });
+    const { app, fake } = await setup({ activeMs: 20, watchedIdleMs: 10_000, burstMs: 2000, historyEveryMs: 0 });
     fake.history.push({ id: 1, eventType: 'grabbed', date: '2026-09-27T05:00:00Z', sourceTitle: 'Old grab' });
     app.activity.start();
     const off = app.activity.subscribe(() => undefined);
-    const count = () => fake.hits.filter((h) => h === 'queue').length;
-    await new Promise((r) => setTimeout(r, 100));
+    await app.activity.refresh();
 
-    // Grabs from before Offbeat started do not speed anything up.
-    let before = count();
-    await new Promise((r) => setTimeout(r, 750));
-    const idle = count() - before;
+    // A grab from before Offbeat started does not speed anything up.
+    await app.activity.wake();
+    fake.queue.push(queueRecord({ id: 1 }));
+    expect(await seesDownload(app, 500)).toBe(false);
+    fake.queue.length = 0;
 
+    // A new grab, seen on the next regular poll (stood in for by wake), opens the fast window.
     fake.history.unshift({ id: 2, eventType: 'grabbed', date: '2026-09-27T06:12:53Z', sourceTitle: 'In a Beautiful Place' });
-    await new Promise((r) => setTimeout(r, 300)); // the next idle poll sees it
-    before = count();
-    await new Promise((r) => setTimeout(r, 750));
-    expect(count() - before).toBeGreaterThanOrEqual(idle * 2 + 2);
+    await app.activity.wake();
+    fake.queue.push(queueRecord({ id: 2 }));
+    expect(await seesDownload(app, 1000)).toBe(true);
     off();
   });
 });
