@@ -26,6 +26,8 @@ export class Library {
     private readonly settings: SettingsStore,
     private readonly log: FastifyBaseLogger,
     private readonly timeoutMs?: number,
+    /** Called with Lidarr ids that disappeared in a sync, so their artwork can be dropped. */
+    private readonly onRemoved: (lidarrIds: number[]) => void = () => undefined,
   ) {}
 
   /** Cached artists plus sync status. Kicks off a background sync when stale. */
@@ -87,6 +89,13 @@ export class Library {
     try {
       const [artists, missing] = await Promise.all([client.artists(), client.missingAlbumCounts()]);
       const rows = artists.map((artist) => toRow(artist, missing.get(artist.id) ?? 0));
+      const present = new Set(rows.map((row) => row.lidarrId));
+      const removed = this.db
+        .select({ id: libraryArtists.lidarrId })
+        .from(libraryArtists)
+        .all()
+        .map((row) => row.id)
+        .filter((id) => !present.has(id));
       this.db.transaction((tx) => {
         tx.delete(libraryArtists).run();
         // Chunked to stay under SQLite's bound-parameter limit.
@@ -101,7 +110,8 @@ export class Library {
           })
           .run();
       });
-      this.log.info({ artists: rows.length, ms: Date.now() - started }, 'Library synced from Lidarr');
+      if (removed.length) this.onRemoved(removed);
+      this.log.info({ artists: rows.length, removed: removed.length, ms: Date.now() - started }, 'Library synced from Lidarr');
     } catch (error) {
       const message =
         error instanceof LidarrError ? error.message : 'Library sync failed. Check the server logs.';

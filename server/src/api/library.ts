@@ -1,13 +1,29 @@
 import type { LibraryResponse } from '@offbeat/shared';
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { LidarrError } from '../integrations/lidarr/client.js';
 import { clientFor, loadLidarr } from '../integrations/lidarr/settings.js';
 import { imageVersion } from '../library/library.js';
 import { parse } from './errors.js';
 
-const imageParams = z.object({ id: z.coerce.number().int().positive() });
-const imageQuery = z.object({ v: z.string().optional() });
+// Strict: digits only, so "1e3", "0x10", or "1.0" never reach a lookup.
+const imageParams = z.object({ id: z.string().regex(/^[1-9]\d{0,9}$/).transform(Number) });
+const imageQuery = z.object({ v: z.string().max(64).optional() });
+const remoteQuery = z.object({
+  u: z.string().min(1).max(2048).regex(/^[A-Za-z0-9_-]+$/),
+  s: z.string().length(22).regex(/^[A-Za-z0-9_-]+$/),
+});
+
+const IMMUTABLE = 'private, max-age=31536000, immutable';
+
+function sendImage(reply: FastifyReply, artwork: { body: Buffer; contentType: string }, cacheControl: string) {
+  return reply
+    .type(artwork.contentType)
+    .header('Cache-Control', cacheControl)
+    .header('X-Content-Type-Options', 'nosniff')
+    .header('Content-Security-Policy', "default-src 'none'; sandbox")
+    .send(artwork.body);
+}
 
 /** Any signed-in user can browse the library. */
 export const libraryRoutes: FastifyPluginAsync = async (app) => {
@@ -39,11 +55,20 @@ export const libraryRoutes: FastifyPluginAsync = async (app) => {
     if (!artwork) return reply.code(404).send();
 
     const current = v !== undefined && v === imageVersion(artist);
-    return reply
-      .type(artwork.contentType)
-      .header('Cache-Control', current ? 'private, max-age=31536000, immutable' : 'private, no-cache')
-      .header('X-Content-Type-Options', 'nosniff')
-      .header('Content-Security-Policy', "default-src 'none'; sandbox")
-      .send(artwork.body);
+    return sendImage(reply, artwork, current ? IMMUTABLE : 'private, no-cache');
+  });
+
+  /**
+   * Public artwork (search results, non-library artists, album covers). Only
+   * URLs Offbeat signed, on allowlisted hosts, are fetched.
+   */
+  app.get('/images/remote', async (request, reply) => {
+    const { u, s } = parse(remoteQuery, request.query);
+    const url = app.imageUrls.verify(u, s);
+    if (!url) return reply.code(404).send();
+    const artwork = await app.artwork.remote(url);
+    if (!artwork) return reply.code(404).send();
+    // The URL is part of the signed request, so a given proxy URL never changes content.
+    return sendImage(reply, artwork, IMMUTABLE);
   });
 };

@@ -1,4 +1,5 @@
 import type { LibraryResponse } from '@offbeat/shared';
+import type { FastifyBaseLogger } from 'fastify';
 import { randomBytes } from 'node:crypto';
 import { readdirSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -6,9 +7,12 @@ import { buildApp } from '../src/app.js';
 import { openDatabase } from '../src/db/index.js';
 import { jobs } from '../src/db/schema.js';
 import { LidarrClient } from '../src/integrations/lidarr/client.js';
+import { ArtworkCache } from '../src/library/artwork.js';
+import { ImageUrls } from '../src/library/image-urls.js';
 import { type FakeLidarr, type FakeLidarrOptions, fakeArtists, startFakeLidarr } from './fake-lidarr.js';
 import { tmpImageDir } from './helpers.js';
 
+const silentLog = { debug() {}, info() {}, warn() {} } as unknown as FastifyBaseLogger;
 const fakes: FakeLidarr[] = [];
 afterEach(async () => {
   await Promise.all(fakes.splice(0).map((fake) => fake.close()));
@@ -170,5 +174,90 @@ describe('artwork proxy', () => {
       await expect(client.mediaCover(path)).rejects.toThrow(/outside Lidarr/);
     }
     expect(lidarr.requests).toEqual([]);
+  });
+});
+
+describe('artwork cache limits', () => {
+  it('drops an artist\'s cached artwork when the artist leaves Lidarr', async () => {
+    const lidarr = await fake({ artists: 3 });
+    const { app, call, imageCacheDir } = await libraryWith(lidarr);
+    const { artists } = (await call('GET', '/library')).json<LibraryResponse>();
+    const target = artists.find((a) => a.imageUrl)!;
+    await call('GET', `/${target.imageUrl!.replace('api/v1/', '')}`);
+    const cachedFor = () => readdirSync(imageCacheDir).filter((f) => f.startsWith(`artist-${target.id}-`));
+    expect(cachedFor()).toHaveLength(1);
+
+    lidarr.removeArtist(target.id);
+    await app.library.sync();
+    await new Promise((resolve) => setTimeout(resolve, 50)); // removal runs after the sync commits
+    expect(cachedFor()).toEqual([]);
+  });
+
+  it('evicts the least recently used images past the size cap', async () => {
+    const dir = tmpImageDir();
+    const png = (seed: number) => ({ body: Buffer.alloc(400, seed), contentType: 'image/png' });
+    const cache = new ArtworkCache(dir, silentLog, 1000); // room for two 400 byte images
+    const source = (id: number) => ({ lidarrId: id, imagePath: `/MediaCover/${id}/poster.png`, imageRemoteUrl: null });
+    const client = { mediaCover: async (p: string) => png(Number(p.split('/')[2])) } as unknown as LidarrClient;
+
+    await cache.artist(source(1), () => client);
+    await new Promise((r) => setTimeout(r, 5));
+    await cache.artist(source(2), () => client);
+    await new Promise((r) => setTimeout(r, 5));
+    await cache.artist(source(1), () => client); // touch 1, so 2 is now the oldest
+    await new Promise((r) => setTimeout(r, 5));
+    await cache.artist(source(3), () => client);
+
+    const files = readdirSync(dir).map((f) => f.split('-')[1]).sort();
+    expect(files).toEqual(['1', '3']);
+    expect(await cache.size()).toBeLessThanOrEqual(1000);
+  });
+});
+
+describe('image endpoint hardening', () => {
+  it.each(['0', '-1', '1e3', '0x10', '1.0', '99999999999', 'abc'])('rejects artist id %j', async (id) => {
+    const lidarr = await fake({ artists: 2 });
+    const { call } = await libraryWith(lidarr);
+    expect((await call('GET', `/images/artist/${id}`)).statusCode).toBe(400);
+  });
+
+  it('only proxies remote images that Offbeat signed', async () => {
+    const lidarr = await fake({ artists: 1 });
+    const { app, call } = await libraryWith(lidarr);
+    const signed = app.imageUrls.remote('https://coverartarchive.org/release-group/abc/front-250')!;
+    const url = new URL(signed, 'http://offbeat/');
+    const u = url.searchParams.get('u')!;
+    const s = url.searchParams.get('s')!;
+
+    // Tampered signature, or a signature moved onto a different URL: refused before any fetch.
+    const other = Buffer.from('https://coverartarchive.org/release-group/other/front-250').toString('base64url');
+    expect((await call('GET', `/images/remote?u=${u}&s=${'A'.repeat(22)}`)).statusCode).toBe(404);
+    expect((await call('GET', `/images/remote?u=${other}&s=${s}`)).statusCode).toBe(404);
+    expect((await call('GET', `/images/remote?u=${u}&s=short`)).statusCode).toBe(400);
+    // Needs a session like everything else.
+    expect((await app.inject(`/api/v1/images/remote?u=${u}&s=${s}`)).statusCode).toBe(401);
+  });
+
+  it('never signs URLs outside the allowlist', () => {
+    const urls = new ImageUrls(randomBytes(32));
+    for (const bad of [
+      'http://coverartarchive.org/x.jpg',
+      'https://evil.example/x.jpg',
+      'https://coverartarchive.org.evil.example/x.jpg',
+      'https://user:pass@coverartarchive.org/x.jpg',
+      'https://coverartarchive.org:8443/x.jpg',
+      'https://127.0.0.1/x.jpg',
+      'file:///etc/passwd',
+    ]) {
+      expect(urls.remote(bad), bad).toBeNull();
+    }
+    expect(urls.remote('https://ia800.us.archive.org/x.jpg')).not.toBeNull();
+    expect(urls.remote('https://images.lidarr.audio/cache/x.jpg')).not.toBeNull();
+  });
+
+  it('stops following a redirect that leaves the allowlist', async () => {
+    const { isAllowedImageUrl } = await import('../src/library/remote-image.js');
+    expect(isAllowedImageUrl('https://archive.org/download/x.jpg')).toBe(true);
+    expect(isAllowedImageUrl('https://archive.org.evil.example/x.jpg')).toBe(false);
   });
 });

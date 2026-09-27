@@ -10,6 +10,8 @@ export interface FakeLidarr {
   requests: string[];
   /** Requests that arrived without the API key (should stay empty). */
   unauthenticated: string[];
+  /** Removes an artist, as if deleted in Lidarr. */
+  removeArtist(id: number): void;
   close(): Promise<void>;
 }
 
@@ -127,6 +129,10 @@ export async function startFakeLidarr(options: FakeLidarrOptions = {}): Promise<
     apiKey,
     requests,
     unauthenticated,
+    removeArtist: (id) => {
+      const index = artists.findIndex((a) => a.id === id);
+      if (index >= 0) artists.splice(index, 1);
+    },
     close: () =>
       new Promise((resolve) => {
         server.closeAllConnections();
