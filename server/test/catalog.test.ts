@@ -81,7 +81,7 @@ describe('search', () => {
     // Albums only (the EP is on the Artist page), newest first.
     expect(res.albums.map((a) => a.title)).toEqual(['Geogaddi', 'Music Has the Right to Children']);
     expect(res.albums.every((a) => a.status.kind === 'available')).toBe(true);
-    expect(res.albums[0]?.coverUrl).toMatch(/^api\/v1\/images\/remote\?u=/);
+    expect(res.albums[0]?.coverUrl).toMatch(/^api\/v1\/images\/album\/[0-9a-f-]{36}$/);
   });
 
   it('puts an album first when the query is an album title', async () => {

@@ -15,6 +15,8 @@ const EXTENSIONS: Record<string, string> = {
   'image/avif': 'avif',
 };
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+/** How long an album with no cover anywhere is not asked about again. */
+const MISS_TTL_MS = 60 * 60 * 1000;
 export const DEFAULT_CACHE_BYTES = 512 * 1024 * 1024;
 
 export interface Artwork {
@@ -42,6 +44,7 @@ interface Entry {
  */
 export class ArtworkCache {
   private readonly inFlight = new Map<string, Promise<Artwork | null>>();
+  private readonly misses = new Map<string, number>();
   private index: Map<string, Entry> | null = null;
   private total = 0;
 
@@ -60,6 +63,35 @@ export class ArtworkCache {
       if (artwork) await this.removeByPrefix(`artist-${source.lidarrId}-`, `artist-${source.lidarrId}-${version}`);
       return artwork;
     });
+  }
+
+  /**
+   * An album cover: Cover Art Archive first, then Lidarr's own cover (its
+   * MediaCover, then the remote URL it knows). Null when nobody has one.
+   */
+  async album(releaseGroupMbid: string, client: () => LidarrClient | null): Promise<Artwork | null> {
+    const name = `album-${releaseGroupMbid}`;
+    const missedAt = this.misses.get(name);
+    if (missedAt !== undefined && Date.now() - missedAt < MISS_TTL_MS) return null;
+    const artwork = await this.get(name, async () => {
+      const caa = await this.fetchRemote(`https://coverartarchive.org/release-group/${releaseGroupMbid}/front-250`);
+      if (caa) return caa;
+      const lidarr = client();
+      const album = lidarr ? await lidarr.albumByMbid(releaseGroupMbid).catch(() => null) : null;
+      const cover = album?.images?.find((i) => i.coverType === 'cover');
+      if (!lidarr || !cover) return null;
+      if (cover.url) {
+        const sized = cover.url.replace(/\/cover(\.\w+)(\?|$)/,(_m, ext: string, q: string) => `/cover-250${ext}${q}`);
+        for (const candidate of new Set([sized, cover.url])) {
+          const image = await lidarr.mediaCover(candidate).catch(() => null);
+          if (image && accept(image)) return image;
+        }
+      }
+      return cover.remoteUrl ? this.fetchRemote(cover.remoteUrl) : null;
+    });
+    if (artwork) this.misses.delete(name);
+    else this.misses.set(name, Date.now());
+    return artwork;
   }
 
   /** Artwork from an allowlisted public host. The caller must have verified the URL's signature. */

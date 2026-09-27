@@ -3,12 +3,14 @@ import type { FastifyPluginAsync, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { LidarrError } from '../integrations/lidarr/client.js';
 import { clientFor, loadLidarr } from '../integrations/lidarr/settings.js';
+import { MBID } from '../catalog/releases.js';
 import { imageVersion } from '../library/library.js';
 import { parse } from './errors.js';
 
 // Strict: digits only, so "1e3", "0x10", or "1.0" never reach a lookup.
 const imageParams = z.object({ id: z.string().regex(/^[1-9]\d{0,9}$/).transform(Number) });
 const imageQuery = z.object({ v: z.string().max(64).optional() });
+const albumImageParams = z.object({ mbid: z.string().regex(MBID).transform((m) => m.toLowerCase()) });
 const remoteQuery = z.object({
   u: z.string().min(1).max(2048).regex(/^[A-Za-z0-9_-]+$/),
   s: z.string().length(22).regex(/^[A-Za-z0-9_-]+$/),
@@ -56,6 +58,18 @@ export const libraryRoutes: FastifyPluginAsync = async (app) => {
 
     const current = v !== undefined && v === imageVersion(artist);
     return sendImage(reply, artwork, current ? IMMUTABLE : 'private, no-cache');
+  });
+
+  /** Album covers, from Cover Art Archive or else Lidarr. A 404 means use the placeholder. */
+  app.get('/images/album/:mbid', async (request, reply) => {
+    const { mbid } = parse(albumImageParams, request.params);
+    const artwork = await app.artwork.album(mbid, () => {
+      const settings = loadLidarr(app.settings);
+      return settings ? clientFor(settings) : null;
+    });
+    if (!artwork) return reply.code(404).header('Cache-Control', 'private, max-age=300').send();
+    // A cover can appear later (for example once Lidarr has it), so cache for a day, not forever.
+    return sendImage(reply, artwork, 'private, max-age=86400');
   });
 
   /**

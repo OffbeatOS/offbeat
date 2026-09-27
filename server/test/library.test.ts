@@ -2,7 +2,7 @@ import type { LibraryResponse } from '@offbeat/shared';
 import type { FastifyBaseLogger } from 'fastify';
 import { randomBytes } from 'node:crypto';
 import { readdirSync } from 'node:fs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { openDatabase } from '../src/db/index.js';
 import { jobs } from '../src/db/schema.js';
@@ -259,5 +259,66 @@ describe('image endpoint hardening', () => {
     const { isAllowedImageUrl } = await import('../src/library/remote-image.js');
     expect(isAllowedImageUrl('https://archive.org/download/x.jpg')).toBe(true);
     expect(isAllowedImageUrl('https://archive.org.evil.example/x.jpg')).toBe(false);
+  });
+});
+
+describe('album covers', () => {
+  const MBID = 'c73833e3-384c-36fd-97a2-762a858dbff4';
+  const jpeg = { body: Buffer.from('lidarr cover'), contentType: 'image/jpeg' };
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** Cover Art Archive answers with `caa`; returns the URLs it was asked for. */
+  function stubCoverArtArchive(caa: 'hit' | 'miss') {
+    const asked: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      asked.push(url);
+      if (caa === 'miss' || !url.startsWith('https://coverartarchive.org/')) return new Response(null, { status: 404 });
+      return new Response(Buffer.from('caa cover'), { headers: { 'content-type': 'image/jpeg' } });
+    });
+    return asked;
+  }
+
+  function lidarrWith(images: { coverType: string; url?: string; remoteUrl?: string }[] | null) {
+    const covers: string[] = [];
+    const client = {
+      albumByMbid: async () => (images ? { foreignAlbumId: MBID, images } : null),
+      mediaCover: async (p: string) => {
+        covers.push(p);
+        return p.includes('cover-250') ? jpeg : null;
+      },
+    } as unknown as LidarrClient;
+    return { client, covers };
+  }
+
+  it('prefers Cover Art Archive', async () => {
+    stubCoverArtArchive('hit');
+    const { client, covers } = lidarrWith([{ coverType: 'cover', url: '/MediaCover/Albums/147/cover.jpg?lastWrite=1' }]);
+    const art = await new ArtworkCache(tmpImageDir(), silentLog).album(MBID, () => client);
+    expect(art?.body.toString()).toBe('caa cover');
+    expect(covers).toEqual([]);
+  });
+
+  it("falls back to Lidarr's own cover, resized, with the key kept on the server", async () => {
+    stubCoverArtArchive('miss');
+    const { client, covers } = lidarrWith([{ coverType: 'cover', url: '/MediaCover/Albums/147/cover.jpg?lastWrite=1' }]);
+    const art = await new ArtworkCache(tmpImageDir(), silentLog).album(MBID, () => client);
+    expect(art?.body.toString()).toBe('lidarr cover');
+    expect(covers).toEqual(['/MediaCover/Albums/147/cover-250.jpg?lastWrite=1']);
+  });
+
+  it('reports no cover when nobody has one, and does not ask again right away', async () => {
+    const asked = stubCoverArtArchive('miss');
+    const { client } = lidarrWith(null);
+    const cache = new ArtworkCache(tmpImageDir(), silentLog);
+    expect(await cache.album(MBID, () => client)).toBeNull();
+    expect(await cache.album(MBID, () => client)).toBeNull();
+    expect(asked).toHaveLength(1);
+  });
+
+  it('never fetches a remote cover URL off the allowlist', async () => {
+    const asked = stubCoverArtArchive('miss');
+    const { client } = lidarrWith([{ coverType: 'cover', remoteUrl: 'https://evil.example/cover.jpg' }]);
+    expect(await new ArtworkCache(tmpImageDir(), silentLog).album(MBID, () => client)).toBeNull();
+    expect(asked.some((u) => u.includes('evil.example'))).toBe(false);
   });
 });

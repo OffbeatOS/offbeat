@@ -306,6 +306,12 @@ export class LidarrClient {
     return this.get(`album?artistId=${artistId}`, z.array(albumSchema));
   }
 
+  /** The album with this release group MBID, if Lidarr has it. */
+  async albumByMbid(releaseGroupMbid: string): Promise<LidarrAlbum | null> {
+    const albums = await this.get(`album?foreignAlbumId=${encodeURIComponent(releaseGroupMbid)}`, z.array(albumSchema));
+    return albums.find((a) => a.foreignAlbumId === releaseGroupMbid) ?? null;
+  }
+
   tracks(albumId: number): Promise<LidarrTrack[]> {
     return this.get(`track?albumId=${albumId}`, z.array(trackSchema));
   }

@@ -15,9 +15,12 @@ export class ImageUrls {
     return `api/v1/images/remote?u=${encoded}&s=${this.sign(url)}`;
   }
 
-  /** Cover Art Archive front cover for a release group, at 250px. */
-  releaseGroupCover(releaseGroupMbid: string): string | null {
-    return this.remote(`https://coverartarchive.org/release-group/${releaseGroupMbid}/front-250`);
+  /**
+   * Album cover for a release group. The server tries Cover Art Archive, then
+   * Lidarr's own cover; a 404 means neither has one and the UI shows its placeholder.
+   */
+  releaseGroupCover(releaseGroupMbid: string): string {
+    return `api/v1/images/album/${releaseGroupMbid}`;
   }
 
   /** The original URL when the signature matches and the host is allowlisted, else null. */
