@@ -1,0 +1,300 @@
+@use '../../shared/mixins';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: var(--page-pad-top) var(--page-pad-x) 48px;
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+
+  h1 {
+    @include mixins.text-page-title;
+  }
+}
+
+.count {
+  font-size: 15px;
+  color: var(--text-3);
+}
+
+.refresh {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-3);
+
+  &:hover:not(:disabled) {
+    color: var(--text);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: -12px;
+  font-size: 13px;
+  color: var(--text-3);
+
+  ob-icon {
+    color: var(--status-failed);
+  }
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pills {
+  display: flex;
+  gap: 6px;
+
+  button {
+    height: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--surface-2);
+    color: var(--text-label);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+
+    &[aria-pressed='true'] {
+      background: var(--text);
+      color: var(--bg);
+      font-weight: 600;
+    }
+  }
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.search {
+  position: relative;
+  display: block;
+
+  ob-icon {
+    position: absolute;
+    left: 12px;
+    top: 10px;
+    color: var(--text-3);
+  }
+
+  input {
+    width: 200px;
+    height: 36px;
+    padding: 0 12px 0 36px;
+    border: 1px solid var(--border-input);
+    border-radius: 9px;
+    background: var(--surface-input);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+
+    &:focus-visible {
+      outline: none;
+      border-color: var(--text-3);
+    }
+  }
+}
+
+.sort {
+  position: relative;
+  display: block;
+
+  select {
+    height: 36px;
+    padding: 0 30px 0 12px;
+    border: 1px solid var(--border-input);
+    border-radius: 9px;
+    background: var(--surface-input);
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: 11px;
+    top: 12px;
+    width: 12px;
+    height: 12px;
+    background: currentColor;
+    color: var(--text-soft);
+    pointer-events: none;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
+}
+
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border-radius: 9px;
+
+  button {
+    width: 32px;
+    height: 30px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-lead);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &[aria-pressed='true'] {
+      background: var(--surface-4);
+      color: var(--text);
+    }
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  column-gap: 24px;
+  row-gap: 30px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  max-width: 820px;
+}
+
+.sentinel {
+  height: 1px;
+}
+
+.skeleton .ghost {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+
+  .circle {
+    width: 100%;
+    max-width: 128px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--surface);
+  }
+
+  .line {
+    width: 60%;
+    height: 10px;
+    border-radius: 5px;
+    background: var(--surface);
+  }
+
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@include mixins.mobile {
+  :host {
+    gap: 22px;
+    padding: 60px 20px 32px;
+  }
+
+  .title h1 {
+    font-size: 32px;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+
+    // Without these, the pill row and controls size to their content and
+    // push the page wider than the phone.
+    > * {
+      min-width: 0;
+      max-width: 100%;
+    }
+  }
+
+  // Pills scroll sideways, bleeding to the screen edge.
+  .pills {
+    overflow-x: auto;
+    max-width: calc(100% + 20px);
+    margin-right: -20px;
+    padding-right: 20px;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  // Search on its own row; sort and view toggle share the next.
+  .controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .search {
+    grid-column: 1 / -1;
+
+    input {
+      width: 100%;
+    }
+  }
+
+  .sort select {
+    width: 100%;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    column-gap: 16px;
+    row-gap: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton .ghost {
+    animation: none;
+  }
+}

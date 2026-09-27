@@ -58,12 +58,17 @@ export const routes: Routes = [
         'Search is not available yet',
         'Find artists and albums to add to your library.',
       ),
+      {
+        path: 'library',
+        title: 'Library',
+        loadComponent: () => import('./features/library/library-page').then((m) => m.LibraryPage),
+      },
       placeholder(
-        'library',
-        'Library',
-        'library',
-        'Your library is empty',
-        'Artists you add through Lidarr will appear here.',
+        'artist/:mbid',
+        'Artist',
+        'discover',
+        'Artist pages are on the way',
+        'Albums, status, and one-click add will live here.',
       ),
       placeholder(
         'activity',

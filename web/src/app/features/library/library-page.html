@@ -1,0 +1,104 @@
+<header class="title">
+  <h1>Library</h1>
+  @if (data()) {
+    <span class="count">{{ countLabel() }}</span>
+    <button class="refresh" type="button" [disabled]="syncing()" (click)="refresh()">
+      {{ syncing() ? 'Syncing with Lidarr' : 'Refresh' }}
+    </button>
+  }
+</header>
+
+@if (staleNotice()) {
+  <p class="notice" role="status">
+    <ob-icon name="alert" [size]="15" [strokeWidth]="2" />
+    {{ staleNotice() }}
+  </p>
+}
+
+@if (data() && total() > 0) {
+  <div class="toolbar">
+    <div class="pills" role="group" aria-label="Filter">
+      @for (f of filters; track f.id) {
+        <button type="button" [attr.aria-pressed]="filter() === f.id" (click)="setFilter(f.id)">
+          {{ f.label }}
+        </button>
+      }
+    </div>
+    <div class="controls">
+      <label class="search">
+        <span class="visually-hidden">Filter library</span>
+        <ob-icon name="search" [size]="16" [strokeWidth]="2" />
+        <input
+          type="text"
+          placeholder="Filter"
+          [value]="query()"
+          (input)="onQuery($event)"
+        />
+      </label>
+      <label class="sort">
+        <span class="visually-hidden">Sort</span>
+        <select (change)="onSort($event)">
+          @for (s of sorts; track s.id) {
+            <option [value]="s.id" [selected]="s.id === sort()">{{ s.label }}</option>
+          }
+        </select>
+      </label>
+      <div class="segmented" role="group" aria-label="View">
+        <button type="button" aria-label="Grid view" [attr.aria-pressed]="view() === 'grid'" (click)="setView('grid')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="4" y="4" width="6.5" height="6.5" rx="1" /><rect x="13.5" y="4" width="6.5" height="6.5" rx="1" />
+            <rect x="4" y="13.5" width="6.5" height="6.5" rx="1" /><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1" />
+          </svg>
+        </button>
+        <button type="button" aria-label="List view" [attr.aria-pressed]="view() === 'list'" (click)="setView('list')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (!data()) {
+  @if (loadError()) {
+    <ob-empty-state icon="alert" heading="Could not load the library" [message]="loadError()">
+      <button class="btn btn-outline btn-sm" type="button" (click)="load()">Try again</button>
+    </ob-empty-state>
+  } @else {
+    <div class="grid skeleton" aria-busy="true" aria-label="Loading library">
+      @for (i of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; track i) {
+        <div class="ghost"><span class="circle"></span><span class="line"></span></div>
+      }
+    </div>
+  }
+} @else if (neverSynced()) {
+  <ob-empty-state icon="alert" heading="Could not reach Lidarr" [message]="data()!.sync.error ?? ''">
+    <button class="btn btn-outline btn-sm" type="button" [disabled]="syncing()" (click)="refresh()">
+      Try again
+    </button>
+  </ob-empty-state>
+} @else if (total() === 0) {
+  @if (syncing() || data()!.sync.state === 'never') {
+    <ob-empty-state icon="library" heading="Loading your library from Lidarr" message="This can take a moment for large libraries." />
+  } @else {
+    <ob-empty-state
+      icon="library"
+      heading="No artists yet"
+      message="Artists in Lidarr appear here. Add some from Search or Discover."
+    />
+  }
+} @else if (results().length === 0) {
+  <ob-empty-state icon="search" heading="No artists match" message="Try a different filter or search.">
+    <button class="btn btn-outline btn-sm" type="button" (click)="clearFilters()">Clear filters</button>
+  </ob-empty-state>
+} @else {
+  <div [class.grid]="view() === 'grid'" [class.list]="view() === 'list'">
+    @for (artist of shown(); track artist.id) {
+      <ob-artist-card [artist]="artist" [layout]="view()" />
+    }
+  </div>
+  @if (shown().length < results().length) {
+    <div #sentinel class="sentinel" aria-hidden="true"></div>
+  }
+}

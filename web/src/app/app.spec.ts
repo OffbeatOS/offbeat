@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
@@ -25,6 +27,8 @@ async function boot(session: ReturnType<typeof fakeSession>, url: string) {
     imports: [App],
     providers: [
       provideRouter(routes, withComponentInputBinding()),
+      provideHttpClient(),
+      provideHttpClientTesting(),
       { provide: Session, useValue: session },
     ],
   });
