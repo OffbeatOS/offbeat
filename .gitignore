@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.angular/
+coverage/
+*.tsbuildinfo
+
+# Runtime state (database, secret key, caches, logs)
+/config/
+/server/config/
+
+.playwright-mcp/
+.env
+.DS_Store
+Thumbs.db
+
+docs/

@@ -1,0 +1,36 @@
+{
+  "name": "offbeat",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Self-hosted music discovery for Lidarr",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xwolvos/offbeat.git"
+  },
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "build": "npm run build -w shared && npm run build -w web && npm run build -w server",
+    "dev": "npm run build -w shared && concurrently -n server,web -c auto \"npm run dev -w server\" \"npm run start -w web\"",
+    "start": "node server/dist/index.js",
+    "lint": "eslint . && node scripts/check-dashes.mjs",
+    "typecheck": "npm run build -w shared && npm run typecheck --workspaces --if-present",
+    "test": "npm run build -w shared && npm run test --workspaces --if-present",
+    "db:generate": "npm run db:generate -w server"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "angular-eslint": "^22.5.0",
+    "concurrently": "^10.0.5",
+    "eslint": "^10.11.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.70.1"
+  }
+}
