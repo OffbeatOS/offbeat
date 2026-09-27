@@ -26,7 +26,6 @@ async function main() {
   // Keep the library cache warm: once at boot, then every 15 minutes.
   const librarySync = new Cron('*/15 * * * *', { protect: true }, () => {
     app.library.sync().catch(() => undefined);
-  app.activity.start();
   });
   app.library.sync().catch(() => undefined);
 

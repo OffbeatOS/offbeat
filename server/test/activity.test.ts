@@ -48,7 +48,14 @@ const IMPORT_FAILED = {
 };
 
 async function setup(
-  options: { activeMs?: number; watchedIdleMs?: number; burstMs?: number; historyEveryMs?: number; pollTimeoutMs?: number } = {},
+  options: {
+    activeMs?: number;
+    watchedIdleMs?: number;
+    burstMs?: number;
+    historyEveryMs?: number;
+    pollTimeoutMs?: number;
+    autoStart?: boolean;
+  } = {},
 ) {
   const fake = await startFakeCatalog();
   const app = await buildApp({
@@ -62,6 +69,7 @@ async function setup(
     musicbrainz: { url: fake.musicbrainzUrl, minTimeMs: 0 },
     catalog: { pollMs: 50, albumAppearTimeoutMs: 3000 },
     activity: {
+      autoStart: options.autoStart ?? false,
       activeMs: options.activeMs ?? 40,
       watchedIdleMs: options.watchedIdleMs ?? 10_000,
       unwatchedMs: 10_000,
@@ -283,6 +291,16 @@ describe('polling', () => {
     await new Promise((r) => setTimeout(r, 600));
     fake.queue.push(queueRecord({ id: 2 }));
     expect(await seesDownload(app, 500)).toBe(false);
+    off();
+  });
+
+  it('starts polling on its own once the app is ready', async () => {
+    const { app, fake } = await setup({ autoStart: true, watchedIdleMs: 50 });
+    const off = app.activity.subscribe(() => undefined);
+    const before = fake.hits.filter((h) => h === 'queue').length;
+    await new Promise((r) => setTimeout(r, 500));
+    // Nobody called start(): the loop is running anyway, several polls later.
+    expect(fake.hits.filter((h) => h === 'queue').length - before).toBeGreaterThanOrEqual(3);
     off();
   });
 

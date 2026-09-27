@@ -95,11 +95,14 @@ export async function buildApp({
     ),
   );
 
-  // Polling starts in index.ts (and in tests that need it), not here.
   app.decorate(
     'activity',
     new Activity(db, settings, app.library, app.catalog, musicbrainzClient, imageUrls, app.log, activity),
   );
+  // Polling runs for the life of the app, so no caller can forget to start it.
+  app.addHook('onReady', async () => {
+    if (activity.autoStart !== false) app.activity.start();
+  });
   app.addHook('onClose', async () => app.activity.stop());
 
   await app.register(api, {

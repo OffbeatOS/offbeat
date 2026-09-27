@@ -35,6 +35,8 @@ interface FailedAdd extends PendingAdd {
 }
 
 export interface ActivityOptions {
+  /** Start polling when the app is ready. Default true; tests that drive polling by hand turn it off. */
+  autoStart?: boolean;
   /** Poll interval while something is moving and a browser is watching. */
   activeMs?: number;
   /** Poll interval when nothing is moving but a browser is watching. */
