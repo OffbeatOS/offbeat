@@ -17,6 +17,16 @@ const EXTENSIONS: Record<string, string> = {
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 /** How long an album with no cover anywhere is not asked about again. */
 const MISS_TTL_MS = 60 * 60 * 1000;
+/** Covers fetched at once when warming a page, to be gentle with Cover Art Archive. */
+const WARM_CONCURRENCY = 8;
+/** At most this many covers warmed per page. */
+const WARM_LIMIT = 60;
+
+export interface AlbumCoverRequest {
+  mbid: string;
+  /** Lidarr has this album: its local copy is one LAN hop away, so try it first. */
+  preferLidarr?: boolean;
+}
 export const DEFAULT_CACHE_BYTES = 512 * 1024 * 1024;
 
 export interface Artwork {
@@ -69,29 +79,55 @@ export class ArtworkCache {
    * An album cover: Cover Art Archive first, then Lidarr's own cover (its
    * MediaCover, then the remote URL it knows). Null when nobody has one.
    */
-  async album(releaseGroupMbid: string, client: () => LidarrClient | null): Promise<Artwork | null> {
+  async album(
+    releaseGroupMbid: string,
+    client: () => LidarrClient | null,
+    { preferLidarr = false }: { preferLidarr?: boolean } = {},
+  ): Promise<Artwork | null> {
     const name = `album-${releaseGroupMbid}`;
     const missedAt = this.misses.get(name);
     if (missedAt !== undefined && Date.now() - missedAt < MISS_TTL_MS) return null;
     const artwork = await this.get(name, async () => {
-      const caa = await this.fetchRemote(`https://coverartarchive.org/release-group/${releaseGroupMbid}/front-250`);
-      if (caa) return caa;
-      const lidarr = client();
-      const album = lidarr ? await lidarr.albumByMbid(releaseGroupMbid).catch(() => null) : null;
-      const cover = album?.images?.find((i) => i.coverType === 'cover');
-      if (!lidarr || !cover) return null;
-      if (cover.url) {
-        const sized = cover.url.replace(/\/cover(\.\w+)(\?|$)/,(_m, ext: string, q: string) => `/cover-250${ext}${q}`);
-        for (const candidate of new Set([sized, cover.url])) {
-          const image = await lidarr.mediaCover(candidate).catch(() => null);
-          if (image && accept(image)) return image;
-        }
-      }
-      return cover.remoteUrl ? this.fetchRemote(cover.remoteUrl) : null;
+      // Cover Art Archive takes one to two seconds per cover; Lidarr's copy of an album it has is local.
+      const fromCaa = () => this.fetchRemote(`https://coverartarchive.org/release-group/${releaseGroupMbid}/front-250`);
+      const fromLidarr = () => this.fromLidarrAlbum(releaseGroupMbid, client);
+      return preferLidarr ? ((await fromLidarr()) ?? fromCaa()) : ((await fromCaa()) ?? fromLidarr());
     });
     if (artwork) this.misses.delete(name);
     else this.misses.set(name, Date.now());
     return artwork;
+  }
+
+  /**
+   * Starts fetching covers for a page the browser is about to show, so they
+   * are cached (or on their way) by the time it asks. Browsers fetch only a
+   * few images at a time over plain HTTP, and each cold cover can take
+   * seconds, so waiting for the browser to ask one by one adds up.
+   */
+  warmAlbums(requests: AlbumCoverRequest[], client: () => LidarrClient | null): void {
+    const queue = requests.slice(0, WARM_LIMIT);
+    const worker = async () => {
+      for (let next = queue.shift(); next; next = queue.shift()) {
+        await this.album(next.mbid, client, { preferLidarr: next.preferLidarr }).catch(() => null);
+      }
+    };
+    for (let i = 0; i < WARM_CONCURRENCY; i++) void worker();
+  }
+
+  /** Lidarr's cover for an album it has: its MediaCover (with the key, on the server), then its remote URL. */
+  private async fromLidarrAlbum(releaseGroupMbid: string, client: () => LidarrClient | null): Promise<Artwork | null> {
+    const lidarr = client();
+    const album = lidarr ? await lidarr.albumByMbid(releaseGroupMbid).catch(() => null) : null;
+    const cover = album?.images?.find((i) => i.coverType === 'cover');
+    if (!lidarr || !cover) return null;
+    if (cover.url) {
+      const sized = cover.url.replace(/\/cover(\.\w+)(\?|$)/, (_m, ext: string, q: string) => `/cover-250${ext}${q}`);
+      for (const candidate of new Set([sized, cover.url])) {
+        const image = await lidarr.mediaCover(candidate).catch(() => null);
+        if (image && accept(image)) return image;
+      }
+    }
+    return cover.remoteUrl ? this.fetchRemote(cover.remoteUrl) : null;
   }
 
   /** Artwork from an allowlisted public host. The caller must have verified the URL's signature. */

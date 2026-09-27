@@ -321,4 +321,42 @@ describe('album covers', () => {
     expect(await new ArtworkCache(tmpImageDir(), silentLog).album(MBID, () => client)).toBeNull();
     expect(asked.some((u) => u.includes('evil.example'))).toBe(false);
   });
+
+  it("uses Lidarr's local copy first for albums Lidarr has, skipping Cover Art Archive", async () => {
+    const asked = stubCoverArtArchive('hit');
+    const { client, covers } = lidarrWith([{ coverType: 'cover', url: '/MediaCover/Albums/147/cover.jpg?lastWrite=1' }]);
+    const art = await new ArtworkCache(tmpImageDir(), silentLog).album(MBID, () => client, { preferLidarr: true });
+    expect(art?.body.toString()).toBe('lidarr cover');
+    expect(covers).toHaveLength(1);
+    expect(asked).toEqual([]);
+  });
+
+  it('warms every cover on a page at once, a few at a time', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const asked: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      asked.push(url);
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 30)); // Cover Art Archive is slow
+      inFlight--;
+      return new Response(Buffer.from('caa cover'), { headers: { 'content-type': 'image/jpeg' } });
+    });
+    const cache = new ArtworkCache(tmpImageDir(), silentLog);
+    const mbids = Array.from({ length: 20 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`);
+    cache.warmAlbums(
+      mbids.map((mbid) => ({ mbid })),
+      () => null,
+    );
+    await new Promise((r) => setTimeout(r, 300));
+    expect(asked).toHaveLength(20);
+    expect(peak).toBeLessThanOrEqual(8);
+    expect(peak).toBeGreaterThan(1);
+
+    // The browser's own requests now come straight from the cache.
+    const before = asked.length;
+    for (const mbid of mbids) expect(await cache.album(mbid, () => null)).not.toBeNull();
+    expect(asked).toHaveLength(before);
+  });
 });

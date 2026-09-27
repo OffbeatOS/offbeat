@@ -5,7 +5,10 @@ import { MBID } from '../catalog/releases.js';
 import { LidarrError } from '../integrations/lidarr/client.js';
 import { MusicBrainzError } from '../integrations/musicbrainz/client.js';
 import { HttpError, parse } from './errors.js';
+import { currentClient } from '../integrations/lidarr/settings.js';
 
+/** Album cover URLs as `ImageUrls.releaseGroupCover` writes them. */
+const COVER_URL = /api\/v1\/images\/album\/([0-9a-f-]{36})(?:\?src=(lidarr))?/g;
 const mbidParams = z.object({ mbid: z.string().regex(MBID, 'not a MusicBrainz id') });
 const searchQuery = z.object({ q: z.string().trim().min(2, 'type at least 2 characters').max(100) });
 const addAlbumBody = z.object({ artistMbid: z.string().regex(MBID, 'not a MusicBrainz id') });
@@ -31,14 +34,26 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
     }
   };
 
+  const lidarrClient = currentClient(app.settings);
+
+  /** Starts fetching the album covers in a response the browser is about to render. */
+  function warmCovers<T>(response: T): T {
+    const covers = [...JSON.stringify(response).matchAll(COVER_URL)].map((m) => ({
+      mbid: m[1]!,
+      preferLidarr: m[2] === 'lidarr',
+    }));
+    app.artwork.warmAlbums(covers, lidarrClient);
+    return response;
+  }
+
   app.get('/search', async (request): Promise<SearchResponse> => {
     const { q } = parse(searchQuery, request.query);
-    return upstream(request, () => app.catalog.search(q));
+    return warmCovers(await upstream(request, () => app.catalog.search(q)));
   });
 
   app.get('/artists/:mbid', async (request): Promise<ArtistDetail> => {
     const { mbid } = parse(mbidParams, request.params);
-    return upstream(request, () => app.catalog.artist(mbid.toLowerCase()));
+    return warmCovers(await upstream(request, () => app.catalog.artist(mbid.toLowerCase())));
   });
 
   app.post('/artists/:mbid', async (request): Promise<ArtistDetail> => {
@@ -54,7 +69,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/albums/:mbid', async (request): Promise<AlbumDetail> => {
     const { mbid } = parse(mbidParams, request.params);
-    return upstream(request, () => app.catalog.album(mbid.toLowerCase()));
+    return warmCovers(await upstream(request, () => app.catalog.album(mbid.toLowerCase())));
   });
 
   app.patch('/albums/:mbid', async (request): Promise<AlbumDetail> => {

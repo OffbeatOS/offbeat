@@ -456,7 +456,7 @@ export class Catalog {
       title: album.title,
       type: releaseType(album.albumType, album.secondaryTypes),
       year: yearOf(album.releaseDate),
-      coverUrl: this.images.releaseGroupCover(album.foreignAlbumId),
+      coverUrl: this.images.releaseGroupCover(album.foreignAlbumId, { inLidarr: true }),
       artistMbid,
       artistName,
       status: this.pendingOr(album.foreignAlbumId, lidarrStatus(album)),
