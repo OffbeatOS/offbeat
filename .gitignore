@@ -14,3 +14,5 @@ coverage/
 Thumbs.db
 
 docs/
+# Personal Claude Code settings
+.claude/settings.local.json

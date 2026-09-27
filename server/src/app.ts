@@ -1,5 +1,6 @@
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import { api } from './api/index.js';
+import type { LoginLimiter } from './auth/login-limiter.js';
 import type { Config } from './config.js';
 import type { Db } from './db/index.js';
 import { registerWeb } from './web.js';
@@ -16,9 +17,11 @@ export interface AppOptions {
   /** Directory holding the built Angular app, or null to serve only the API. */
   webRoot: string | null;
   logger?: FastifyServerOptions['logger'];
+  /** Override in tests to exercise throttling without real time passing. */
+  loginLimiter?: LoginLimiter;
 }
 
-export async function buildApp({ config, db, webRoot, logger }: AppOptions) {
+export async function buildApp({ config, db, webRoot, logger, loginLimiter }: AppOptions) {
   const app = Fastify({
     logger: logger ?? { level: config.logLevel },
     trustProxy: config.trustProxy,
@@ -26,7 +29,7 @@ export async function buildApp({ config, db, webRoot, logger }: AppOptions) {
 
   app.decorate('db', db);
 
-  await app.register(api, { prefix: `${config.baseUrl}/api/v1` });
+  await app.register(api, { prefix: `${config.baseUrl}/api/v1`, baseUrl: config.baseUrl, loginLimiter });
 
   if (webRoot) {
     await registerWeb(app, webRoot, config.baseUrl);

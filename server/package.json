@@ -13,7 +13,9 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
     "@fastify/static": "^10.1.5",
+    "@node-rs/argon2": "^2.2.1",
     "@offbeat/shared": "0.1.0",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.3",
