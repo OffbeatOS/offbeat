@@ -7,7 +7,7 @@ import { musicbrainzCache } from '../../db/schema.js';
 import { VERSION } from '../../version.js';
 
 export const MUSICBRAINZ_URL = 'https://musicbrainz.org/ws/2';
-const USER_AGENT = `Offbeat/${VERSION} ( https://github.com/xwolvos/offbeat )`;
+const USER_AGENT = `Offbeat/${VERSION} ( https://github.com/OffbeatOS/offbeat )`;
 const FRESH_FOR_MS = 7 * 24 * 60 * 60 * 1000;
 const TIMEOUT_MS = 10_000;
 

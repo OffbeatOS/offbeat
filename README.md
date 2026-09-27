@@ -9,7 +9,7 @@ Self-hosted music discovery for Lidarr. Find new artists based on what you alrea
 ```yaml
 services:
   offbeat:
-    image: ghcr.io/xwolvos/offbeat:latest
+    image: ghcr.io/offbeatos/offbeat:latest
     restart: unless-stopped
     ports:
       - "3001:3001"

@@ -2,8 +2,8 @@
 
 Offbeat is an open-source, self-hosted music discovery and (eventually) streaming suite. The first phases cover discovery: find new artists, add them to Lidarr, track downloads, and build scheduled discovery playlists. Later phases add native streaming so Offbeat becomes an all-in-one music app.
 
-- **Repo:** `github.com/xwolvos/offbeat`
-- **Image:** `ghcr.io/xwolvos/offbeat`
+- **Repo:** `github.com/OffbeatOS/offbeat`
+- **Image:** `ghcr.io/offbeatos/offbeat`
 - **Distribution:** Docker (primary) or bare-metal Node install, the same model as Seerr
 - **No website.** The README is the landing page.
 
@@ -128,7 +128,7 @@ The MusicBrainz ID (MBID) is the universal join key across every service.
 
 **ListenBrainz (optional).** Per-user listening history as an alternative to Last.fm.
 
-**MusicBrainz.** Canonical metadata and release groups. Hard limit of 1 req/sec with a descriptive `User-Agent` (`Offbeat/<version> (https://github.com/xwolvos/offbeat)`). Cache aggressively.
+**MusicBrainz.** Canonical metadata and release groups. Hard limit of 1 req/sec with a descriptive `User-Agent` (`Offbeat/<version> (https://github.com/OffbeatOS/offbeat)`). Cache aggressively.
 
 **Cover Art Archive.** Album art by release group MBID. Cache to `config/cache/images`.
 

@@ -6,7 +6,7 @@
   "description": "Self-hosted music discovery for Lidarr",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xwolvos/offbeat.git"
+    "url": "git+https://github.com/OffbeatOS/offbeat.git"
   },
   "engines": {
     "node": "^22.22.3 || >=24.15.0"
