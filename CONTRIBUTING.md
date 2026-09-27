@@ -69,6 +69,7 @@ After changing `server/src/db/schema.ts`, run `npm run db:generate` and commit t
 
 ## Pull requests
 
+- `main` is protected. Every change, the maintainers' included, lands through a pull request once CI (lint, typecheck, test, build) passes on a branch that is up to date with `main`, and review conversations are resolved.
 - Keep each pull request focused on one change.
 - Fill in the template, including what you verified in a browser. Screenshots help for any UI change, at desktop and at phone width (390px).
 - Update the docs when behavior changes: the README for user-facing setup, [docs/architecture.md](docs/architecture.md) for how things work.
