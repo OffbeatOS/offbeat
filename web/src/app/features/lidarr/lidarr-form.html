@@ -1,0 +1,112 @@
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="fields">
+    <ob-field
+      label="Lidarr URL"
+      hint="Include the URL base if Lidarr uses one, for example http://lidarr:8686/lidarr"
+    >
+      <input
+        class="input"
+        type="url"
+        formControlName="url"
+        placeholder="http://lidarr:8686"
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </ob-field>
+
+    <ob-field
+      label="API Key"
+      [hint]="
+        hasSavedKey()
+          ? 'Saved. Leave blank to keep it, or paste a new one.'
+          : 'Found in Lidarr under Settings, General'
+      "
+    >
+      <input
+        class="input"
+        type="password"
+        formControlName="apiKey"
+        autocomplete="off"
+        [placeholder]="hasSavedKey() ? 'Saved' : ''"
+      />
+    </ob-field>
+
+    <div class="test-row">
+      <button
+        class="btn btn-outline btn-sm"
+        type="button"
+        [disabled]="status().kind === 'testing'"
+        (click)="test()"
+      >
+        Test Connection
+      </button>
+      <span class="status" role="status" aria-live="polite">
+        @switch (status().kind) {
+          @case ('testing') {
+            <span class="muted">Testing connection</span>
+          }
+          @case ('connected') {
+            <span class="ok"><ob-icon name="check" [size]="15" [strokeWidth]="2.6" />Connected</span>
+          }
+          @case ('failed') {
+            <span class="failed"><ob-icon name="alert" [size]="15" [strokeWidth]="2" />{{ failureMessage() }}</span>
+          }
+        }
+      </span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="defaults">
+    <div class="defaults-head">
+      <h2>Defaults for new artists</h2>
+      <span>
+        @if (options()) {
+          Loaded from your Lidarr. You can change these later, or per add.
+        } @else {
+          Test the connection to load profiles and folders from Lidarr.
+        }
+      </span>
+    </div>
+
+    <div class="selects">
+      <ob-field label="Quality Profile">
+        <span class="select">
+          <select class="input" formControlName="qualityProfileId">
+            @for (profile of options()?.qualityProfiles ?? []; track profile.id) {
+              <option [ngValue]="profile.id">{{ profile.name }}</option>
+            }
+          </select>
+        </span>
+      </ob-field>
+      <ob-field label="Metadata Profile">
+        <span class="select">
+          <select class="input" formControlName="metadataProfileId">
+            @for (profile of options()?.metadataProfiles ?? []; track profile.id) {
+              <option [ngValue]="profile.id">{{ profile.name }}</option>
+            }
+          </select>
+        </span>
+      </ob-field>
+      <ob-field label="Root Folder">
+        <span class="select">
+          <select class="input" formControlName="rootFolderPath">
+            @for (folder of options()?.rootFolders ?? []; track folder.path) {
+              <option [ngValue]="folder.path">
+                {{ folder.path }}{{ folder.freeSpace !== null ? ' (' + formatFree(folder.freeSpace) + ')' : '' }}
+              </option>
+            }
+          </select>
+        </span>
+      </ob-field>
+    </div>
+  </div>
+
+  <div class="actions">
+    <p class="form-error" role="alert">{{ saveError() }}</p>
+    <button class="btn btn-primary" type="submit" [disabled]="!options() || saving()">
+      {{ saving() ? 'Saving' : submitLabel() }}
+    </button>
+  </div>
+</form>

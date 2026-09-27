@@ -11,7 +11,9 @@ export type IconName =
   | 'more'
   | 'plus'
   | 'alert'
-  | 'chevron-right';
+  | 'chevron-right'
+  | 'chevron-left'
+  | 'check';
 
 /** 24px viewBox stroke icons at 1.8px, drawn in `currentColor` (Lucide style). */
 @Component({
@@ -74,6 +76,12 @@ export type IconName =
         @case ('alert') {
           <circle cx="12" cy="12" r="9" />
           <path d="M12 7.5v5.5M12 16.5v.01" />
+        }
+        @case ('chevron-left') {
+          <path d="M15 6l-6 6 6 6" />
+        }
+        @case ('check') {
+          <path d="M5 12.5l4.5 4.5L19 7" />
         }
         @case ('chevron-right') {
           <path d="M9 6l6 6-6 6" />

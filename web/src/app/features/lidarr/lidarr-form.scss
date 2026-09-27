@@ -1,0 +1,103 @@
+@use '../../shared/mixins';
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.test-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 40px;
+}
+
+.status {
+  font-size: 13px;
+  font-weight: 500;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.muted {
+  color: var(--text-3);
+}
+
+.ok {
+  color: var(--text-2);
+}
+
+.failed {
+  color: var(--status-failed);
+  line-height: 1.4;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border-sidebar);
+}
+
+.defaults {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.defaults-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  h2 {
+    @include mixins.text-card-title;
+  }
+
+  span {
+    font-size: 13px;
+    color: var(--text-3);
+  }
+}
+
+.selects {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.form-error {
+  font-size: 13px;
+  color: var(--status-failed);
+
+  &:empty {
+    visibility: hidden;
+  }
+}
+
+@include mixins.mobile {
+  .selects {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .test-row {
+    flex-wrap: wrap;
+  }
+}

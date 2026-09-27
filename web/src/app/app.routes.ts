@@ -86,11 +86,18 @@ export const routes: Routes = [
           import('./features/settings/settings-layout').then((m) => m.SettingsLayout),
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'integrations' },
-          settingsPlaceholder(
-            'integrations',
-            'Integrations',
-            'Lidarr is required. Everything else unlocks extra features.',
-          ),
+          {
+            path: 'integrations',
+            title: 'Integrations settings',
+            loadComponent: () =>
+              import('./features/settings/integrations-settings').then((m) => m.IntegrationsSettings),
+          },
+          {
+            path: 'integrations/lidarr',
+            title: 'Lidarr settings',
+            loadComponent: () =>
+              import('./features/settings/lidarr-settings').then((m) => m.LidarrSettings),
+          },
           settingsPlaceholder('discovery', 'Discovery', 'How recommendations are chosen and refreshed.'),
           settingsPlaceholder('users', 'Users', 'People who can use this Offbeat server.'),
           {

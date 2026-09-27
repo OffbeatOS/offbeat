@@ -125,4 +125,35 @@ p {
   &[aria-invalid='true'] {
     border-color: var(--status-failed);
   }
+
+  &:disabled {
+    opacity: 0.55;
+  }
+}
+
+// Wrap a <select class="input"> to get the mockup's chevron.
+.select {
+  position: relative;
+  display: block;
+
+  select {
+    height: 44px;
+    padding: 0 34px 0 12px;
+    font-size: 14px;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 16px;
+    width: 12px;
+    height: 12px;
+    background: var(--text-3);
+    pointer-events: none;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
 }

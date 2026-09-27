@@ -1,25 +1,31 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { Session } from '../../core/session';
 import { FocusLayout } from '../../shared/focus-layout/focus-layout';
 import { AccountStep } from './account-step';
+import { LidarrStep } from './lidarr-step';
 import { StepIndicator } from './step-indicator';
 
+const STEPS = ['Account', 'Lidarr'] as const;
+
 /**
- * First-run wizard. Steps are added here as their slices land (Lidarr next);
- * the indicator appears once there is more than one.
+ * First-run wizard. It resumes at the first unfinished step, so an admin who
+ * left before connecting Lidarr comes back to that step. More steps are added
+ * as their slices land.
  */
 @Component({
   selector: 'ob-onboarding-page',
-  imports: [FocusLayout, StepIndicator, AccountStep],
+  imports: [FocusLayout, StepIndicator, AccountStep, LidarrStep],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ob-focus-layout>
-      @if (steps.length > 1) {
-        <ob-step-indicator [steps]="steps" [current]="current()" />
-      }
+      <ob-step-indicator [steps]="steps" [current]="current()" />
       @switch (currentStep()) {
         @case ('Account') {
           <ob-account-step (done)="next()" />
+        }
+        @case ('Lidarr') {
+          <ob-lidarr-step (done)="next()" />
         }
       }
     </ob-focus-layout>
@@ -28,8 +34,8 @@ import { StepIndicator } from './step-indicator';
 export class OnboardingPage {
   private readonly router = inject(Router);
 
-  protected readonly steps = ['Account'] as const;
-  protected readonly current = signal(0);
+  protected readonly steps = STEPS;
+  protected readonly current = signal(inject(Session).needsAdmin() ? 0 : 1);
   protected readonly currentStep = computed(() => this.steps[this.current()]);
 
   protected next() {

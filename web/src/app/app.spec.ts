@@ -8,10 +8,11 @@ import { safeReturnUrl } from './core/guards';
 import { Session } from './core/session';
 
 /** Session stand-in so routing can be tested without a server. */
-function fakeSession(state: { needsAdmin?: boolean; user?: CurrentUser | null }) {
+function fakeSession(state: { needsAdmin?: boolean; user?: CurrentUser | null; lidarrConfigured?: boolean }) {
   return {
     user: signal(state.user ?? null),
     needsAdmin: signal(state.needsAdmin ?? false),
+    lidarrConfigured: signal(state.lidarrConfigured ?? true),
     unreachable: signal(false),
     ensureLoaded: () => Promise.resolve(),
   };
@@ -52,6 +53,19 @@ describe('routing', () => {
     expect(router.url).toBe('/discover');
     await router.navigateByUrl('/login?returnUrl=%2Factivity');
     expect(router.url).toBe('/activity');
+  });
+
+  it('sends an admin without Lidarr back to the Lidarr step', async () => {
+    const { router, el } = await boot(fakeSession({ user: admin, lidarrConfigured: false }), '/library');
+    expect(router.url).toBe('/onboarding');
+    expect(el.querySelector('h1')?.textContent).toBe('Connect Lidarr');
+    expect(el.querySelector('[aria-current=step]')?.textContent?.trim()).toBe('2. Lidarr');
+  });
+
+  it('does not hold non-admins at onboarding when Lidarr is missing', async () => {
+    const member: CurrentUser = { id: 2, username: 'member', role: 'user' };
+    const { router } = await boot(fakeSession({ user: member, lidarrConfigured: false }), '/library');
+    expect(router.url).toBe('/library');
   });
 
   it('only follows in-app return URLs', () => {

@@ -10,6 +10,8 @@ export class Session {
 
   readonly user = signal<CurrentUser | null>(null);
   readonly needsAdmin = signal(false);
+  /** Admins are sent back to onboarding until this is true. */
+  readonly lidarrConfigured = signal(false);
   /** Set when the server could not be reached; the sign-in page explains it. */
   readonly unreachable = signal(false);
 
@@ -45,6 +47,7 @@ export class Session {
         this.api.get<{ user: CurrentUser | null }>('auth/me'),
       ]);
       this.needsAdmin.set(state.needsAdmin);
+      this.lidarrConfigured.set(state.lidarrConfigured);
       this.user.set(me.user);
       this.unreachable.set(false);
     } catch {

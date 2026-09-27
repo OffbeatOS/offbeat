@@ -38,6 +38,10 @@ export class Api {
     return this.send(this.http.post<T>(`api/v1/${path}`, body));
   }
 
+  put<T>(path: string, body: unknown = {}): Promise<T> {
+    return this.send(this.http.put<T>(`api/v1/${path}`, body));
+  }
+
   private send<T>(request: Observable<T>): Promise<T> {
     return firstValueFrom(request).catch(toApiError);
   }
