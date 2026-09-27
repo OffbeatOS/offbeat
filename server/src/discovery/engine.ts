@@ -263,14 +263,58 @@ export function rank(pool: Iterable<Candidate>, mode: DiscoveryMode, options: Ra
   }
   scored.sort((a, b) => b.score - a.score);
   const top = scored[0]?.score ?? 1;
-  return scored.slice(0, limit).map(({ candidate, score }) => explain(candidate, mode, (score / top) * 100, listeners));
+  const explained = scored.map(({ candidate, score }) => explain(candidate, mode, (score / top) * 100, listeners));
+  return capSeeds(explained).slice(0, limit);
+}
+
+/** No single seed explains more than this many of the top picks, so every part of a library gets a voice. */
+export const SEED_CAP = { top: 10, perSeed: 3 };
+/** A seed can explain a pick in place of the strongest one only if it contributed at least this share of it. */
+export const MIN_REASON_SHARE = 0.5;
+
+/**
+ * Fills the top of the list in score order, but a seed that already explains
+ * `perSeed` picks cannot explain another. A pick whose strongest seed is full
+ * is explained by its next contributing seed with room; with none left, it
+ * waits below the top. Everything past the top keeps its order. With too few
+ * seeds to fill the top this way, the remaining places follow in score order.
+ */
+export function capSeeds(items: Explained[], { top, perSeed } = SEED_CAP): Ranked[] {
+  const counts = new Map<string, number>();
+  const pending = [...items];
+  const result: Ranked[] = [];
+  while (result.length < top && pending.length) {
+    let placed = false;
+    for (let i = 0; i < pending.length; i++) {
+      const reason = pending[i]!.reasons.find((r) => (counts.get(r.seedMbid) ?? 0) < perSeed);
+      if (!reason) continue;
+      counts.set(reason.seedMbid, (counts.get(reason.seedMbid) ?? 0) + 1);
+      result.push({ ...pending[i]!.ranked, reason });
+      pending.splice(i, 1);
+      placed = true;
+      break;
+    }
+    if (!placed) break;
+  }
+  return [...result, ...pending.map((p) => p.ranked)];
+}
+
+/** A ranked pick with every seed that could explain it, strongest first. */
+export interface Explained {
+  ranked: Ranked;
+  reasons: Ranked['reason'][];
 }
 
 /**
  * "Because you like X": the seed behind the strongest contribution. Only
  * Deeper uses second hops, so only Deeper can explain one ("Y, like X").
  */
-function explain(candidate: Candidate, mode: DiscoveryMode, score: number, listeners?: ReadonlyMap<string, number>): Ranked {
+function explain(
+  candidate: Candidate,
+  mode: DiscoveryMode,
+  score: number,
+  listeners?: ReadonlyMap<string, number>,
+): Explained {
   const bySeed = new Map<string, { seed: Seed; value: number; via: string | null }>();
   for (const c of candidate.contributions) {
     if (c.via && mode !== 'deeper') continue;
@@ -279,15 +323,22 @@ function explain(candidate: Candidate, mode: DiscoveryMode, score: number, liste
     if (!current || value > current.value) bySeed.set(c.seed.mbid, { seed: c.seed, value, via: c.via?.name ?? null });
   }
   const strongest = [...bySeed.values()].sort((a, b) => b.value - a.value);
-  const best = strongest[0]!;
+  // Another seed can stand in for the strongest (see capSeeds) only if it
+  // contributed at least half as much; a weak link makes a poor explanation.
+  const reasons = strongest
+    .filter((s) => s.value >= strongest[0]!.value * MIN_REASON_SHARE)
+    .map((s) => ({ seed: s.seed.name, seedMbid: s.seed.mbid, via: s.via }));
   return {
-    mbid: candidate.mbid!,
-    name: candidate.name,
-    score: Math.round(score * 10) / 10,
-    reason: { seed: best.seed.name, seedMbid: best.seed.mbid, via: best.via },
-    seeds: strongest.slice(0, 3).map((s) => s.seed.name),
-    sources: [...candidate.sources].sort(),
-    listeners: listeners?.get(candidate.mbid!) ?? null,
+    ranked: {
+      mbid: candidate.mbid!,
+      name: candidate.name,
+      score: Math.round(score * 10) / 10,
+      reason: reasons[0]!,
+      seeds: strongest.slice(0, 3).map((s) => s.seed.name),
+      sources: [...candidate.sources].sort(),
+      listeners: listeners?.get(candidate.mbid!) ?? null,
+    },
+    reasons,
   };
 }
 

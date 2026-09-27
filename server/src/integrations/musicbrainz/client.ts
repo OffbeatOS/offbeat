@@ -12,6 +12,12 @@ const FRESH_FOR_MS = 7 * 24 * 60 * 60 * 1000;
 const TIMEOUT_MS = 10_000;
 
 export class MusicBrainzError extends Error {}
+/** MusicBrainz has no such entity (HTTP 404). */
+export class MusicBrainzNotFound extends MusicBrainzError {}
+
+const artistGenresSchema = z.object({
+  genres: z.array(z.object({ name: z.string(), count: z.number() })).nullish(),
+});
 
 const releaseGroupSchema = z.object({
   id: z.string(),
@@ -97,6 +103,20 @@ export class MusicBrainzClient {
     return this.get(`release-group/${encodeURIComponent(mbid)}?inc=artist-credits&fmt=json`, releaseGroupSchema);
   }
 
+  /**
+   * An artist's genres from MusicBrainz's curated list (not free-form tags),
+   * with how many editors voted for each. Unknown artists have none.
+   */
+  async artistGenres(mbid: string): Promise<{ name: string; count: number }[]> {
+    try {
+      const artist = await this.get(`artist/${encodeURIComponent(mbid)}?inc=genres&fmt=json`, artistGenresSchema);
+      return [...(artist.genres ?? [])].sort((a, b) => b.count - a.count);
+    } catch (error) {
+      if (error instanceof MusicBrainzNotFound) return [];
+      throw error;
+    }
+  }
+
   /** Track list of a release group's earliest official release. */
   async tracks(releaseGroupMbid: string): Promise<MbTrack[]> {
     const { releases } = await this.get(
@@ -145,7 +165,7 @@ export class MusicBrainzClient {
       headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
       timeoutMs: TIMEOUT_MS,
     });
-    if (response.status === 404) throw new MusicBrainzError('MusicBrainz has no record of that');
+    if (response.status === 404) throw new MusicBrainzNotFound('MusicBrainz has no record of that');
     if (response.status === 503) throw new MusicBrainzError('MusicBrainz is busy. Try again shortly.');
     if (!response.ok) throw new MusicBrainzError(`MusicBrainz returned HTTP ${response.status}`);
     return response.json();

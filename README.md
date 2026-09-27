@@ -69,6 +69,7 @@ Integrations and add behavior are configured in the web UI. Environment variable
 | `TZ` | `UTC` | Timezone for schedules |
 | `TRUST_PROXY` | `false` | Trust `X-Forwarded-*` headers (set this behind a reverse proxy) |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, or `error` |
+| `SESSION_COOKIE` | `offbeat_session` | Session cookie name. Give each instance its own when several share a host, since browsers share cookies across ports |
 
 ## Contributing
 

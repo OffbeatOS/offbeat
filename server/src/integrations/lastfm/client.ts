@@ -41,6 +41,9 @@ const similarSchema = z.object({
     artist: oneOrMany(z.object({ name: z.string(), mbid: z.string().optional(), match: z.coerce.number() })).optional(),
   }),
 });
+const topTagsSchema = z.object({
+  toptags: z.object({ tag: oneOrMany(z.object({ name: z.string(), count: z.coerce.number() })).optional() }),
+});
 const topArtistsSchema = z.object({
   topartists: z.object({
     artist: oneOrMany(z.object({ name: z.string(), mbid: z.string().optional(), playcount: z.coerce.number() })).optional(),
@@ -103,6 +106,23 @@ export class LastfmClient {
       try {
         const body = similarSchema.parse(await this.call('artist.getsimilar', { ...params, limit: String(limit) }));
         return (body.similarartists.artist ?? []).map((a) => ({ mbid: a.mbid || null, name: a.name, match: a.match }));
+      } catch (error) {
+        if (!(error instanceof LastfmError && error.code === NOT_FOUND)) throw error;
+      }
+    }
+    return [];
+  }
+
+  /**
+   * An artist's top tags, with Last.fm's relative weight (the top tag is
+   * 100). Free-form, so callers filter them. Unknown artists have none.
+   */
+  async artistTopTags(artist: { mbid: string; name: string }): Promise<{ name: string; count: number }[]> {
+    const lookups: Record<string, string>[] = [{ mbid: artist.mbid }, { artist: artist.name, autocorrect: '1' }];
+    for (const params of lookups) {
+      try {
+        const body = topTagsSchema.parse(await this.call('artist.gettoptags', params));
+        return body.toptags.tag ?? [];
       } catch (error) {
         if (!(error instanceof LastfmError && error.code === NOT_FOUND)) throw error;
       }

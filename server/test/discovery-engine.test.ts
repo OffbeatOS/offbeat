@@ -5,6 +5,7 @@ import {
   type SimilarLists,
   VARIOUS_ARTISTS,
   buildSeeds,
+  capSeeds,
   gather,
   mergeSimilar,
   normalizeName,
@@ -14,6 +15,7 @@ import {
   seededRandom,
   trustedListeners,
 } from '../src/discovery/engine.js';
+import { genreLabel, pickGenres } from '../src/discovery/genres.js';
 
 const seed = (name: string, weight = 1): Seed => ({ mbid: `mbid-${name}`, name, weight, inLibrary: true, plays: 0 });
 const lb = (...entries: [string, number][]): SimilarLists['listenbrainz'] =>
@@ -185,5 +187,84 @@ describe('buildSeeds', () => {
   it('caps the number of seeds, keeping the heaviest', () => {
     const many = Array.from({ length: 80 }, (_, i) => ({ mbid: `m${i}`, name: `A${i}` }));
     expect(buildSeeds(many, [], { maxSeeds: 60 })).toHaveLength(60);
+  });
+});
+
+describe('seed cap', () => {
+  const pick = (name: string, ...seeds: string[]) => ({
+    ranked: { mbid: `mbid-${name}`, name, score: 0, reason: { seed: seeds[0]!, seedMbid: seeds[0]!, via: null }, seeds, sources: [], listeners: null },
+    reasons: seeds.map((s) => ({ seed: s, seedMbid: s, via: null })),
+  });
+
+  it('lets no seed explain more than its share of the top, using another contributing seed when it can', () => {
+    const items = [pick('A', 'NOFX'), pick('B', 'NOFX'), pick('C', 'NOFX'), pick('D', 'NOFX', 'Linkin Park'), pick('E', 'NOFX'), pick('F', 'The Prodigy')];
+    const capped = capSeeds(items, { top: 5, perSeed: 3 });
+    expect(capped.map((r) => r.name)).toEqual(['A', 'B', 'C', 'D', 'F', 'E']);
+    expect(capped[3]!.reason.seed).toBe('Linkin Park'); // D is also like Linkin Park, which has room
+    expect(capped[5]!.reason.seed).toBe('NOFX'); // E only has NOFX: it waits below the top
+  });
+
+  it('gives quieter seeds a voice in a real ranking', () => {
+    const loud = seed('NOFX', 2);
+    const quiet = seed('The Prodigy', 0.4);
+    const lists = { listenbrainz: lb(...Array.from({ length: 12 }, (_, i) => [`Punk ${i}`, 1000 - i] as [string, number])), lastfm: null };
+    const p = gather(new Map<string, Candidate>(), [
+      { seed: loud, lists },
+      { seed: quiet, lists: { listenbrainz: lb(['Leftfield', 1000], ['Chemical Brothers', 900]), lastfm: null } },
+    ]);
+    const ranked = rank(p.values(), 'balanced', noExclusions);
+    // The Prodigy's picks score far lower, but come right after NOFX's first three.
+    expect(ranked.slice(0, 5).map((r) => r.reason.seed)).toEqual(['NOFX', 'NOFX', 'NOFX', 'The Prodigy', 'The Prodigy']);
+    // With only two seeds the cap cannot fill ten places; the rest follow in score order.
+    expect(ranked).toHaveLength(14);
+    expect(ranked.slice(5).every((r) => r.reason.seed === 'NOFX')).toBe(true);
+  });
+});
+
+describe('genres', () => {
+  it('capitalizes consistently, keeping acronyms', () => {
+    expect(genreLabel('punk rock')).toBe('Punk Rock');
+    expect(genreLabel('uk garage')).toBe('UK Garage');
+    expect(genreLabel('idm')).toBe('IDM');
+    expect(genreLabel('hip-hop')).toBe('Hip-Hop');
+    expect(genreLabel('post-rock')).toBe('Post-Rock');
+  });
+
+  it('keeps real genres from Last.fm tags: no opinions, places, decades, weak tags, or the artist itself', () => {
+    const tags = [
+      { name: 'seen live', count: 100 },
+      { name: 'Radiohead', count: 95 },
+      { name: 'alternative', count: 90 },
+      { name: '90s', count: 60 },
+      { name: 'british', count: 50 },
+      { name: 'Alternative', count: 45 },
+      { name: 'art rock', count: 30 },
+      { name: 'electronic', count: 20 },
+      { name: 'experimental', count: 5 },
+    ];
+    expect(pickGenres(tags, { artistName: 'Radiohead', source: 'lastfm' })).toEqual(['Alternative', 'Art Rock', 'Electronic']);
+  });
+
+  it('takes MusicBrainz genres as they are, strongest first', () => {
+    expect(pickGenres([{ name: 'punk rock', count: 11 }, { name: 'skate punk', count: 7 }], { artistName: 'NOFX', source: 'musicbrainz' })).toEqual([
+      'Punk Rock',
+      'Skate Punk',
+    ]);
+  });
+});
+
+describe('substitute reasons', () => {
+  it('only lets a seed explain a pick if it contributed at least half as much as the strongest', () => {
+    const nofx = seed('NOFX');
+    const ccr = seed('Creedence Clearwater Revival');
+    // Hub is NOFX's fourth pick, and only weakly like CCR (0.1 against 0.3 from NOFX).
+    const p = gather(new Map<string, Candidate>(), [
+      { seed: nofx, lists: { listenbrainz: lb(['N1', 1000], ['N2', 990], ['N3', 980], ['Hub', 300]), lastfm: null } },
+      { seed: ccr, lists: { listenbrainz: lb(['Fogerty', 1000], ['Hub', 100]), lastfm: null } },
+    ]);
+    const ranked = rank(p.values(), 'balanced', { ...noExclusions });
+    // NOFX is full after three, and CCR's link is too weak to explain Hub: it waits, still as NOFX.
+    expect(ranked.find((r) => r.name === 'Hub')?.reason.seed).toBe('NOFX');
+    expect(ranked.slice(0, 4).map((r) => r.name).sort()).toEqual(['Fogerty', 'N1', 'N2', 'N3']);
   });
 });

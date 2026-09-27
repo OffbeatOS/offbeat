@@ -27,6 +27,7 @@ describe('loadConfig', () => {
       trustProxy: false,
       logLevel: 'info',
       configDir: path.resolve('./config'),
+      sessionCookie: 'offbeat_session',
     });
   });
 
@@ -37,6 +38,7 @@ describe('loadConfig', () => {
       TRUST_PROXY: 'true',
       LOG_LEVEL: 'debug',
       CONFIG_DIR: '/app/config',
+      SESSION_COOKIE: 'offbeat_dev',
     });
     expect(config).toMatchObject({
       port: 8080,
@@ -44,11 +46,13 @@ describe('loadConfig', () => {
       trustProxy: true,
       logLevel: 'debug',
       configDir: path.resolve('/app/config'),
+      sessionCookie: 'offbeat_dev',
     });
   });
 
   it('reports invalid values', () => {
     expect(() => loadConfig({ PORT: 'abc' })).toThrow(/PORT/);
     expect(() => loadConfig({ LOG_LEVEL: 'loud' })).toThrow(/LOG_LEVEL/);
+    expect(() => loadConfig({ SESSION_COOKIE: 'bad name;' })).toThrow(/SESSION_COOKIE/);
   });
 });

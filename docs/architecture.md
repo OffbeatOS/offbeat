@@ -54,6 +54,7 @@ Environment variables cover deployment only. Everything else (Lidarr URL and key
 | `TZ` | Timezone for schedules |
 | `TRUST_PROXY` | Trust `X-Forwarded-*` headers |
 | `LOG_LEVEL` | `debug`, `info`, `warn`, `error` |
+| `SESSION_COOKIE` | Session cookie name (default `offbeat_session`); set a different one per instance when several share a host |
 
 ## Repo layout
 
@@ -146,8 +147,8 @@ Works with no API key: ListenBrainz is always a source, and a Last.fm key adds a
    - *Balanced:* the plain sum with a small boost for several seeds.
    - *Deeper:* adds a second hop (the similar artists of its own top 12 picks, at half weight) and divides by the log of listeners, squared.
 7. **Variety.** Each score is multiplied by a random factor within 10 percent, seeded per refresh.
-8. **Explanations.** The seed behind the strongest match: "Because you like X", or for Deeper's second hop, "Y, which is like X".
-9. **Enrichment.** Names, disambiguation, genres, and artwork from Lidarr's artist lookup (Last.fm has no real artist images).
+8. **Explanations.** The seed behind the strongest match: "Because you like X", or for Deeper's second hop, "Y, which is like X". No seed explains more than 3 of the top 10: a pick whose strongest seed is full is explained by another contributing seed with room, if that seed contributed at least half as much, and otherwise moves below the top 10. So every part of a library gets a voice.
+9. **Enrichment.** Names, disambiguation, and artwork from Lidarr's artist lookup (Last.fm has no real artist images). Genres from Last.fm's top tags when connected (filtered to real genres), otherwise from MusicBrainz's curated genres (for the top 30 per mode in a refresh, at one request per second), never free-form tags.
 10. **Feedback (slice 4).** Thumbs up or down adjusts tag weights. "Never show this" adds to the blocklist.
 
 Every upstream answer is cached in `source_cache` (similar artists and popularity 7 days, lookups 30 days, listening stats 1 day) and served stale if a source is down. `server/scripts/discover-sample.ts` prints a sample per mode and source mix for reviewing quality.

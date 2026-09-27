@@ -1,7 +1,7 @@
 import fastifyCookie from '@fastify/cookie';
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import type { LoginLimiter } from '../auth/login-limiter.js';
-import { registerAuthGuard } from '../auth/guard.js';
+import { DEFAULT_SESSION_COOKIE, registerAuthGuard } from '../auth/guard.js';
 import { activityRoutes } from './activity.js';
 import { authRoutes } from './auth.js';
 import { catalogRoutes } from './catalog.js';
@@ -15,6 +15,8 @@ import { statusRoutes } from './status.js';
 
 export interface ApiOptions {
   baseUrl: string;
+  /** Session cookie name; defaults to offbeat_session. */
+  sessionCookie?: string;
   loginLimiter?: LoginLimiter;
   upstreamTimeoutMs?: number;
   /** Last.fm API base, overridden in tests. */
@@ -43,8 +45,11 @@ function requireJsonForWrites(app: FastifyInstance) {
  * Mounted at `<BASE_URL>/api/v1`. Every route requires a signed-in user unless
  * its config sets `public: true`. Register one module per resource here.
  */
-export const api: FastifyPluginAsync<ApiOptions> = async (app, { baseUrl, loginLimiter, upstreamTimeoutMs, lastfmUrl }) => {
-  const cookie = { baseUrl };
+export const api: FastifyPluginAsync<ApiOptions> = async (
+  app,
+  { baseUrl, sessionCookie = DEFAULT_SESSION_COOKIE, loginLimiter, upstreamTimeoutMs, lastfmUrl },
+) => {
+  const cookie = { baseUrl, name: sessionCookie };
 
   await app.register(fastifyCookie);
   requireJsonForWrites(app);

@@ -34,7 +34,7 @@ declare module 'fastify' {
 }
 
 export interface AppOptions {
-  config: Pick<Config, 'baseUrl' | 'trustProxy' | 'logLevel'>;
+  config: Pick<Config, 'baseUrl' | 'trustProxy' | 'logLevel'> & Partial<Pick<Config, 'sessionCookie'>>;
   db: Db;
   /** Contents of `secret.key`; encrypts stored credentials. */
   secretKey: Buffer;
@@ -131,7 +131,12 @@ export async function buildApp({
     new Discovery(
       db,
       app.library,
-      { lastfm: app.sources.lastfm, listenbrainz: app.sources.listenbrainz, lidarr: currentClient(settings) },
+      {
+        lastfm: app.sources.lastfm,
+        listenbrainz: app.sources.listenbrainz,
+        lidarr: currentClient(settings),
+        musicbrainz: musicbrainzClient,
+      },
       imageUrls,
       app.log,
       discovery,
@@ -144,6 +149,7 @@ export async function buildApp({
   await app.register(api, {
     prefix: `${config.baseUrl}/api/v1`,
     baseUrl: config.baseUrl,
+    sessionCookie: config.sessionCookie,
     loginLimiter,
     upstreamTimeoutMs,
     lastfmUrl: sources.lastfmUrl,

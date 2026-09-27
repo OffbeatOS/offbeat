@@ -7,6 +7,7 @@ import { recommendations, users } from '../db/schema.js';
 import type { LastfmClient } from '../integrations/lastfm/client.js';
 import type { LidarrClient, LidarrLookupArtist } from '../integrations/lidarr/client.js';
 import type { ListenBrainzClient } from '../integrations/listenbrainz/client.js';
+import type { MusicBrainzClient } from '../integrations/musicbrainz/client.js';
 import type { ImageUrls } from '../library/image-urls.js';
 import type { Library } from '../library/library.js';
 import {
@@ -24,6 +25,7 @@ import {
   resolveCandidate,
   seededRandom,
 } from './engine.js';
+import { pickGenres } from './genres.js';
 import { MAX_AGE, SourceCache } from './source-cache.js';
 
 export interface DiscoveryOptions {
@@ -37,6 +39,8 @@ export interface DiscoverySources {
   lastfm: () => LastfmClient | null;
   listenbrainz: ListenBrainzClient;
   lidarr: () => LidarrClient | null;
+  /** Curated genres when Last.fm is not connected. */
+  musicbrainz: MusicBrainzClient;
 }
 
 /** What one computation used and produced, for storage and for reviewing quality. */
@@ -50,6 +54,11 @@ export interface Computed {
 const SECOND_HOP_PARENTS = 12;
 /** Name-only candidates (Last.fm without an MBID) resolved through Lidarr, best first. */
 const RESOLVE_LIMIT = 120;
+/**
+ * Without Last.fm, genres come from MusicBrainz at one request per second, so
+ * only this many per mode are looked up in a refresh (cached for later ones).
+ */
+const MUSICBRAINZ_GENRE_LIMIT = 30;
 /** Candidates whose popularity is looked up for Deeper. */
 const POPULARITY_LIMIT = 400;
 
@@ -264,6 +273,7 @@ export class Discovery {
     const mbids = new Set(MODES.flatMap((mode) => computed.modes[mode].map((r) => r.mbid)));
     const lookups = new Map<string, LidarrLookupArtist | null>();
     await Promise.all([...mbids].map(async (mbid) => lookups.set(mbid, await this.lookup(mbid))));
+    const genres = await this.genres(computed, lookups);
     const result = {} as Record<DiscoveryMode, Recommendation[]>;
     for (const mode of MODES) {
       result[mode] = computed.modes[mode].map((r) => {
@@ -273,7 +283,7 @@ export class Discovery {
           mbid: r.mbid,
           name: artist?.artistName ?? r.name,
           disambiguation: artist?.disambiguation || null,
-          genres: (artist?.genres ?? []).slice(0, 3),
+          genres: genres.get(r.mbid) ?? [],
           imageUrl: this.images.remote(image?.remoteUrl),
           score: r.score,
           reason: r.reason,
@@ -282,6 +292,38 @@ export class Discovery {
           listeners: r.listeners,
         };
       });
+    }
+    return result;
+  }
+
+  /**
+   * Genres per recommendation: Last.fm's tags when connected (filtered to real
+   * genres), otherwise MusicBrainz's curated genres. Not Lidarr's free-form
+   * tags, which include things that are not genres at all.
+   */
+  private async genres(computed: Computed, lookups: Map<string, LidarrLookupArtist | null>): Promise<Map<string, string[]>> {
+    const result = new Map<string, string[]>();
+    const nameOf = (mbid: string, fallback: string) => lookups.get(mbid)?.artistName ?? fallback;
+    const lastfm = computed.sources.lastfm ? this.sources.lastfm() : null;
+    if (lastfm) {
+      const all = new Map(MODES.flatMap((mode) => computed.modes[mode].map((r) => [r.mbid, r.name] as const)));
+      await Promise.all(
+        [...all].map(async ([mbid, name]) => {
+          const artist = { mbid, name: nameOf(mbid, name) };
+          const tags = await this.cache
+            .get(`lf:tags:${mbid}`, MAX_AGE.lookup, () => lastfm.artistTopTags(artist))
+            .catch(() => []);
+          result.set(mbid, pickGenres(tags, { artistName: artist.name, source: 'lastfm' }));
+        }),
+      );
+      return result;
+    }
+    const wanted = new Map(
+      MODES.flatMap((mode) => computed.modes[mode].slice(0, MUSICBRAINZ_GENRE_LIMIT).map((r) => [r.mbid, r.name] as const)),
+    );
+    for (const [mbid, name] of wanted) {
+      const found = await this.sources.musicbrainz.artistGenres(mbid).catch(() => []);
+      result.set(mbid, pickGenres(found, { artistName: nameOf(mbid, name), source: 'musicbrainz' }));
     }
     return result;
   }

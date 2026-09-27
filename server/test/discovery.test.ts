@@ -8,6 +8,7 @@ import { SourceCache } from '../src/discovery/source-cache.js';
 import type { LastfmClient } from '../src/integrations/lastfm/client.js';
 import type { LidarrClient } from '../src/integrations/lidarr/client.js';
 import type { ListenBrainzClient } from '../src/integrations/listenbrainz/client.js';
+import type { MusicBrainzClient } from '../src/integrations/musicbrainz/client.js';
 import { ImageUrls } from '../src/library/image-urls.js';
 import type { Library } from '../src/library/library.js';
 
@@ -50,7 +51,19 @@ function setup({ lastfm = false, listenbrainzFails = false } = {}) {
         : [],
     ),
     userTopArtists: vi.fn(async () => [{ mbid: id('Rancid'), name: 'Rancid', plays: 50 }]),
+    // Free-form tags: an opinion, a genre, and one too weak to show.
+    artistTopTags: vi.fn(async () => [
+      { name: 'seen live', count: 100 },
+      { name: 'punk', count: 90 },
+      { name: 'ska punk', count: 4 },
+    ]),
   } as unknown as LastfmClient;
+  const musicbrainz = {
+    artistGenres: vi.fn(async () => [
+      { name: 'punk rock', count: 5 },
+      { name: 'skate punk', count: 3 },
+    ]),
+  } as unknown as MusicBrainzClient;
   const lookups: string[] = [];
   const lidarr = {
     lookupArtists: vi.fn(async (term: string) => {
@@ -62,13 +75,13 @@ function setup({ lastfm = false, listenbrainzFails = false } = {}) {
           artistName: name,
           foreignArtistId: id(name),
           disambiguation: '',
-          genres: ['Punk', 'Skate Punk'],
+          genres: ['Punk', 'Skate Punk'], // Lidarr's free-form tags: no longer used for display
           images: [{ coverType: 'poster', remoteUrl: `https://images.lidarr.audio/cache/${encodeURIComponent(name)}.jpg` }],
         },
       ];
     }),
   } as unknown as LidarrClient;
-  const sources: DiscoverySources = { listenbrainz, lastfm: () => (lastfm ? lastfmClient : null), lidarr: () => lidarr };
+  const sources: DiscoverySources = { listenbrainz, lastfm: () => (lastfm ? lastfmClient : null), lidarr: () => lidarr, musicbrainz };
   const discovery = new Discovery(db, library, sources, new ImageUrls(randomBytes(32)), silentLog, { schedule: null });
   return { db, discovery, userId: user.id, listenbrainz, lastfmClient, lookups };
 }
@@ -86,7 +99,7 @@ describe('Discovery', () => {
     expect(balanced.items.map((i) => i.name)).not.toContain('NOFX');
     expect(balanced.items[0]).toMatchObject({
       reason: { seed: 'NOFX', via: null },
-      genres: ['Punk', 'Skate Punk'],
+      genres: ['Punk Rock', 'Skate Punk'], // MusicBrainz's curated genres, since Last.fm is not connected
       sources: ['listenbrainz'],
     });
     expect(balanced.items[0]!.imageUrl).toMatch(/^api\/v1\/images\/remote\?u=/);
@@ -107,6 +120,8 @@ describe('Discovery', () => {
     expect(names).not.toContain('Rancid'); // a seed now, so not a recommendation
     expect(lookups).toContain('Mad Caddies');
     expect(balanced.items.find((i) => i.name === 'Lagwagon')?.sources).toEqual(['lastfm', 'listenbrainz']);
+    // Last.fm's tags when connected, without opinions or weak tags.
+    expect(balanced.items[0]?.genres).toEqual(['Punk']);
     // Last.fm pointed Face to Face at the wrong band; the name check through Lidarr fixed it.
     const faceToFace = balanced.items.find((i) => i.name === 'Face to Face');
     expect(faceToFace?.mbid).toBe(id('Face to Face'));

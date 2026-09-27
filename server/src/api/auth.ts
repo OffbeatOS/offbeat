@@ -2,7 +2,7 @@ import type { CurrentUser } from '@offbeat/shared';
 import { sql } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { type SessionCookieOptions, SESSION_COOKIE, clearSessionCookie, setSessionCookie } from '../auth/guard.js';
+import { type SessionCookieOptions, clearSessionCookie, setSessionCookie } from '../auth/guard.js';
 import { LoginLimiter } from '../auth/login-limiter.js';
 import { verifyPassword } from '../auth/password.js';
 import { createSession, deleteExpiredSessions, deleteSession } from '../auth/sessions.js';
@@ -49,7 +49,7 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { c
 
   // Public so a stale or expired cookie can always be cleared.
   app.post('/auth/logout', { config: { public: true } }, async (request, reply) => {
-    const token = request.cookies[SESSION_COOKIE];
+    const token = request.cookies[cookie.name];
     if (token) deleteSession(app.db, token);
     clearSessionCookie(reply, cookie);
     return reply.code(204).send();
