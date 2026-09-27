@@ -45,3 +45,84 @@ p {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+// Buttons (onboarding and settings mockups). Pills throughout.
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 26px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    opacity 120ms ease,
+    background-color 120ms ease;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+// White pill, dark label.
+.btn-primary {
+  background: var(--text);
+  color: var(--bg);
+
+  &:hover:not(:disabled) {
+    background: #fff;
+  }
+}
+
+.btn-outline {
+  border: 1px solid var(--border-button);
+  color: var(--text-soft);
+
+  &:hover:not(:disabled) {
+    background: var(--surface-2);
+  }
+}
+
+.btn-ghost {
+  padding: 0 20px;
+  color: var(--text-2);
+
+  &:hover:not(:disabled) {
+    color: var(--text);
+  }
+}
+
+.btn-sm {
+  height: 40px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+// Text inputs and selects.
+.input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-input);
+  background: var(--surface-input);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--text-3);
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--status-failed);
+  }
+}

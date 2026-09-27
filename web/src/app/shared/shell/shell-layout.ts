@@ -1,19 +1,20 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { BottomBar } from './shared/shell/bottom-bar';
-import { Sidebar } from './shared/shell/sidebar';
-import { TabBar } from './shared/shell/tab-bar';
+import { BottomBar } from './bottom-bar';
+import { Sidebar } from './sidebar';
+import { TabBar } from './tab-bar';
 
 /**
- * App shell: sidebar, routed content, and the bottom bar. The bottom bar sits
- * outside the router outlet so it (and the phase 5 player) survives navigation.
+ * App shell for signed-in pages: sidebar, routed content, and the bottom bar.
+ * Pages render in the inner outlet; the bottom bar sits outside it so it (and
+ * the phase 5 player) survives navigation between them.
  */
 @Component({
-  selector: 'ob-root',
+  selector: 'ob-shell-layout',
   imports: [RouterOutlet, Sidebar, BottomBar, TabBar],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
-    @use './shared/mixins';
+    @use '../mixins';
 
     :host {
       display: grid;
@@ -63,4 +64,4 @@ import { TabBar } from './shared/shell/tab-bar';
     <ob-tab-bar />
   `,
 })
-export class App {}
+export class ShellLayout {}
