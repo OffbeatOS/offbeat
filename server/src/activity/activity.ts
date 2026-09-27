@@ -45,6 +45,8 @@ export interface ActivityOptions {
   burstMs?: number;
   /** How often to reread Lidarr's history (imports, and grabs made from Lidarr). */
   historyEveryMs?: number;
+  /** A poll taking longer than this is abandoned, so one stuck request cannot stop Activity. */
+  pollTimeoutMs?: number;
 }
 
 const FAILED_ADD_TTL_MS = 24 * 60 * 60 * 1000;
@@ -71,6 +73,8 @@ export class Activity {
   private burstUntil = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private running: Promise<void> | null = null;
+  /** What the current poll is waiting on, for the log when one gets stuck. */
+  private stage = 'idle';
   private stopped = true;
 
   constructor(
@@ -211,10 +215,28 @@ export class Activity {
 
   /** One poll. Concurrent callers share the same run. */
   refresh(): Promise<void> {
-    this.running ??= this.poll().finally(() => {
+    this.running ??= this.pollWithTimeout().finally(() => {
       this.running = null;
     });
     return this.running;
+  }
+
+  /** One poll, abandoned (and reported) if it outlives `pollTimeoutMs`. */
+  private async pollWithTimeout() {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const limit = this.options.pollTimeoutMs ?? 45_000;
+    const timedOut = new Promise<'timeout'>((resolve) => {
+      timer = setTimeout(() => resolve('timeout'), limit);
+    });
+    try {
+      const outcome = await Promise.race([this.poll().then(() => 'done' as const), timedOut]);
+      if (outcome === 'timeout') {
+        this.log.warn({ stage: this.stage, ms: limit }, 'Lidarr activity poll got stuck; abandoned it');
+        this.publish({ ...this.snapshot }, 'Lidarr is taking too long to answer. Showing the last known activity.');
+      }
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private async poll() {
@@ -222,11 +244,13 @@ export class Activity {
     if (!settings) return;
     const client = clientFor(settings);
     try {
+      this.stage = 'queue and commands';
       const [queue, commands] = await Promise.all([client.queue(), client.commands()]);
       const queueIds = new Set(queue.map((q) => q.id));
       const finished = [...this.queueIds].some((id) => !queueIds.has(id));
       this.queueIds = queueIds;
       if (finished || Date.now() - this.historyAt > (this.options.historyEveryMs ?? 30_000)) {
+        this.stage = 'history';
         this.history = await client.history(60);
         this.historyAt = Date.now();
         this.noticeGrabs();
@@ -236,8 +260,11 @@ export class Activity {
         this.catalog.forgetAlbums();
         void this.library.sync().catch(() => undefined);
       }
+      this.stage = 'searching albums';
       const searching = await this.searchingAlbums(client, commands, queue);
+      this.stage = 'building the snapshot';
       this.publish(this.build(settings.url, queue, searching), null);
+      this.stage = 'idle';
       this.log.debug({ queue: queue.length, searching: searching.length }, 'Polled Lidarr activity');
     } catch (error) {
       const message = error instanceof LidarrError ? error.message : 'Could not load activity from Lidarr';

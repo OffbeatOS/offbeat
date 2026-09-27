@@ -21,6 +21,8 @@ export interface FakeCatalog {
   removals: { id: number; blocklist: boolean; skipRedownload: boolean }[];
   /** Paths Lidarr received, for counting polls. */
   hits: string[];
+  /** While true, queue requests get no answer at all (a stuck Lidarr). */
+  stallQueue: boolean;
   close(): Promise<void>;
 }
 
@@ -89,6 +91,7 @@ export async function startFakeCatalog(
   const history: Record<string, unknown>[] = [];
   const removals: FakeCatalog['removals'] = [];
   const hits: string[] = [];
+  const control = { stallQueue: false };
   const apiKey = randomBytes(16).toString('hex');
   const library = new Map<number, FakeArtist>();
   const writes: FakeCatalog['writes'] = [];
@@ -241,7 +244,10 @@ export async function startFakeCatalog(
       return json(res, 202, {});
     }
     if (path === 'command' && req.method === 'GET') return json(res, 200, queue);
-    if (path === 'queue') return json(res, 200, { totalRecords: downloads.length, records: downloads });
+    if (path === 'queue') {
+      if (control.stallQueue) return; // never answer
+      return json(res, 200, { totalRecords: downloads.length, records: downloads });
+    }
     if (path === 'history') return json(res, 200, { totalRecords: history.length, records: history });
     const queueMatch = path.match(/^queue\/(\d+)$/);
     if (queueMatch && req.method === 'DELETE') {
@@ -333,6 +339,12 @@ export async function startFakeCatalog(
     history,
     removals,
     hits,
+    get stallQueue() {
+      return control.stallQueue;
+    },
+    set stallQueue(value: boolean) {
+      control.stallQueue = value;
+    },
     close: async () => {
       await Promise.all([close(lidarr), close(musicbrainz)]);
     },

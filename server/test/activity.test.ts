@@ -47,7 +47,9 @@ const IMPORT_FAILED = {
   ],
 };
 
-async function setup(options: { activeMs?: number; watchedIdleMs?: number; burstMs?: number; historyEveryMs?: number } = {}) {
+async function setup(
+  options: { activeMs?: number; watchedIdleMs?: number; burstMs?: number; historyEveryMs?: number; pollTimeoutMs?: number } = {},
+) {
   const fake = await startFakeCatalog();
   const app = await buildApp({
     config: { baseUrl: '', trustProxy: false, logLevel: 'error' },
@@ -65,6 +67,7 @@ async function setup(options: { activeMs?: number; watchedIdleMs?: number; burst
       unwatchedMs: 10_000,
       burstMs: options.burstMs ?? 0,
       historyEveryMs: options.historyEveryMs ?? 30_000,
+      pollTimeoutMs: options.pollTimeoutMs ?? 45_000,
     },
   });
   cleanup.push(() => app.close(), () => fake.close());
@@ -280,6 +283,23 @@ describe('polling', () => {
     await new Promise((r) => setTimeout(r, 600));
     fake.queue.push(queueRecord({ id: 2 }));
     expect(await seesDownload(app, 500)).toBe(false);
+    off();
+  });
+
+  it('abandons a poll Lidarr never answers, says so, and keeps polling', async () => {
+    const { app, fake } = await setup({ activeMs: 20, watchedIdleMs: 50, pollTimeoutMs: 200 });
+    app.activity.start();
+    const off = app.activity.subscribe(() => undefined);
+    await app.activity.refresh();
+
+    fake.stallQueue = true;
+    await app.activity.refresh(); // resolves once abandoned, instead of hanging forever
+    expect(app.activity.current().error).toMatch(/taking too long/);
+
+    fake.stallQueue = false;
+    fake.queue.push(queueRecord({ id: 3 }));
+    expect(await seesDownload(app, 1500)).toBe(true);
+    expect(app.activity.current().error).toBeNull();
     off();
   });
 
