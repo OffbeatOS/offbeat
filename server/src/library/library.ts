@@ -63,6 +63,35 @@ export class Library {
     return this.db.select().from(libraryArtists).where(eq(libraryArtists.lidarrId, lidarrId)).get();
   }
 
+  /** Finds a cached artist by MusicBrainz id, the key used across the app. */
+  byMbid(mbid: string): Row | undefined {
+    return this.db.select().from(libraryArtists).where(eq(libraryArtists.mbid, mbid)).get();
+  }
+
+  /** Library status for many MBIDs at once (search results). */
+  mbidSet(): Set<string> {
+    return new Set(this.db.select({ mbid: libraryArtists.mbid }).from(libraryArtists).all().map((r) => r.mbid));
+  }
+
+  /**
+   * Writes one artist into the cache right after Offbeat changes it in Lidarr,
+   * so Library and Search reflect an add without waiting for the next sync.
+   */
+  upsert(artist: LidarrArtist, missingAlbums?: number) {
+    const existing = this.artist(artist.id);
+    const row = toRow(artist, missingAlbums ?? existing?.missingAlbums ?? 0);
+    this.db
+      .insert(libraryArtists)
+      .values(row)
+      .onConflictDoUpdate({ target: libraryArtists.lidarrId, set: row })
+      .run();
+  }
+
+  /** The card-ready form of a cached row. */
+  toArtist(row: Row): LibraryArtist {
+    return toLibraryArtist(row);
+  }
+
   private snapshot(): LibraryResponse {
     const rows = this.db.select().from(libraryArtists).all();
     return { artists: rows.map(toLibraryArtist), sync: this.status() };

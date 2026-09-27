@@ -30,6 +30,12 @@ export interface LidarrDefaults {
   qualityProfileId: number;
   metadataProfileId: number;
   rootFolderPath: string;
+  /** Monitor artists added as a whole (album adds always monitor just that album). Default true. */
+  addMonitored?: boolean;
+  /** Ask Lidarr to search for what was just added. Default true. */
+  searchOnAdd?: boolean;
+  /** Lidarr tag applied to everything Offbeat adds, or null for none. */
+  addTag?: string | null;
 }
 
 /** `POST /setup/lidarr` and `PUT /settings/lidarr`. Omit `apiKey` to keep the saved one. */
@@ -39,6 +45,6 @@ export interface LidarrSettingsRequest extends LidarrDefaults {
 }
 
 /** What the browser may see of the saved settings. The API key never leaves the server. */
-export interface LidarrSettingsView extends LidarrDefaults {
+export interface LidarrSettingsView extends Required<LidarrDefaults> {
   url: string;
 }

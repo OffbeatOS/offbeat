@@ -5,6 +5,9 @@ import { z } from 'zod';
 /** A Lidarr call that failed, with a message written for the person configuring it. */
 export class LidarrError extends Error {}
 
+/** Lidarr understood the request but refused it (validation, duplicates). */
+export class LidarrRejected extends LidarrError {}
+
 const DEFAULT_TIMEOUT_MS = 8000;
 
 /**
@@ -51,6 +54,8 @@ const artistSchema = z.object({
   id: z.number(),
   artistName: z.string(),
   sortName: z.string().nullish(),
+  overview: z.string().nullish(),
+  disambiguation: z.string().nullish(),
   foreignArtistId: z.string(),
   monitored: z.boolean(),
   added: z.string(),
@@ -66,6 +71,81 @@ const artistSchema = z.object({
     .nullish(),
 });
 export type LidarrArtist = z.infer<typeof artistSchema>;
+
+// Lookup results are posted back to Lidarr when adding, so unknown fields are kept.
+const lookupArtistSchema = z
+  .object({
+    id: z.number().nullish(),
+    artistName: z.string(),
+    foreignArtistId: z.string(),
+    disambiguation: z.string().nullish(),
+    overview: z.string().nullish(),
+    genres: z.array(z.string()).nullish(),
+    images: z.array(imageSchema).nullish(),
+  })
+  .passthrough();
+export type LidarrLookupArtist = z.infer<typeof lookupArtistSchema>;
+
+const albumImageSchema = z.object({
+  coverType: z.string(),
+  url: z.string().nullish(),
+  remoteUrl: z.string().nullish(),
+});
+
+const lookupAlbumSchema = z.object({
+  title: z.string(),
+  foreignAlbumId: z.string(),
+  albumType: z.string().nullish(),
+  secondaryTypes: z.array(z.unknown()).nullish(),
+  releaseDate: z.string().nullish(),
+  images: z.array(albumImageSchema).nullish(),
+  artist: z.object({ artistName: z.string(), foreignArtistId: z.string() }).nullish(),
+});
+export type LidarrLookupAlbum = z.infer<typeof lookupAlbumSchema>;
+
+const albumSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  foreignAlbumId: z.string(),
+  albumType: z.string().nullish(),
+  secondaryTypes: z.array(z.unknown()).nullish(),
+  releaseDate: z.string().nullish(),
+  monitored: z.boolean(),
+  images: z.array(albumImageSchema).nullish(),
+  statistics: z
+    .object({
+      trackFileCount: z.number().nullish(),
+      // Lidarr's trackCount only counts tracks it is expected to fetch (0 for an
+      // unmonitored artist); totalTrackCount is the album's real length.
+      trackCount: z.number().nullish(),
+      totalTrackCount: z.number().nullish(),
+    })
+    .nullish(),
+});
+export type LidarrAlbum = z.infer<typeof albumSchema>;
+
+const trackSchema = z.object({
+  id: z.number(),
+  absoluteTrackNumber: z.number().nullish(),
+  trackNumber: z.string().nullish(),
+  mediumNumber: z.number().nullish(),
+  title: z.string(),
+  duration: z.number().nullish(),
+  hasFile: z.boolean().nullish(),
+});
+export type LidarrTrack = z.infer<typeof trackSchema>;
+
+const tagSchema = z.object({ id: z.number(), label: z.string() });
+
+const commandSchema = z.object({
+  name: z.string(),
+  status: z.string(),
+  body: z
+    .object({ artistIds: z.array(z.number()).nullish(), artistId: z.number().nullish() })
+    .passthrough()
+    .nullish(),
+});
+export type LidarrCommand = z.infer<typeof commandSchema>;
 
 const missingPageSchema = z.object({
   totalRecords: z.number(),
@@ -164,11 +244,73 @@ export class LidarrClient {
     return { body: Buffer.from(await response.arrayBuffer()), contentType };
   }
 
-  private async send(url: string, accept: string): Promise<Response> {
+  /** Lidarr's artist search, via its metadata server. `lidarr:<mbid>` finds one artist. */
+  lookupArtists(term: string): Promise<LidarrLookupArtist[]> {
+    return this.get(`artist/lookup?term=${encodeURIComponent(term)}`, z.array(lookupArtistSchema));
+  }
+
+  lookupAlbums(term: string): Promise<LidarrLookupAlbum[]> {
+    return this.get(`album/lookup?term=${encodeURIComponent(term)}`, z.array(lookupAlbumSchema));
+  }
+
+  artist(id: number): Promise<LidarrArtist> {
+    return this.get(`artist/${id}`, artistSchema);
+  }
+
+  albums(artistId: number): Promise<LidarrAlbum[]> {
+    return this.get(`album?artistId=${artistId}`, z.array(albumSchema));
+  }
+
+  tracks(albumId: number): Promise<LidarrTrack[]> {
+    return this.get(`track?albumId=${albumId}`, z.array(trackSchema));
+  }
+
+  /** The id of a tag with this label, creating it if needed. */
+  async ensureTag(label: string): Promise<number> {
+    const tags = await this.get('tag', z.array(tagSchema));
+    const existing = tags.find((tag) => tag.label.toLowerCase() === label.toLowerCase());
+    if (existing) return existing.id;
+    return (await this.write('POST', 'tag', { label }, tagSchema)).id;
+  }
+
+  /** Adds an artist. The body is a lookup result plus Offbeat's choices. */
+  addArtist(body: Record<string, unknown>): Promise<LidarrArtist> {
+    return this.write('POST', 'artist', body, artistSchema);
+  }
+
+  /** Replaces an artist resource (used to change monitoring). */
+  updateArtist(id: number, body: Record<string, unknown>): Promise<LidarrArtist> {
+    return this.write('PUT', `artist/${id}`, body, artistSchema);
+  }
+
+  /** The full artist resource as Lidarr stores it, for read-modify-write updates. */
+  rawArtist(id: number): Promise<Record<string, unknown>> {
+    return this.get(`artist/${id}`, z.record(z.string(), z.unknown()));
+  }
+
+  async setAlbumsMonitored(albumIds: number[], monitored: boolean): Promise<void> {
+    await this.write('PUT', 'album/monitor', { albumIds, monitored }, z.unknown());
+  }
+
+  /** Lidarr's command queue (refreshes, rescans, searches), newest last. */
+  commands(): Promise<LidarrCommand[]> {
+    return this.get('command', z.array(commandSchema));
+  }
+
+  async searchAlbums(albumIds: number[]): Promise<void> {
+    await this.write('POST', 'command', { name: 'AlbumSearch', albumIds }, z.unknown());
+  }
+
+  private async send(url: string, accept: string, init: RequestInit = {}): Promise<Response> {
     try {
       return await limiterFor(this.baseUrl).schedule(() =>
         fetch(url, {
-          headers: { 'X-Api-Key': this.apiKey, Accept: accept },
+          ...init,
+          headers: {
+            'X-Api-Key': this.apiKey,
+            Accept: accept,
+            ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+          },
           signal: AbortSignal.timeout(this.timeoutMs),
           redirect: 'manual',
         }),
@@ -176,6 +318,28 @@ export class LidarrClient {
     } catch (error) {
       throw new LidarrError(this.describeNetworkError(error));
     }
+  }
+
+  private async write<T extends z.ZodType>(
+    method: 'POST' | 'PUT',
+    path: string,
+    body: unknown,
+    schema: T,
+  ): Promise<z.infer<T>> {
+    const response = await this.send(`${this.baseUrl}/api/v1/${path}`, 'application/json', {
+      method,
+      body: JSON.stringify(body),
+    });
+    if (response.status === 400 || response.status === 409) {
+      // Lidarr validation errors: [{ propertyName, errorMessage }]
+      const details = (await response.json().catch(() => [])) as { errorMessage?: string }[];
+      const message = Array.isArray(details) ? details.map((d) => d.errorMessage).filter(Boolean).join('; ') : '';
+      throw new LidarrRejected(message || `Lidarr refused the request (HTTP ${response.status})`);
+    }
+    this.assertOk(response);
+    const parsed = schema.safeParse(await response.json().catch(() => undefined));
+    if (!parsed.success) throw new LidarrError('Lidarr answered with something unexpected');
+    return parsed.data;
   }
 
   private async get<T extends z.ZodType>(path: string, schema: T): Promise<z.infer<T>> {

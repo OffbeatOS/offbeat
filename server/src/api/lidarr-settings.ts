@@ -14,6 +14,14 @@ const saveBody = testBody.extend({
   qualityProfileId: z.number().int(),
   metadataProfileId: z.number().int(),
   rootFolderPath: z.string().min(1),
+  addMonitored: z.boolean().optional(),
+  searchOnAdd: z.boolean().optional(),
+  addTag: z
+    .string()
+    .trim()
+    .max(64)
+    .regex(/^[a-z0-9._-]*$/i, 'use letters, numbers, dots, dashes, or underscores')
+    .nullish(),
 });
 
 export interface LidarrRoutesOptions {
@@ -68,12 +76,17 @@ export const lidarrSettingsRoutes: FastifyPluginAsync<LidarrRoutesOptions> = asy
     if (!options.rootFolders.some((f) => f.path === body.rootFolderPath)) {
       throw new HttpError(400, 'That root folder no longer exists in Lidarr');
     }
+    const previous = loadLidarr(app.settings);
     const stored = {
       url,
       apiKey,
       qualityProfileId: body.qualityProfileId,
       metadataProfileId: body.metadataProfileId,
       rootFolderPath: body.rootFolderPath,
+      // Omitted fields keep their saved value, so onboarding never resets them.
+      addMonitored: body.addMonitored ?? previous?.addMonitored ?? true,
+      searchOnAdd: body.searchOnAdd ?? previous?.searchOnAdd ?? true,
+      addTag: body.addTag === undefined ? (previous?.addTag ?? null) : body.addTag || null,
     };
     saveLidarr(app.settings, stored);
     request.log.info({ url }, 'Lidarr settings saved');

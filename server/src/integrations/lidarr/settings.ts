@@ -12,6 +12,10 @@ export const storedLidarrSchema = z.object({
   qualityProfileId: z.number(),
   metadataProfileId: z.number(),
   rootFolderPath: z.string(),
+  // Added after the first release; older saved settings get the defaults.
+  addMonitored: z.boolean().default(true),
+  searchOnAdd: z.boolean().default(true),
+  addTag: z.string().nullable().default(null),
 });
 export type StoredLidarr = z.infer<typeof storedLidarrSchema>;
 
@@ -22,8 +26,9 @@ export const saveLidarr = (store: SettingsStore, value: StoredLidarr) =>
 
 export const isLidarrConfigured = (store: SettingsStore) => store.has(KEY);
 
-export function toView({ url, qualityProfileId, metadataProfileId, rootFolderPath }: StoredLidarr): LidarrSettingsView {
-  return { url, qualityProfileId, metadataProfileId, rootFolderPath };
+export function toView(settings: StoredLidarr): LidarrSettingsView {
+  const { url, qualityProfileId, metadataProfileId, rootFolderPath, addMonitored, searchOnAdd, addTag } = settings;
+  return { url, qualityProfileId, metadataProfileId, rootFolderPath, addMonitored, searchOnAdd, addTag };
 }
 
 export function clientFor(settings: StoredLidarr, timeoutMs?: number) {

@@ -22,6 +22,13 @@
       "when": 1790483513368,
       "tag": "0002_library",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790484922891,
+      "tag": "0003_catalog",
+      "breakpoints": true
     }
   ]
 }

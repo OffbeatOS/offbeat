@@ -49,6 +49,8 @@ async function signedInAdmin() {
 }
 
 const defaults = { qualityProfileId: 2, metadataProfileId: 1, rootFolderPath: '/music' };
+/** What the view reports for add behavior when the form never set it. */
+const addDefaults = { addMonitored: true, searchOnAdd: true, addTag: null };
 
 describe('normalizeLidarrUrl', () => {
   it.each([
@@ -164,7 +166,7 @@ describe('saving Lidarr settings', () => {
 
     const saved = await call('POST', '/setup/lidarr', { url: `${lidarr.url}/`, apiKey: lidarr.apiKey, ...defaults });
     expect(saved.statusCode).toBe(200);
-    expect(saved.json()).toEqual({ url: lidarr.url, ...defaults });
+    expect(saved.json()).toEqual({ url: lidarr.url, ...defaults, ...addDefaults });
 
     const row = db.$client.prepare("select value, encrypted from settings where key = 'lidarr'").get() as {
       value: string;
@@ -176,7 +178,7 @@ describe('saving Lidarr settings', () => {
     expect(row.value).not.toContain('127.0.0.1');
 
     const read = await call('GET', '/settings/lidarr');
-    expect(read.json()).toEqual({ settings: { url: lidarr.url, ...defaults } });
+    expect(read.json()).toEqual({ settings: { url: lidarr.url, ...defaults, ...addDefaults } });
     for (const res of [saved, read, await call('GET', '/setup/state')]) {
       expect(res.body).not.toContain(lidarr.apiKey);
       expect(res.body).not.toMatch(/apiKey/i);

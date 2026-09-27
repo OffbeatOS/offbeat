@@ -63,6 +63,33 @@ export const jobs = sqliteTable('jobs', {
   error: text('error'),
 });
 
+/**
+ * MusicBrainz responses, keyed by request path. MusicBrainz allows one
+ * request per second, so everything is cached and served stale on failure.
+ */
+export const musicbrainzCache = sqliteTable('musicbrainz_cache', {
+  path: text('path').primaryKey(),
+  body: text('body').notNull(),
+  fetchedAt: integer('fetched_at', { mode: 'timestamp' }).notNull(),
+});
+
+/** Who asked Offbeat to add what, so Lidarr adds can be attributed to users. */
+export const requests = sqliteTable(
+  'requests',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+    artistMbid: text('artist_mbid').notNull(),
+    albumMbid: text('album_mbid'),
+    lidarrArtistId: integer('lidarr_artist_id'),
+    lidarrAlbumId: integer('lidarr_album_id'),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [index('requests_user_id_idx').on(table.userId)],
+);
+
 /** Login sessions. `id` is the SHA-256 of the cookie token, so a leaked database cannot be replayed. */
 export const sessions = sqliteTable(
   'sessions',
