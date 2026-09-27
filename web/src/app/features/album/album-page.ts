@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { AddAlbumRequest, AlbumDetail, UpdateAlbumRequest } from '@offbeat/shared';
+import type { AddAlbumRequest, AddResult, AlbumDetail, UpdateAlbumRequest } from '@offbeat/shared';
+import { ActivityStore } from '../../core/activity-store';
 import { Api, ApiError } from '../../core/api';
+import { STATE_LABEL, percent, stateTone } from '../../shared/catalog/activity-labels';
 import { AlbumCard } from '../../shared/catalog/album-card';
 import { Cover } from '../../shared/catalog/cover';
 import { EmptyState } from '../../shared/empty-state/empty-state';
@@ -36,7 +38,8 @@ export class AlbumPage {
   protected readonly inLidarr = computed(() => this.album()?.monitored !== null && this.album()?.monitored !== undefined);
 
   /** Track status only once the album is wanted: an album you have not added has nothing "missing". */
-  protected readonly showTrackStatus = computed(() => this.inLidarr() && !this.canAdd());
+  /** Only missing tracks are marked, so a complete album gets a plain tracklist (no Status column). */
+  protected readonly showTrackStatus = computed(() => this.inLidarr() && !this.canAdd() && this.missing() > 0);
 
   protected readonly canAdd = computed(() => {
     const album = this.album();
@@ -68,8 +71,48 @@ export class AlbumPage {
       .join(', ');
   });
 
+  private readonly store = inject(ActivityStore);
+  private addBaseline: AddResult | undefined;
+  private waitingForAdd = false;
+
+  /** Searching, downloading, or blocked, live from the activity stream. */
+  protected readonly live = computed(() => {
+    const album = this.album();
+    const item = album ? this.store.byAlbum().get(album.mbid) : undefined;
+    return item && item.state !== 'adding' && album?.status.kind !== 'in-library' ? item : null;
+  });
+  protected readonly liveLabel = computed(() => {
+    const item = this.live();
+    if (!item) return '';
+    const pct = item.state === 'downloading' && item.progress !== null ? ` ${percent(item.progress)}` : '';
+    return `${STATE_LABEL[item.state]}${pct}`;
+  });
+  protected readonly liveTone = computed(() => (this.live() ? stateTone(this.live()!.state) : 'progress'));
+  protected readonly adding = computed(() => this.album()?.status.kind === 'adding' || this.busy() === 'add');
+
   constructor() {
     effect(() => void this.load(this.mbid()));
+    // A background add finished: reload to show the album as Lidarr now has it.
+    effect(() => {
+      const album = this.album();
+      const result = album ? this.store.addResults().get(album.mbid) : undefined;
+      if (!this.waitingForAdd || !result || result === this.addBaseline) return;
+      this.waitingForAdd = false;
+      if (result.ok) void this.reload();
+      else {
+        this.album.update((a) => (a ? { ...a, status: { kind: 'available' } } : a));
+        this.actionError.set(result.error ?? 'Could not add this album');
+      }
+    });
+  }
+
+  /** Refreshes the album in place, without the loading state. */
+  private async reload() {
+    try {
+      this.album.set(await this.api.get<AlbumDetail>(`albums/${this.mbid()}`));
+    } catch {
+      // keep what is on screen
+    }
   }
 
   protected async load(mbid = this.mbid()) {
@@ -86,11 +129,22 @@ export class AlbumPage {
     }
   }
 
-  protected add() {
+  /** Starts the add and returns at once; the result arrives over the activity stream. */
+  protected async add() {
     const album = this.album();
-    if (!album) return;
-    const body: AddAlbumRequest = { artistMbid: album.artistMbid };
-    void this.act('add', () => this.api.post<AlbumDetail>(`albums/${album.mbid}`, body));
+    if (!album || this.adding()) return;
+    this.actionError.set('');
+    this.addBaseline = this.store.addResults().get(album.mbid);
+    this.waitingForAdd = true;
+    this.album.set({ ...album, status: { kind: 'adding' } });
+    try {
+      const body: AddAlbumRequest = { artistMbid: album.artistMbid };
+      await this.api.post(`albums/${album.mbid}`, body);
+    } catch (error) {
+      this.waitingForAdd = false;
+      this.album.set(album);
+      this.actionError.set(error instanceof ApiError ? error.message : 'Could not add this album');
+    }
   }
 
   protected toggleMonitored() {

@@ -75,6 +75,41 @@ h1 {
   }
 }
 
+// Live download state from the activity stream (same blue bar as elsewhere).
+.live {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 260px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--status-progress);
+
+  &.failed,
+  &.failed a {
+    color: var(--status-failed);
+  }
+
+  &.muted {
+    color: var(--text-3);
+  }
+}
+
+.track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--status-progress);
+  transition: width 400ms ease;
+}
+
 .actions {
   display: flex;
   align-items: center;

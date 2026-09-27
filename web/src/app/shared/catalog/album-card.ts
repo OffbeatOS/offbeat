@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { AlbumDetail, ReleaseSummary } from '@offbeat/shared';
+import type { AddResult, ReleaseSummary } from '@offbeat/shared';
 import { Cover } from './cover';
 import { ReleaseAction } from './release-action';
 
@@ -64,6 +64,6 @@ export function releaseMeta(release: Pick<ReleaseSummary, 'type' | 'year'>): str
 })
 export class AlbumCard {
   readonly release = input.required<ReleaseSummary>();
-  readonly added = output<AlbumDetail>();
+  readonly added = output<AddResult>();
   protected readonly meta = computed(() => releaseMeta(this.release()));
 }

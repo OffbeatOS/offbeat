@@ -71,13 +71,11 @@ export const routes: Routes = [
         title: 'Album',
         loadComponent: () => import('./features/album/album-page').then((m) => m.AlbumPage),
       },
-      placeholder(
-        'activity',
-        'Activity',
-        'activity',
-        'Nothing happening',
-        'Requests, downloads, and failures will be listed here.',
-      ),
+      {
+        path: 'activity',
+        title: 'Activity',
+        loadComponent: () => import('./features/activity/activity-page').then((m) => m.ActivityPage),
+      },
       placeholder('flows', 'Flows', 'flows', 'No flows yet', 'Scheduled discovery playlists will live here.'),
       placeholder(
         'shows',

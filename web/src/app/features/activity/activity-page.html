@@ -1,0 +1,155 @@
+<header class="head">
+  <h1>Activity</h1>
+  <div class="pills" role="group" aria-label="Filter">
+    @for (f of filters; track f.id) {
+      <button type="button" [attr.aria-pressed]="filter() === f.id" (click)="filter.set(f.id)">{{ f.label }}</button>
+    }
+  </div>
+</header>
+
+@if (snapshot().error) {
+  <p class="notice" role="status">
+    <ob-icon name="alert" [size]="15" [strokeWidth]="2" />{{ snapshot().error }} Showing the last known activity.
+  </p>
+}
+
+@if (!loaded()) {
+  <div class="loading" aria-busy="true" aria-label="Loading activity">
+    @for (i of [1, 2, 3]; track i) {
+      <span class="ghost"></span>
+    }
+  </div>
+} @else if (empty()) {
+  @switch (filter()) {
+    @case ('failed') {
+      <ob-empty-state icon="check" heading="Nothing needs attention" message="Failed downloads and blocked imports show up here." />
+    }
+    @case ('progress') {
+      <ob-empty-state icon="activity" heading="Nothing in progress" message="Searches and downloads show up here while they run." />
+    }
+    @case ('completed') {
+      <ob-empty-state icon="library" heading="Nothing imported recently" message="Albums show up here once Lidarr imports them." />
+    }
+    @default {
+      <ob-empty-state icon="activity" heading="Nothing happening" message="Requests, downloads, and imports will be listed here." />
+    }
+  }
+} @else {
+  @if (show().attention && snapshot().attention.length) {
+    <section>
+      <h2>Needs Attention</h2>
+      <div class="cards">
+        @for (item of snapshot().attention; track item.id) {
+          <article class="card">
+            <ob-cover class="art" [src]="item.coverUrl" radius="6px" />
+            <div class="who">
+              @if (item.albumMbid) {
+                <a class="title" [routerLink]="['/album', item.albumMbid]">{{ item.albumTitle }}</a>
+              } @else {
+                <span class="title">{{ item.albumTitle }}</span>
+              }
+              <span class="sub">{{ sub(item) }}</span>
+            </div>
+            <div class="why">
+              <span class="state failed"><ob-icon name="alert" [size]="15" [strokeWidth]="2" />{{ label[item.state] }}</span>
+              <span class="reason">{{ item.reason }}</span>
+              @if (item.messages.length) {
+                <button class="details" type="button" [attr.aria-expanded]="expanded().has(item.id)" (click)="toggleDetails(item.id)">
+                  {{ expanded().has(item.id) ? 'Hide details' : 'Details from Lidarr' }}
+                </button>
+                @if (expanded().has(item.id)) {
+                  <ul class="messages">
+                    @for (message of item.messages; track message) {
+                      <li>{{ message }}</li>
+                    }
+                  </ul>
+                }
+              }
+              @if (errors().get(item.id); as error) {
+                <span class="error" role="alert">{{ error }}</span>
+              }
+            </div>
+            <div class="actions">
+              @if (item.lidarrLink) {
+                <a class="outline" [href]="item.lidarrLink" target="_blank" rel="noopener noreferrer">
+                  {{ item.state === 'import-blocked' ? 'Open in Lidarr' : 'Search Manually' }}
+                </a>
+              }
+              @if (item.canRetry) {
+                <button class="solid" type="button" [disabled]="busy() === item.id" (click)="retry(item)">
+                  {{ busy() === item.id ? 'Retrying' : 'Retry' }}
+                </button>
+              }
+            </div>
+          </article>
+        }
+      </div>
+    </section>
+  }
+
+  @if (show().progress && snapshot().inProgress.length) {
+    <section>
+      <h2>In Progress</h2>
+      <div class="rows">
+        @for (item of snapshot().inProgress; track item.id) {
+          <div class="row">
+            <ob-cover class="art" [src]="item.coverUrl" radius="6px" />
+            <div class="who">
+              @if (item.albumMbid) {
+                <a class="title" [routerLink]="['/album', item.albumMbid]">{{ item.albumTitle }}</a>
+              } @else {
+                <span class="title">{{ item.albumTitle }}</span>
+              }
+              <span class="sub">{{ sub(item) }}</span>
+            </div>
+            <div class="progress">
+              <span class="line">
+                <span class="state" [class.muted]="tone(item.state) === 'muted'">{{ label[item.state] }}</span>
+                <span class="detail">{{ item.detail }}</span>
+              </span>
+              @if (item.state === 'downloading' || item.state === 'importing' || item.state === 'paused') {
+                <span class="track"><span class="fill" [style.width.%]="(item.progress ?? 0) * 100"></span></span>
+              }
+              @if (errors().get(item.id); as error) {
+                <span class="error" role="alert">{{ error }}</span>
+              }
+            </div>
+            <span class="spacer"></span>
+            @if (item.canCancel) {
+              @if (confirmCancel() === item.id) {
+                <button class="confirm" type="button" [disabled]="busy() === item.id" (click)="cancel(item)">Remove download</button>
+              } @else {
+                <button class="cancel" type="button" [attr.aria-label]="'Cancel ' + item.albumTitle" (click)="cancel(item)">
+                  <ob-icon name="close" [size]="18" [strokeWidth]="2" />
+                </button>
+              }
+            }
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  @if (show().completed && snapshot().completed.length) {
+    <section>
+      <h2>Completed</h2>
+      <div class="rows">
+        @for (item of snapshot().completed; track item.id) {
+          <div class="row">
+            <ob-cover class="art" [src]="item.coverUrl" radius="6px" />
+            <div class="who">
+              @if (item.albumMbid) {
+                <a class="title" [routerLink]="['/album', item.albumMbid]">{{ item.albumTitle }}</a>
+              } @else {
+                <span class="title">{{ item.albumTitle }}</span>
+              }
+              <span class="sub">{{ sub(item) }}</span>
+            </div>
+            <span class="imported"><ob-icon name="check" [size]="15" [strokeWidth]="2.6" />Imported to library</span>
+            <span class="when">{{ timeAgo(item.date) }}</span>
+          </div>
+        }
+      </div>
+    </section>
+  }
+}

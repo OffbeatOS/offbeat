@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { ActivityStore } from '../../core/activity-store';
 import { BottomBar } from './bottom-bar';
 import { Sidebar } from './sidebar';
 import { TabBar } from './tab-bar';
@@ -51,7 +52,8 @@ import { TabBar } from './tab-bar';
 
       main {
         overflow: visible;
-        padding-bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
+        // Room for the tab bar and the floating mini bar above it.
+        padding-bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom) + 76px);
       }
     }
   `,
@@ -64,4 +66,9 @@ import { TabBar } from './tab-bar';
     <ob-tab-bar />
   `,
 })
-export class ShellLayout {}
+export class ShellLayout {
+  constructor() {
+    // One live activity stream for as long as the signed-in shell is on screen.
+    inject(DestroyRef).onDestroy(inject(ActivityStore).connect());
+  }
+}

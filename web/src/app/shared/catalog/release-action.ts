@@ -1,106 +1,50 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
-import type { AddAlbumRequest, AlbumDetail, ReleaseStatus, ReleaseSummary } from '@offbeat/shared';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import type { AddAlbumRequest, AddResult, ReleaseStatus, ReleaseSummary } from '@offbeat/shared';
+import { ActivityStore } from '../../core/activity-store';
 import { Api, ApiError } from '../../core/api';
 import { Icon } from '../icon/icon';
+import { STATE_LABEL, percent, stateTone } from './activity-labels';
 
 /**
- * The status chip for a release, or its Add button (status chip rules in docs/design):
- * In Library, "N missing" (partial), Wanted (monitored, no files yet), Add.
- * Adding locks the button, so repeated clicks send one request.
+ * The status chip for a release, or its Add button (status chip rules in
+ * docs/design): In Library, "N missing", Wanted (plain text), live Searching
+ * and the like (with a pulsing dot, so they read as work under way), Downloading
+ * (with a bar), Import blocked, Failed, or Add. Adding answers at once with
+ * "Adding"; the background add reports back over the activity stream.
  */
 @Component({
   selector: 'ob-release-action',
   imports: [Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: `
-    :host {
-      display: inline-flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 12px;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-
-    .in-library {
-      color: var(--text-2);
-    }
-
-    .partial {
-      color: var(--text-3);
-    }
-
-    .requested,
-    .adding {
-      color: var(--status-progress);
-    }
-
-    .add {
-      align-self: flex-start;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      height: 28px;
-      padding: 0 12px;
-      border: 1px solid var(--border-button);
-      border-radius: 14px;
-      background: transparent;
-      color: var(--text-soft);
-      font-size: 12px;
-      font-weight: 600;
-      white-space: nowrap;
-
-      &:hover:not(:disabled) {
-        background: var(--surface-2);
-      }
-    }
-
-    :host(.large) .add {
-      height: 40px;
-      padding: 0 18px;
-      border-radius: 20px;
-      font-size: 14px;
-      border: 0;
-      background: var(--text);
-      color: var(--bg);
-
-      &:hover:not(:disabled) {
-        background: #fff;
-      }
-    }
-
-    :host(.large) .chip {
-      font-size: 14px;
-    }
-
-    .error {
-      max-width: 220px;
-      font-size: 12px;
-      line-height: 1.35;
-      color: var(--status-failed);
-    }
-  `,
+  styleUrl: './release-action.scss',
   template: `
-    @switch (status().kind) {
-      @case ('in-library') {
-        <span class="chip in-library"><ob-icon name="check" [size]="13" [strokeWidth]="2.6" />In Library</span>
+    @if (live(); as item) {
+      <span [class]="'chip ' + tone(item.state)">
+        @if (tone(item.state) === 'failed') {
+          <ob-icon name="alert" [size]="13" [strokeWidth]="2" />
+        } @else if (item.state !== 'downloading' && item.state !== 'paused') {
+          <span class="pulse" aria-hidden="true"></span>
+        }
+        {{ label[item.state] }}{{ item.state === 'downloading' && item.progress !== null ? ' ' + percent(item.progress) : '' }}
+      </span>
+      @if (item.state === 'downloading') {
+        <span class="track"><span class="fill" [style.width.%]="(item.progress ?? 0) * 100"></span></span>
       }
-      @case ('partial') {
-        <span class="chip partial">{{ missingLabel() }}</span>
-      }
-      @case ('requested') {
-        <span class="chip requested">Wanted</span>
-      }
-      @default {
-        @if (adding()) {
-          <span class="chip adding" role="status">Adding</span>
-        } @else {
+    } @else {
+      @switch (status().kind) {
+        @case ('in-library') {
+          <span class="chip in-library"><ob-icon name="check" [size]="13" [strokeWidth]="2.6" />In Library</span>
+        }
+        @case ('partial') {
+          <span class="chip partial">{{ missingLabel() }}</span>
+        }
+        @case ('requested') {
+          <span class="chip progress">Wanted</span>
+        }
+        @case ('adding') {
+          <span class="chip progress" role="status"><span class="pulse" aria-hidden="true"></span>Adding</span>
+        }
+        @default {
           <button class="add" type="button" [attr.aria-label]="'Add ' + release().title" (click)="add($event)">
             <ob-icon name="plus" [size]="13" [strokeWidth]="2.4" />Add
           </button>
@@ -114,13 +58,21 @@ import { Icon } from '../icon/icon';
 })
 export class ReleaseAction {
   private readonly api = inject(Api);
+  private readonly store = inject(ActivityStore);
 
   readonly release = input.required<ReleaseSummary>();
-  readonly added = output<AlbumDetail>();
+  /** Emitted when a background add finishes successfully. */
+  readonly added = output<AddResult>();
 
   private readonly override = signal<ReleaseStatus | null>(null);
-  protected readonly adding = signal(false);
+  /** The add result that existed before this component's own add, so stale ones are ignored. */
+  private baseline: AddResult | undefined;
+  private waiting = false;
   protected readonly error = signal('');
+
+  protected readonly label = STATE_LABEL;
+  protected readonly tone = stateTone;
+  protected readonly percent = percent;
 
   protected readonly status = computed(() => this.override() ?? this.release().status);
   protected readonly missingLabel = computed(() => {
@@ -128,22 +80,45 @@ export class ReleaseAction {
     return status.kind === 'partial' ? `${status.missingTracks} missing` : '';
   });
 
+  /** Searching, downloading, and the like, straight from the activity stream. */
+  protected readonly live = computed(() => {
+    const item = this.store.byAlbum().get(this.release().mbid);
+    if (!item || item.state === 'adding') return null;
+    // Once everything is on disk, the library status is the whole story.
+    return this.status().kind === 'in-library' ? null : item;
+  });
+
+  constructor() {
+    effect(() => {
+      const result = this.store.addResults().get(this.release().mbid);
+      if (!this.waiting || !result || result === this.baseline) return;
+      this.waiting = false;
+      if (result.ok) {
+        this.override.set(result.status ?? { kind: 'requested' });
+        this.added.emit(result);
+      } else {
+        this.override.set({ kind: 'available' });
+        this.error.set(result.error ?? 'Could not add this album');
+      }
+    });
+  }
+
   protected async add(event: Event) {
     // Cards are links; the button must not navigate.
     event.preventDefault();
     event.stopPropagation();
-    if (this.adding()) return;
-    this.adding.set(true);
+    if (this.status().kind === 'adding') return;
     this.error.set('');
+    this.baseline = this.store.addResults().get(this.release().mbid);
+    this.waiting = true;
+    this.override.set({ kind: 'adding' });
     try {
       const request: AddAlbumRequest = { artistMbid: this.release().artistMbid };
-      const detail = await this.api.post<AlbumDetail>(`albums/${this.release().mbid}`, request);
-      this.override.set(detail.status);
-      this.added.emit(detail);
+      await this.api.post<{ status: ReleaseStatus }>(`albums/${this.release().mbid}`, request);
     } catch (error) {
+      this.waiting = false;
+      this.override.set(null);
       this.error.set(error instanceof ApiError ? error.message : 'Could not add this album');
-    } finally {
-      this.adding.set(false);
     }
   }
 }

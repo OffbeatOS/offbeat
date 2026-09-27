@@ -12,13 +12,26 @@
       @if (meta()) {
         <span class="meta">{{ meta() }}</span>
       }
-      @if (statusLine()) {
+      @if (live(); as item) {
+        <span class="live" [class]="'live ' + liveTone()">
+          <span class="live-row">
+            @if (liveTone() === 'failed') {
+              <a routerLink="/activity">{{ liveLabel() }}, see Activity</a>
+            } @else {
+              {{ liveLabel() }}
+            }
+          </span>
+          @if (item.state === 'downloading') {
+            <span class="track"><span class="fill" [style.width.%]="(item.progress ?? 0) * 100"></span></span>
+          }
+        </span>
+      } @else if (statusLine()) {
         <span class="status" [class.wanted]="statusLine() === 'Wanted'">{{ statusLine() }}</span>
       }
       <div class="actions">
         @if (canAdd()) {
-          <button class="accent" type="button" [disabled]="!!busy()" (click)="add()">
-            <ob-icon name="plus" [size]="16" [strokeWidth]="2.4" />{{ busy() === 'add' ? 'Adding' : 'Add Album' }}
+          <button class="accent" type="button" [disabled]="!!busy() || adding()" (click)="add()">
+            <ob-icon name="plus" [size]="16" [strokeWidth]="2.4" />{{ adding() ? 'Adding' : 'Add Album' }}
           </button>
         } @else {
           <button

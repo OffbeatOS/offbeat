@@ -1,0 +1,119 @@
+:host {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.in-library {
+  color: var(--text-2);
+}
+
+.partial,
+.muted {
+  color: var(--text-3);
+}
+
+.progress {
+  color: var(--status-progress);
+}
+
+.failed {
+  color: var(--status-failed);
+}
+
+// Work under way (adding, searching, queued, importing), unlike a plain Wanted.
+.pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.track {
+  width: 100%;
+  max-width: 160px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--status-progress);
+  transition: width 400ms ease;
+}
+
+.add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border-button);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: var(--surface-2);
+  }
+}
+
+:host(.large) .add {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  border: 0;
+  background: var(--text);
+  color: var(--bg);
+
+  &:hover:not(:disabled) {
+    background: #fff;
+  }
+}
+
+:host(.large) .chip {
+  font-size: 14px;
+}
+
+.error {
+  max-width: 220px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--status-failed);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
+
+  .pulse {
+    animation: none;
+  }
+}
