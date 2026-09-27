@@ -204,7 +204,10 @@ export class Activity {
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.timer = null;
-      void this.refresh().finally(() => this.schedule(this.nextDelay()));
+      // A poll never takes the loop down with it.
+      void this.refresh()
+        .catch((error: unknown) => this.log.warn({ err: error }, 'Activity poll failed'))
+        .finally(() => this.schedule(this.nextDelay()));
     }, delayMs);
   }
 
@@ -242,7 +245,14 @@ export class Activity {
   }
 
   private async poll() {
-    const settings = loadLidarr(this.settings);
+    let settings;
+    try {
+      // Inside the try: during shutdown the database can close under a running poll.
+      settings = loadLidarr(this.settings);
+    } catch (error) {
+      this.log.debug({ err: error }, 'Activity poll skipped: settings unavailable');
+      return;
+    }
     if (!settings) return;
     const client = clientFor(settings);
     try {

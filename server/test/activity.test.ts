@@ -304,6 +304,25 @@ describe('polling', () => {
     off();
   });
 
+  it('survives the database closing under it during shutdown', async () => {
+    const db = openDatabase(':memory:');
+    const app = await buildApp({
+      config: { baseUrl: '', trustProxy: false, logLevel: 'error' },
+      db,
+      secretKey: randomBytes(32),
+      imageCacheDir: tmpImageDir(),
+      webRoot: null,
+      logger: false,
+      activity: { watchedIdleMs: 20, unwatchedMs: 20 },
+    });
+    await app.ready(); // polling starts on its own
+    db.$client.close();
+    // Polls keep firing against the closed database; none may escape as an error.
+    await expect(app.activity.refresh()).resolves.toBeUndefined();
+    await new Promise((r) => setTimeout(r, 100));
+    await app.close();
+  });
+
   it('abandons a poll Lidarr never answers, says so, and keeps polling', async () => {
     const { app, fake } = await setup({ activeMs: 20, watchedIdleMs: 50, pollTimeoutMs: 200 });
     app.activity.start();
