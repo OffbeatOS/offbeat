@@ -19,8 +19,8 @@ export class ImageUrls {
    * Album cover for a release group. The server tries Cover Art Archive, then
    * Lidarr's own cover; a 404 means neither has one and the UI shows its placeholder.
    */
-  releaseGroupCover(releaseGroupMbid: string): string {
-    return `api/v1/images/album/${releaseGroupMbid}`;
+  releaseGroupCover(releaseGroupMbid: string, { inLidarr = false } = {}): string {
+    return `api/v1/images/album/${releaseGroupMbid}${inLidarr ? '?src=lidarr' : ''}`;
   }
 
   /** The original URL when the signature matches and the host is allowlisted, else null. */

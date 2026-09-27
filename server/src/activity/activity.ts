@@ -383,7 +383,7 @@ export class Activity {
         albumTitle: h.album?.title ?? h.sourceTitle ?? 'Unknown release',
         artistMbid: h.artist?.foreignArtistId ?? null,
         artistName: h.artist?.artistName ?? '',
-        coverUrl: h.album?.foreignAlbumId ? this.images.releaseGroupCover(h.album.foreignAlbumId) : null,
+        coverUrl: h.album?.foreignAlbumId ? this.images.releaseGroupCover(h.album.foreignAlbumId, { inLidarr: true }) : null,
         date: h.date,
         source: sourceFor(h.album?.foreignAlbumId, h.albumId),
       }));
@@ -411,7 +411,7 @@ export class Activity {
       albumTitle,
       artistMbid,
       artistName,
-      coverUrl: albumMbid ? this.images.releaseGroupCover(albumMbid) : null,
+      coverUrl: albumMbid ? this.images.releaseGroupCover(albumMbid, { inLidarr: true }) : null,
       progress: null,
       detail: '',
       reason: null,

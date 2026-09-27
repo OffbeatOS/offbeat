@@ -36,3 +36,9 @@ export function toView(settings: StoredLidarr): LidarrSettingsView {
 export function clientFor(settings: StoredLidarr, timeoutMs?: number) {
   return new LidarrClient({ url: settings.url, apiKey: settings.apiKey, timeoutMs });
 }
+
+/** A client for whatever Lidarr is configured when called, or null before setup. */
+export const currentClient = (store: SettingsStore) => (): LidarrClient | null => {
+  const settings = loadLidarr(store);
+  return settings ? clientFor(settings) : null;
+};

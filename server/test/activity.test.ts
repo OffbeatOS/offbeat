@@ -154,7 +154,8 @@ describe('activity snapshot', () => {
       canRetry: true,
       lidarrLink: `${fake.lidarrUrl}/activity/queue`,
     });
-    expect(snap.inProgress[0]?.coverUrl).toMatch(/^api\/v1\/images\/album\/[0-9a-f-]{36}$/);
+    // Queue items are albums Lidarr has, so their covers come from Lidarr's local copy first.
+    expect(snap.inProgress[0]?.coverUrl).toMatch(/^api\/v1\/images\/album\/[0-9a-f-]{36}\?src=lidarr$/);
   });
 
   it('credits adds made through Offbeat to the user who asked', async () => {

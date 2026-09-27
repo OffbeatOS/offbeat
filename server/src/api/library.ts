@@ -2,7 +2,7 @@ import type { LibraryResponse } from '@offbeat/shared';
 import type { FastifyPluginAsync, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { LidarrError } from '../integrations/lidarr/client.js';
-import { clientFor, loadLidarr } from '../integrations/lidarr/settings.js';
+import { currentClient } from '../integrations/lidarr/settings.js';
 import { MBID } from '../catalog/releases.js';
 import { imageVersion } from '../library/library.js';
 import { parse } from './errors.js';
@@ -11,6 +11,7 @@ import { parse } from './errors.js';
 const imageParams = z.object({ id: z.string().regex(/^[1-9]\d{0,9}$/).transform(Number) });
 const imageQuery = z.object({ v: z.string().max(64).optional() });
 const albumImageParams = z.object({ mbid: z.string().regex(MBID).transform((m) => m.toLowerCase()) });
+const albumImageQuery = z.object({ src: z.enum(['lidarr']).optional() });
 const remoteQuery = z.object({
   u: z.string().min(1).max(2048).regex(/^[A-Za-z0-9_-]+$/),
   s: z.string().length(22).regex(/^[A-Za-z0-9_-]+$/),
@@ -29,6 +30,8 @@ function sendImage(reply: FastifyReply, artwork: { body: Buffer; contentType: st
 
 /** Any signed-in user can browse the library. */
 export const libraryRoutes: FastifyPluginAsync = async (app) => {
+  const lidarrClient = currentClient(app.settings);
+
   app.get('/library', async (): Promise<LibraryResponse> => app.library.read());
 
   app.post('/library/refresh', async (): Promise<LibraryResponse> => app.library.refresh());
@@ -45,10 +48,7 @@ export const libraryRoutes: FastifyPluginAsync = async (app) => {
 
     let artwork;
     try {
-      artwork = await app.artwork.artist(artist, () => {
-        const settings = loadLidarr(app.settings);
-        return settings ? clientFor(settings) : null;
-      });
+      artwork = await app.artwork.artist(artist, lidarrClient);
     } catch (error) {
       // Lidarr down or refusing: the UI falls back to a placeholder, quietly.
       request.log.debug({ err: error }, 'Artwork unavailable');
@@ -63,10 +63,8 @@ export const libraryRoutes: FastifyPluginAsync = async (app) => {
   /** Album covers, from Cover Art Archive or else Lidarr. A 404 means use the placeholder. */
   app.get('/images/album/:mbid', async (request, reply) => {
     const { mbid } = parse(albumImageParams, request.params);
-    const artwork = await app.artwork.album(mbid, () => {
-      const settings = loadLidarr(app.settings);
-      return settings ? clientFor(settings) : null;
-    });
+    const { src } = parse(albumImageQuery, request.query);
+    const artwork = await app.artwork.album(mbid, lidarrClient, { preferLidarr: src === 'lidarr' });
     if (!artwork) return reply.code(404).header('Cache-Control', 'private, max-age=300').send();
     // A cover can appear later (for example once Lidarr has it), so cache for a day, not forever.
     return sendImage(reply, artwork, 'private, max-age=86400');
