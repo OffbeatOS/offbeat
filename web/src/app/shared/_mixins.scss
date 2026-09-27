@@ -1,0 +1,68 @@
+// Breakpoint and type role mixins (PLAN.md section 8). `@use` from component
+// styles; this file emits no CSS on its own.
+
+// Below this width the sidebar and bottom bar give way to the mobile tab bar.
+$mobile-max: 768px;
+
+@mixin mobile {
+  @media (max-width: $mobile-max) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: $mobile-max + 1) {
+    @content;
+  }
+}
+
+@mixin text-hero {
+  font-size: 76px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+@mixin text-page-title {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+@mixin text-wordmark {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+@mixin text-section {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+@mixin text-card-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+@mixin text-body {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@mixin text-caption {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+@mixin text-small {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+@mixin text-overline {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}

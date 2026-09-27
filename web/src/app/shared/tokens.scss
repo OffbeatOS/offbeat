@@ -1,0 +1,58 @@
+// Design tokens (PLAN.md section 8). Use these everywhere; never hard-code a color.
+// Loaded once from styles.scss. Breakpoints and type roles live in _mixins.scss.
+
+:root {
+  // Surfaces
+  --bg: #111113;
+  --bg-sidebar: #161618;
+  --bg-bar: #19191c;
+  --surface: #18181b;
+  --surface-input: #1a1a1d;
+  --surface-2: #1e1e21;
+  --surface-3: #232327;
+  --surface-4: #34343a;
+
+  // Borders
+  --divider: #1f1f23;
+  --border-sidebar: #222226;
+  --border-bar: #25252a;
+  --border-input: #2c2c31;
+  --border-button: #34343a;
+
+  // Text
+  --text: #f2f2f2;
+  --text-2: #b4b4ba;
+  --text-3: #9a9aa0;
+  --text-4: #8e8e95;
+
+  // Accent and status
+  --accent: #ff6b4a;
+  --on-accent: #1a0d08;
+  --status-progress: #6cb4ff;
+  --status-failed: #ff8a7a;
+  --status-failed-bg: #1c1719;
+  --status-failed-border: #3a2626;
+  --track: #2e2e33;
+
+  // Typography
+  --font: 'Instrument Sans', -apple-system, 'Helvetica Neue', sans-serif;
+
+  // Radius
+  --radius-thumb: 6px;
+  --radius-art: 8px;
+  --radius-nav: 8px;
+  --radius-input: 10px;
+  --radius-card: 12px;
+  --radius-pill: 999px;
+
+  // Layout and spacing
+  --sidebar-width: 232px;
+  --bar-height: 72px;
+  --tab-bar-height: 82px;
+  --page-pad-top: 40px;
+  --page-pad-x: 48px;
+  --section-gap: 44px;
+  --heading-gap: 16px;
+  --grid-gap: 20px;
+  --touch-target: 44px;
+}
