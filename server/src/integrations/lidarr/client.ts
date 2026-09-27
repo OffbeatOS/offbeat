@@ -1,5 +1,6 @@
 import type { LidarrOptions, LidarrProfile, LidarrRootFolder } from '@offbeat/shared';
 import Bottleneck from 'bottleneck';
+import { fetchBuffered } from '../http.js';
 import { z } from 'zod';
 
 /** A Lidarr call that failed, with a message written for the person configuring it. */
@@ -391,14 +392,14 @@ export class LidarrClient {
   private async send(url: string, accept: string, init: RequestInit = {}): Promise<Response> {
     try {
       return await limiterFor(this.baseUrl).schedule(() =>
-        fetch(url, {
+        fetchBuffered(url, {
           ...init,
           headers: {
             'X-Api-Key': this.apiKey,
             Accept: accept,
             ...(init.body ? { 'Content-Type': 'application/json' } : {}),
           },
-          signal: AbortSignal.timeout(this.timeoutMs),
+          timeoutMs: this.timeoutMs,
           redirect: 'manual',
         }),
       );

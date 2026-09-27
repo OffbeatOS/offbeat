@@ -1,3 +1,5 @@
+import { ResponseTooLarge, fetchBuffered } from '../integrations/http.js';
+
 /**
  * Public artwork hosts Offbeat may fetch from on the browser's behalf. Anything
  * else is refused, so the image proxy cannot be used to reach arbitrary URLs.
@@ -37,11 +39,13 @@ export async function fetchAllowedImage(
   let current = url;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     if (!isAllowedImageUrl(current)) return null;
-    const response = await fetch(current, {
-      redirect: 'manual',
-      signal: AbortSignal.timeout(timeoutMs),
-      headers: { Accept: 'image/*' },
-    });
+    let response: Response;
+    try {
+      response = await fetchBuffered(current, { redirect: 'manual', timeoutMs, maxBytes, headers: { Accept: 'image/*' } });
+    } catch (error) {
+      if (error instanceof ResponseTooLarge) return null;
+      throw error;
+    }
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location');
       if (!location) return null;
@@ -49,10 +53,8 @@ export async function fetchAllowedImage(
       continue;
     }
     if (!response.ok) return null;
-    const length = Number(response.headers.get('content-length') ?? 0);
-    if (length > maxBytes) return null;
     const body = Buffer.from(await response.arrayBuffer());
-    if (body.length === 0 || body.length > maxBytes) return null;
+    if (body.length === 0) return null;
     return { body, contentType: response.headers.get('content-type') ?? '' };
   }
   return null;

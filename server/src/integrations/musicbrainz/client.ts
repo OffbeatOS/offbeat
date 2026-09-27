@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { Db } from '../../db/index.js';
 import { musicbrainzCache } from '../../db/schema.js';
 import { VERSION } from '../../version.js';
+import { fetchBuffered } from '../http.js';
 
 export const MUSICBRAINZ_URL = 'https://musicbrainz.org/ws/2';
 const USER_AGENT = `Offbeat/${VERSION} ( https://github.com/OffbeatOS/offbeat )`;
@@ -141,9 +142,9 @@ export class MusicBrainzClient {
   }
 
   private async fetchJson(path: string): Promise<unknown> {
-    const response = await fetch(`${this.baseUrl}/${path}`, {
+    const response = await fetchBuffered(`${this.baseUrl}/${path}`, {
       headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      timeoutMs: TIMEOUT_MS,
     });
     if (response.status === 404) throw new MusicBrainzError('MusicBrainz has no record of that');
     if (response.status === 503) throw new MusicBrainzError('MusicBrainz is busy. Try again shortly.');
