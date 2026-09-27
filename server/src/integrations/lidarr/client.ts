@@ -137,11 +137,56 @@ export type LidarrTrack = z.infer<typeof trackSchema>;
 
 const tagSchema = z.object({ id: z.number(), label: z.string() });
 
+const albumRefSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  foreignAlbumId: z.string(),
+  artistId: z.number().nullish(),
+  artist: z.object({ artistName: z.string(), foreignArtistId: z.string() }).nullish(),
+});
+export type LidarrAlbumRef = z.infer<typeof albumRefSchema>;
+
+const queueItemSchema = z.object({
+  id: z.number(),
+  albumId: z.number().nullish(),
+  artistId: z.number().nullish(),
+  album: albumRefSchema.partial({ id: true }).nullish(),
+  artist: z.object({ artistName: z.string(), foreignArtistId: z.string() }).nullish(),
+  title: z.string().nullish(),
+  status: z.string().nullish(),
+  trackedDownloadStatus: z.string().nullish(),
+  trackedDownloadState: z.string().nullish(),
+  statusMessages: z.array(z.object({ title: z.string().nullish(), messages: z.array(z.string()).nullish() })).nullish(),
+  errorMessage: z.string().nullish(),
+  size: z.number().nullish(),
+  sizeleft: z.number().nullish(),
+  timeleft: z.string().nullish(),
+  added: z.string().nullish(),
+});
+export type LidarrQueueItem = z.infer<typeof queueItemSchema>;
+
+const historyItemSchema = z.object({
+  id: z.number(),
+  eventType: z.string(),
+  date: z.string(),
+  albumId: z.number().nullish(),
+  album: albumRefSchema.partial({ id: true }).nullish(),
+  artist: z.object({ artistName: z.string(), foreignArtistId: z.string() }).nullish(),
+  sourceTitle: z.string().nullish(),
+  data: z.record(z.string(), z.unknown()).nullish(),
+});
+export type LidarrHistoryItem = z.infer<typeof historyItemSchema>;
+
 const commandSchema = z.object({
+  id: z.number().nullish(),
   name: z.string(),
   status: z.string(),
   body: z
-    .object({ artistIds: z.array(z.number()).nullish(), artistId: z.number().nullish() })
+    .object({
+      artistIds: z.array(z.number()).nullish(),
+      artistId: z.number().nullish(),
+      albumIds: z.array(z.number()).nullish(),
+    })
     .passthrough()
     .nullish(),
 });
@@ -290,6 +335,42 @@ export class LidarrClient {
 
   async setAlbumsMonitored(albumIds: number[], monitored: boolean): Promise<void> {
     await this.write('PUT', 'album/monitor', { albumIds, monitored }, z.unknown());
+  }
+
+  /** Everything in Lidarr's download queue (up to 500 items). */
+  async queue(): Promise<LidarrQueueItem[]> {
+    const page = await this.get(
+      'queue?page=1&pageSize=500&includeArtist=true&includeAlbum=true',
+      z.object({ records: z.array(queueItemSchema) }),
+    );
+    return page.records;
+  }
+
+  /** Recent history, newest first. */
+  async history(pageSize = 50): Promise<LidarrHistoryItem[]> {
+    const page = await this.get(
+      `history?page=1&pageSize=${pageSize}&sortKey=date&sortDirection=descending&includeArtist=true&includeAlbum=true`,
+      z.object({ records: z.array(historyItemSchema) }),
+    );
+    return page.records;
+  }
+
+  albumById(id: number): Promise<LidarrAlbumRef> {
+    return this.get(`album/${id}`, albumRefSchema);
+  }
+
+  /**
+   * Removes a queue item. With `blocklist`, Lidarr will not grab that release
+   * again. Lidarr's own automatic re-search is skipped; callers search explicitly.
+   */
+  async removeQueueItem(id: number, { blocklist }: { blocklist: boolean }): Promise<void> {
+    const response = await this.send(
+      `${this.baseUrl}/api/v1/queue/${id}?removeFromClient=true&blocklist=${blocklist}&skipRedownload=true`,
+      'application/json',
+      { method: 'DELETE' },
+    );
+    if (response.status === 404) throw new LidarrRejected('That item is no longer in the queue');
+    this.assertOk(response);
   }
 
   /** Lidarr's command queue (refreshes, rescans, searches), newest last. */

@@ -7,6 +7,8 @@
  */
 export type ReleaseStatus =
   | { kind: 'available' }
+  /** Offbeat is adding it to Lidarr in the background. */
+  | { kind: 'adding' }
   | { kind: 'requested' }
   | { kind: 'partial'; missingTracks: number }
   | { kind: 'in-library' };

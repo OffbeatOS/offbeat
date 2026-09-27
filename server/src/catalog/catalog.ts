@@ -2,6 +2,7 @@ import type {
   AlbumDetail,
   ArtistDetail,
   ArtistSummary,
+  ReleaseStatus,
   ReleaseSummary,
   SearchResponse,
   SearchTop,
@@ -46,6 +47,9 @@ export interface CatalogOptions {
 export class Catalog {
   private readonly lookups = new Map<string, { at: number; value: Promise<unknown> }>();
   private readonly albumCache = new Map<number, { at: number; value: Promise<LidarrAlbum[]> }>();
+  /** Set by Activity: whether a background add is running for a release group. */
+  isAdding: (releaseGroupMbid: string) => boolean = () => false;
+
   /** One add at a time per MBID, so double clicks never create duplicates. */
   private readonly adding = new Map<string, Promise<unknown>>();
 
@@ -220,6 +224,11 @@ export class Catalog {
     return (await this.lidarrAlbums(lidarrArtistId)).find((a) => a.foreignAlbumId === releaseGroupMbid);
   }
 
+  /** Drops cached album statuses, for example after a download finished. */
+  forgetAlbums() {
+    this.albumCache.clear();
+  }
+
   // Adding -------------------------------------------------------------------
 
   /** Adds an artist with the saved defaults. Adding one that exists is a no-op. */
@@ -351,17 +360,32 @@ export class Catalog {
     }
   }
 
-  /** Monitors one album, then reads it back and reapplies if Lidarr reset it. */
+  /**
+   * Monitors one album, then polls it until Lidarr reports it monitored.
+   * If a late post-add step resets it, monitoring is applied again (at most
+   * three times). No fixed delays: a slow Lidarr just takes more polls.
+   */
   private async monitorAndConfirm(lidarrArtistId: number, albumId: number, releaseGroupMbid: string) {
     const client = this.client();
-    for (let attempt = 0; attempt < 3; attempt++) {
-      await client.setAlbumsMonitored([albumId], true);
-      await new Promise((resolve) => setTimeout(resolve, this.options.pollMs ?? 2000));
+    const pollMs = this.options.pollMs ?? 1000;
+    const deadline = Date.now() + (this.options.albumAppearTimeoutMs ?? ALBUM_APPEAR_TIMEOUT_MS);
+    let applied = 0;
+    for (;;) {
       this.albumCache.delete(lidarrArtistId);
       const current = await this.findLidarrAlbum(lidarrArtistId, releaseGroupMbid);
-      if (current?.monitored) return;
+      if (current?.monitored) {
+        // Seen monitored: confirm once more after a poll, since the reset can land late.
+        await new Promise((resolve) => setTimeout(resolve, pollMs));
+        this.albumCache.delete(lidarrArtistId);
+        if ((await this.findLidarrAlbum(lidarrArtistId, releaseGroupMbid))?.monitored) return;
+        continue;
+      }
+      if (applied >= 3 || Date.now() >= deadline) {
+        throw new HttpError(422, 'Lidarr did not keep this album monitored. Check it in Lidarr.');
+      }
+      await client.setAlbumsMonitored([albumId], true);
+      applied++;
     }
-    throw new HttpError(422, 'Lidarr did not keep this album monitored. Check it in Lidarr.');
   }
 
   /** Lidarr loads a new artist's albums in the background; wait for the one we need. */
@@ -418,7 +442,7 @@ export class Catalog {
       coverUrl: this.images.releaseGroupCover(album.foreignAlbumId),
       artistMbid,
       artistName,
-      status: lidarrStatus(album),
+      status: this.pendingOr(album.foreignAlbumId, lidarrStatus(album)),
     };
   }
 
@@ -431,7 +455,7 @@ export class Catalog {
       coverUrl: this.images.releaseGroupCover(group.id),
       artistMbid,
       artistName,
-      status: { kind: 'available' },
+      status: this.pendingOr(group.id, { kind: 'available' }),
     };
   }
 
@@ -456,8 +480,13 @@ export class Catalog {
         this.images.releaseGroupCover(album.foreignAlbumId),
       artistMbid,
       artistName,
-      status,
+      status: this.pendingOr(album.foreignAlbumId, status),
     };
+  }
+
+  /** A release that is still being added shows as adding, unless Lidarr already has more to say. */
+  private pendingOr(releaseGroupMbid: string, status: ReleaseStatus): ReleaseStatus {
+    return status.kind === 'available' && this.isAdding(releaseGroupMbid) ? { kind: 'adding' } : status;
   }
 
   private lookupArtistSummary(artist: LidarrLookupArtist): ArtistSummary {

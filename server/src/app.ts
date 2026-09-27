@@ -1,4 +1,5 @@
 import Fastify, { type FastifyServerOptions } from 'fastify';
+import { Activity, type ActivityOptions } from './activity/activity.js';
 import { api } from './api/index.js';
 import { Catalog, type CatalogOptions } from './catalog/catalog.js';
 import type { LoginLimiter } from './auth/login-limiter.js';
@@ -20,6 +21,7 @@ declare module 'fastify' {
     artwork: ArtworkCache;
     imageUrls: ImageUrls;
     catalog: Catalog;
+    activity: Activity;
   }
 }
 
@@ -42,6 +44,7 @@ export interface AppOptions {
   /** Override in tests to point at a fake MusicBrainz without the 1 request per second pacing. */
   musicbrainz?: { url: string; minTimeMs: number };
   catalog?: CatalogOptions;
+  activity?: ActivityOptions;
 }
 
 export async function buildApp({
@@ -56,6 +59,7 @@ export async function buildApp({
   upstreamTimeoutMs,
   musicbrainz = { url: MUSICBRAINZ_URL, minTimeMs: 1100 },
   catalog = {},
+  activity = {},
 }: AppOptions) {
   const app = Fastify({
     logger: logger ?? { level: config.logLevel },
@@ -76,18 +80,27 @@ export async function buildApp({
     }),
   );
 
+  // One client, so MusicBrainz's one request per second holds across every caller.
+  const musicbrainzClient = new MusicBrainzClient(db, app.log, musicbrainz.url, musicbrainz.minTimeMs);
   app.decorate(
     'catalog',
     new Catalog(
       db,
       settings,
       app.library,
-      new MusicBrainzClient(db, app.log, musicbrainz.url, musicbrainz.minTimeMs),
+      musicbrainzClient,
       imageUrls,
       app.log,
       { timeoutMs: upstreamTimeoutMs, ...catalog },
     ),
   );
+
+  // Polling starts in index.ts (and in tests that need it), not here.
+  app.decorate(
+    'activity',
+    new Activity(db, settings, app.library, app.catalog, musicbrainzClient, imageUrls, app.log, activity),
+  );
+  app.addHook('onClose', async () => app.activity.stop());
 
   await app.register(api, {
     prefix: `${config.baseUrl}/api/v1`,

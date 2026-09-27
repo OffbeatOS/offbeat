@@ -1,4 +1,4 @@
-import type { AlbumDetail, ArtistDetail, LibraryResponse, SearchResponse } from '@offbeat/shared';
+import type { AddResult, AlbumDetail, ArtistDetail, LibraryResponse, SearchResponse } from '@offbeat/shared';
 import { randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
@@ -51,6 +51,27 @@ async function setup(addSettings: { addMonitored?: boolean; searchOnAdd?: boolea
 
 /** The test rules used against real Lidarr: no search, unmonitored, tagged. */
 const safe = { addMonitored: false, searchOnAdd: false, addTag: 'offbeat-test' };
+
+/** POSTs an album add (answered at once with 202) and waits for its add-result event. */
+async function addAlbum(
+  app: Awaited<ReturnType<typeof setup>>['app'],
+  call: Awaited<ReturnType<typeof setup>>['call'],
+  mbid: string,
+  artistMbid: string,
+): Promise<AddResult> {
+  const result = new Promise<AddResult>((resolve) => {
+    const off = app.activity.subscribe((event) => {
+      if (event.type === 'add-result' && event.data.albumMbid === mbid) {
+        off();
+        resolve(event.data);
+      }
+    });
+  });
+  const res = await call('POST', `/albums/${mbid}`, { artistMbid });
+  expect(res.statusCode).toBe(202);
+  expect(res.json()).toEqual({ status: { kind: 'adding' } });
+  return result;
+}
 
 describe('search', () => {
   it('ranks an exact artist match first and lists its albums from MusicBrainz', async () => {
@@ -124,10 +145,11 @@ describe('adding an artist', () => {
 
 describe('adding a single album', () => {
   it('adds the artist with nothing monitored, then monitors only that album', async () => {
-    const { call, fake } = await setup(safe);
-    const res = await call('POST', `/albums/${GEOGADDI.mbid}`, { artistMbid: BOC.mbid });
-    expect(res.statusCode).toBe(200);
-    expect(res.json<AlbumDetail>()).toMatchObject({ title: 'Geogaddi', status: { kind: 'requested' }, artistInLibrary: true });
+    const { app, call, fake } = await setup(safe);
+    const result = await addAlbum(app, call, GEOGADDI.mbid, BOC.mbid);
+    expect(result).toMatchObject({ ok: true, status: { kind: 'requested' } });
+    const detail = (await call('GET', `/albums/${GEOGADDI.mbid}`)).json<AlbumDetail>();
+    expect(detail).toMatchObject({ title: 'Geogaddi', status: { kind: 'requested' }, artistInLibrary: true });
 
     const artist = [...fake.library.values()][0]!;
     expect(artist.monitored).toBe(false);
@@ -136,15 +158,15 @@ describe('adding a single album', () => {
   });
 
   it('searches for the album when searching on add is on', async () => {
-    const { call, fake } = await setup({ ...safe, searchOnAdd: true });
-    await call('POST', `/albums/${GEOGADDI.mbid}`, { artistMbid: BOC.mbid });
+    const { app, call, fake } = await setup({ ...safe, searchOnAdd: true });
+    await addAlbum(app, call, GEOGADDI.mbid, BOC.mbid);
     const albumId = [...fake.library.values()][0]!.albums.find((a) => a.title === 'Geogaddi')!.id;
     expect(fake.commands).toEqual([{ name: 'AlbumSearch', albumIds: [albumId] }]);
   });
 
   it('shows the new status in search results right away', async () => {
-    const { call } = await setup(safe);
-    await call('POST', `/albums/${GEOGADDI.mbid}`, { artistMbid: BOC.mbid });
+    const { app, call } = await setup(safe);
+    await addAlbum(app, call, GEOGADDI.mbid, BOC.mbid);
     const res = (await call('GET', '/search?q=boards%20of%20canada')).json<SearchResponse>();
     expect(res.top).toMatchObject({ kind: 'artist', artist: { inLibrary: true } });
     const statuses = Object.fromEntries(res.albums.map((a) => [a.title, a.status.kind]));
@@ -198,8 +220,8 @@ describe('artist and album pages', () => {
 
 describe('album page actions', () => {
   it('reports monitoring and track counts, with more releases by the artist', async () => {
-    const { call } = await setup(safe);
-    await call('POST', `/albums/${GEOGADDI.mbid}`, { artistMbid: BOC.mbid });
+    const { app, call } = await setup(safe);
+    await addAlbum(app, call, GEOGADDI.mbid, BOC.mbid);
     const album = (await call('GET', `/albums/${GEOGADDI.mbid}`)).json<AlbumDetail>();
     expect(album).toMatchObject({ monitored: true, trackFileCount: 0, trackCount: 10, status: { kind: 'requested' } });
     expect(album.more.map((r) => r.title)).not.toContain('Geogaddi');
@@ -207,12 +229,12 @@ describe('album page actions', () => {
   });
 
   it('toggles album monitoring and searches, only for albums in Lidarr', async () => {
-    const { call, fake } = await setup(safe);
+    const { app, call, fake } = await setup(safe);
     const other = BOC.albums[0]!.mbid;
     expect((await call('PATCH', `/albums/${other}`, { monitored: true })).statusCode).toBe(404);
     expect((await call('POST', `/albums/${other}/search`, {})).statusCode).toBe(404);
 
-    await call('POST', `/albums/${GEOGADDI.mbid}`, { artistMbid: BOC.mbid });
+    await addAlbum(app, call, GEOGADDI.mbid, BOC.mbid);
     const off = (await call('PATCH', `/albums/${GEOGADDI.mbid}`, { monitored: false })).json<AlbumDetail>();
     expect(off).toMatchObject({ monitored: false, status: { kind: 'available' } });
 

@@ -1,4 +1,4 @@
-import type { AlbumDetail, ArtistDetail, SearchResponse } from '@offbeat/shared';
+import type { AlbumDetail, ArtistDetail, ReleaseStatus, SearchResponse } from '@offbeat/shared';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { MBID } from '../catalog/releases.js';
@@ -66,14 +66,22 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
   app.post('/albums/:mbid/search', async (request, reply) => {
     const { mbid } = parse(mbidParams, request.params);
     await upstream(request, () => app.catalog.searchAlbum(mbid.toLowerCase()));
+    void app.activity.expectMovement();
     return reply.code(202).send({ queued: true });
   });
 
-  app.post('/albums/:mbid', async (request): Promise<AlbumDetail> => {
+  /**
+   * Starts adding an album and answers at once: an album add can take a while
+   * (Lidarr has to load a new artist first). The result arrives as an
+   * add-result event on /events and shows in Activity.
+   */
+  app.post('/albums/:mbid', async (request, reply) => {
     const { mbid } = parse(mbidParams, request.params);
     const { artistMbid } = parse(addAlbumBody, request.body);
-    return upstream(request, () =>
-      app.catalog.addAlbum(mbid.toLowerCase(), artistMbid.toLowerCase(), request.user?.id ?? null),
+    await upstream(request, () =>
+      app.activity.startAlbumAdd(mbid.toLowerCase(), artistMbid.toLowerCase(), request.user?.id ?? null),
     );
+    const status: ReleaseStatus = { kind: 'adding' };
+    return reply.code(202).send({ status });
   });
 };

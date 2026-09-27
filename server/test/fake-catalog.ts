@@ -14,6 +14,13 @@ export interface FakeCatalog {
   /** Commands Lidarr was asked to run (for example AlbumSearch). */
   commands: { name: string; albumIds?: number[] }[];
   tags: { id: number; label: string }[];
+  /** Lidarr's download queue; tests push items in the shape Lidarr returns. */
+  queue: Record<string, unknown>[];
+  history: Record<string, unknown>[];
+  /** Queue removals, with the flags Offbeat sent. */
+  removals: { id: number; blocklist: boolean; skipRedownload: boolean }[];
+  /** Paths Lidarr received, for counting polls. */
+  hits: string[];
   close(): Promise<void>;
 }
 
@@ -72,7 +79,16 @@ export async function startFakeCatalog(
   // Like Lidarr, post-add actions run after the albums appear and reapply the
   // add's monitor option, undoing any monitoring changed in between.
   const postAddDelayMs = options.postAddDelayMs ?? 200;
-  const queue: { id: number; name: string; status: string; body: { artistIds: number[]; isNewArtist?: boolean } }[] = [];
+  const queue: {
+    id: number;
+    name: string;
+    status: string;
+    body: { artistIds?: number[]; albumIds?: number[]; isNewArtist?: boolean };
+  }[] = [];
+  const downloads: Record<string, unknown>[] = [];
+  const history: Record<string, unknown>[] = [];
+  const removals: FakeCatalog['removals'] = [];
+  const hits: string[] = [];
   const apiKey = randomBytes(16).toString('hex');
   const library = new Map<number, FakeArtist>();
   const writes: FakeCatalog['writes'] = [];
@@ -129,6 +145,7 @@ export async function startFakeCatalog(
     const url = new URL(req.url ?? '/', 'http://fake');
     if (req.headers['x-api-key'] !== apiKey) return json(res, 401, {});
     const path = url.pathname.replace(/^\/api\/v1\//, '');
+    hits.push(path);
     const body = await readBody(req);
     if (req.method !== 'GET') writes.push({ method: req.method ?? '', path, body });
 
@@ -224,8 +241,41 @@ export async function startFakeCatalog(
       return json(res, 202, {});
     }
     if (path === 'command' && req.method === 'GET') return json(res, 200, queue);
+    if (path === 'queue') return json(res, 200, { totalRecords: downloads.length, records: downloads });
+    if (path === 'history') return json(res, 200, { totalRecords: history.length, records: history });
+    const queueMatch = path.match(/^queue\/(\d+)$/);
+    if (queueMatch && req.method === 'DELETE') {
+      const index = downloads.findIndex((d) => d['id'] === Number(queueMatch[1]));
+      if (index < 0) return json(res, 404, {});
+      downloads.splice(index, 1);
+      removals.push({
+        id: Number(queueMatch[1]),
+        blocklist: url.searchParams.get('blocklist') === 'true',
+        skipRedownload: url.searchParams.get('skipRedownload') === 'true',
+      });
+      return json(res, 200, {});
+    }
+    const albumMatch = path.match(/^album\/(\d+)$/);
+    if (albumMatch) {
+      for (const artist of library.values()) {
+        const album = artist.albums.find((a) => a.id === Number(albumMatch[1]));
+        if (album) {
+          return json(res, 200, {
+            id: album.id,
+            title: album.title,
+            foreignAlbumId: album.foreignAlbumId,
+            artist: { artistName: artist.artistName, foreignArtistId: artist.foreignArtistId },
+          });
+        }
+      }
+      return json(res, 404, {});
+    }
     if (path === 'command' && req.method === 'POST') {
       commands.push(body as { name: string; albumIds?: number[] });
+      const posted = body as { name: string; albumIds?: number[] };
+      if (posted.name === 'AlbumSearch') {
+        queue.push({ id: queue.length + 1, name: 'AlbumSearch', status: 'started', body: { albumIds: posted.albumIds } });
+      }
       return json(res, 201, { id: commands.length });
     }
     if (path === 'track') return json(res, 200, [{ id: 1, trackNumber: '1', title: 'Track one', duration: 200000, hasFile: false }]);
@@ -279,6 +329,10 @@ export async function startFakeCatalog(
     writes,
     commands,
     tags,
+    queue: downloads,
+    history,
+    removals,
+    hits,
     close: async () => {
       await Promise.all([close(lidarr), close(musicbrainz)]);
     },
