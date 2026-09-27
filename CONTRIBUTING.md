@@ -16,6 +16,18 @@ These apply to every change: code, UI copy, docs, and commit messages.
 6. **Never leak credentials.** The Lidarr API key must never reach the browser or a log. Artwork goes through the image proxy.
 7. **Small, reviewable commits** with conventional prefixes: `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`.
 
+## Using AI tools
+
+AI coding assistants are welcome here. Offbeat itself is developed with AI assistance, under the same rules below. What matters is that the work is tested and that a person stands behind it.
+
+- **You are the author.** Understand every line you submit, be able to explain why it is written that way, and be ready to maintain it. "The AI wrote it" is not an answer in review.
+- **Same bar as any change.** Tests pass, new behavior has tests, and you verified it in a real browser. AI-written code gets no shortcut on the working agreements above.
+- **Say so in the pull request** when AI wrote a substantial part of it. This is not held against you; it tells reviewers where to look harder.
+- **Answer review yourself.** Do not relay reviewer questions to an AI and paste back its replies.
+- **Issues and security reports must be confirmed by a person.** Reproduce the problem yourself before reporting it. Unverified AI-generated reports, especially "vulnerabilities" nobody reproduced, will be closed.
+- **Keep secrets out of AI tools.** Do not paste API keys, passwords, or unscrubbed logs into them.
+- **Only submit what you have the right to submit.** Do not include code copied from projects with incompatible licenses, whoever or whatever produced it.
+
 ## Setting up
 
 You need Node 22.22.3+ or 24.15+ (`.nvmrc` pins the version CI uses; `nvm use` or `fnm use` picks it up). `npm install` refuses older versions.

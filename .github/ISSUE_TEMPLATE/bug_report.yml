@@ -53,6 +53,13 @@ body:
     attributes:
       label: Setup details
       description: Reverse proxy and BASE_URL, TRUST_PROXY, platform (amd64 or arm64), browser. Anything unusual.
+  - type: checkboxes
+    id: confirmed
+    attributes:
+      label: Confirmation
+      options:
+        - label: I reproduced this myself on a running Offbeat (not only described by an AI tool)
+          required: true
   - type: textarea
     id: logs
     attributes:
