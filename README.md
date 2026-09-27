@@ -5,33 +5,40 @@
 
 Self-hosted music discovery for Lidarr. Find new artists based on what you already have, add them to Lidarr in one click, and follow downloads as they land. Native streaming is planned.
 
-> **Status:** early development. Onboarding, accounts, the Library, Search, and the Artist and Album pages with one-click adds work today; the Activity screen is next. See the [roadmap](ROADMAP.md) for what is done and what is coming.
+> **Status: 0.1, early.** The library and request side works today (see below); discovery is next. Versions before 1.0 may include breaking changes between releases, so read the release notes before upgrading. See the [roadmap](ROADMAP.md) for what is done and what is coming.
 
-## What it does
+## What works in 0.1
 
 - **Library.** Your Lidarr library as a fast, filterable grid, served from a local cache so it stays usable even when Lidarr is down.
-- **Search, Artist, and Album pages.** Look up anything on MusicBrainz, see what you already have track by track, and add an artist or a single album with your saved defaults.
-- **Discovery (phase 2).** Recommendations built from your library and listening history, with an explanation for each one.
+- **Search, Artist, and Album pages.** Look up anything on MusicBrainz, see what you already have track by track, and add an artist or a single album in one click.
+- **Sensible adds.** Adding an artist monitors their latest album and future releases; adding one album gets just that album. Lidarr searches right away, and everything Offbeat adds is tagged `offbeat`. All of it can be changed in Settings.
+- **Activity.** Searches, downloads, and imports update live, with plain-English reasons when an import is blocked, and Retry or Cancel in one click. The bottom bar shows the current download on every page.
 - **One small container.** One process, one port, SQLite. No external database or cache.
+
+Coming next: discovery (recommendations from your library and listening history, each with an explanation), then multi-user, flows and playlists, and streaming.
 
 Offbeat talks to Lidarr for everything in your library; it never writes to your music folders itself.
 
 ## Quick start (Docker)
 
-No release has been published yet, so for now build the image from source:
+Images are published for `linux/amd64` and `linux/arm64` as `ghcr.io/offbeatos/offbeat`. Pin a version (`0.1`) rather than `latest` while Offbeat is pre-1.0.
+
+With `docker run`:
 
 ```sh
-git clone https://github.com/OffbeatOS/offbeat.git
-cd offbeat
-docker build -t offbeat .
+docker run -d --name offbeat --restart unless-stopped \
+  -p 3001:3001 \
+  -e PUID=1000 -e PGID=1000 -e TZ=Etc/UTC \
+  -v "$(pwd)/config:/app/config" \
+  ghcr.io/offbeatos/offbeat:0.1
 ```
 
-Then run it with Compose (use `image: offbeat` until a release is published):
+Or with Compose (the same file is in [docker-compose.yml](docker-compose.yml)):
 
 ```yaml
 services:
   offbeat:
-    image: ghcr.io/offbeatos/offbeat:latest
+    image: ghcr.io/offbeatos/offbeat:0.1
     restart: unless-stopped
     ports:
       - "3001:3001"

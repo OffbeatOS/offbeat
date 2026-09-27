@@ -15,6 +15,7 @@ These apply to every change: code, UI copy, docs, and commit messages.
 5. **Every upstream call is cached and rate limited.** MusicBrainz in particular allows one request per second.
 6. **Never leak credentials.** The Lidarr API key must never reach the browser or a log. Artwork goes through the image proxy.
 7. **Small, reviewable commits** with conventional prefixes: `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`.
+8. **Released migrations are permanent.** Real installs have run every migration up to 0.1.0 and later. Never edit, reorder, or delete a committed migration; change the schema only by adding a new one.
 
 ## Using AI tools
 
