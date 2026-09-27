@@ -1,0 +1,61 @@
+name: Bug report
+description: Something in Offbeat is broken or behaves unexpectedly.
+labels: ["bug", "needs: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Security problems should go through [private reporting](https://github.com/OffbeatOS/offbeat/security/advisories/new) instead.
+        Before pasting logs or screenshots, remove API keys, passwords, and addresses you do not want public.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to Search
+        2. Search for ...
+        3. Click Add
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Offbeat version
+      description: Shown in the server log on startup, or the image tag you run.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How do you run Offbeat?
+      options:
+        - Docker (ghcr.io/offbeatos/offbeat)
+        - Docker, built from source
+        - Bare metal (Node)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: lidarr
+    attributes:
+      label: Lidarr version
+      placeholder: "3.1.0.4875"
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup details
+      description: Reverse proxy and BASE_URL, TRUST_PROXY, platform (amd64 or arm64), browser. Anything unusual.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant server logs (set LOG_LEVEL=debug if you can). This is rendered as code, no need for backticks.
+      render: text

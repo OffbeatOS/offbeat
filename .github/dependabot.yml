@@ -1,0 +1,31 @@
+# Node itself is pinned in .nvmrc and the Dockerfile NODE_VERSION arg, which
+# Dependabot cannot update; bump both together by hand.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+    groups:
+      angular:
+        patterns: ["@angular/*", "@angular-devkit/*", "angular-eslint"]
+      dev-tools:
+        dependency-type: development
+        exclude-patterns: ["@angular/*", "@angular-devkit/*", "angular-eslint"]
+        update-types: [minor, patch]
+      runtime:
+        dependency-type: production
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+    groups:
+      actions:
+        patterns: ["*"]

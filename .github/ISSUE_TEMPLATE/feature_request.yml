@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest something Offbeat should do.
+labels: ["enhancement", "needs: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the [roadmap](https://github.com/OffbeatOS/offbeat/blob/main/ROADMAP.md) first; it may already be planned.
+        Open-ended ideas are welcome in [Discussions](https://github.com/OffbeatOS/offbeat/discussions).
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The problem or goal, in your own words. What happens today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help?
+      description: How you imagine it working. Sketches or screenshots of similar tools are welcome.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have tried
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to work on this myself
