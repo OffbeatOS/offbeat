@@ -216,6 +216,7 @@ All routes under `/api/v1`. Generate an OpenAPI spec from Zod schemas.
 | `Onboarding.dc.html` | Setup wizard, Lidarr step |
 | `Settings.dc.html` | Settings, Integrations section |
 | `Shows.dc.html` | Shows (concert listings) |
+| `Album.dc.html` | Album page (partial state shown) |
 
 ### Principles
 
