@@ -134,18 +134,23 @@ One server-side poller reads Lidarr's queue, commands, and history, and pushes a
 
 ## Discovery engine
 
-Planned for phase 2. Runs as a scheduled job per user; results are cached so the Discover page renders instantly.
+Works with no API key: ListenBrainz is always a source, and a Last.fm key adds a second, preferred one. Scoring is pure functions in `server/src/discovery/engine.ts`; fetching, caching, and storage are in `discovery.ts`. Each user is refreshed daily at 4:00 and on demand (`POST /discover/refresh`); results for all three modes are stored, so Discover renders instantly.
 
-1. **Seeds.** Library artists, weighted by the user's Last.fm or ListenBrainz play counts when available (equal weight otherwise).
-2. **Candidates.** For each seed, fetch similar artists. Score each candidate as the sum of `match x seed_weight` across all seeds, so artists recommended by many seeds rise to the top.
-3. **Filter.** Remove artists already in Lidarr, blocklisted artists, and artists carrying blocklisted tags.
-4. **Mode.**
-   - *Safer:* favor high match scores and multiple seed hits.
-   - *Balanced:* default blend.
-   - *Deeper:* add a second hop (similar of similar) and penalize high Last.fm listener counts.
-5. **Variety.** Add a small random factor so the page changes between refreshes.
-6. **Feedback.** Thumbs up or down adjusts tag weights for future runs. "Never show this" adds to the blocklist.
-7. **Explanations.** Store the strongest seed for each recommendation so the UI can show "Because you like X."
+1. **Seeds.** Library artists (weight 1) plus artists the user plays (ListenBrainz or Last.fm username, three plays or more), with plays adding weight on a log scale. At most 60 seeds.
+2. **Similar artists.** Per seed, ListenBrainz session-based similarity (keyed by MBID) and, when connected, Last.fm `artist.getSimilar`. ListenBrainz counts sessions, so popular artists score high next to anything: its scores are divided by listeners to the power 0.3 (ListenBrainz popularity data), with a floor of 20,000 and counts below a quarter of the list's typical one not trusted (the data has gaps for some big artists). With both sources, a match is 0.6 Last.fm plus 0.4 ListenBrainz, so artists both agree on rank highest; when one source knows nothing about a seed, the other counts in full.
+3. **Names.** Everything is keyed by MBID. A Last.fm suggestion ListenBrainz does not corroborate is checked by name through Lidarr's artist lookup, and the first exact match wins: Last.fm gives no MBID for some artists, and a wrong one for some shared names (several bands are called Face to Face).
+4. **Score.** Each candidate sums `match x seed_weight` over its seeds, so artists several seeds agree on rise.
+5. **Filter.** Remove library artists, seeds, Various Artists, and (slice 4) blocklisted artists and tags.
+6. **Mode.**
+   - *Safer:* squared matches (strong ones count most) and a bigger boost for several seeds.
+   - *Balanced:* the plain sum with a small boost for several seeds.
+   - *Deeper:* adds a second hop (the similar artists of its own top 12 picks, at half weight) and divides by the log of listeners, squared.
+7. **Variety.** Each score is multiplied by a random factor within 10 percent, seeded per refresh.
+8. **Explanations.** The seed behind the strongest match: "Because you like X", or for Deeper's second hop, "Y, which is like X".
+9. **Enrichment.** Names, disambiguation, genres, and artwork from Lidarr's artist lookup (Last.fm has no real artist images).
+10. **Feedback (slice 4).** Thumbs up or down adjusts tag weights. "Never show this" adds to the blocklist.
+
+Every upstream answer is cached in `source_cache` (similar artists and popularity 7 days, lookups 30 days, listening stats 1 day) and served stale if a source is down. `server/scripts/discover-sample.ts` prints a sample per mode and source mix for reviewing quality.
 
 Discover sections: Top Picks for You, Albums to Start With, Explore by Tag, and (phase 3) Local Shows. Users can reorder or hide sections.
 
@@ -159,9 +164,11 @@ Current tables (see `server/src/db/schema.ts`):
 - `library_artists` (cached Lidarr artists: ids, names, sort name, monitoring, stats, missing albums, artwork paths)
 - `musicbrainz_cache` (request path, body, fetched_at)
 - `requests` (user_id, artist and album MBIDs, Lidarr ids) to attribute adds to users
+- `source_cache` (key, body, fetched_at): discovery's upstream answers
+- `recommendations` (user_id, mode, payload, generated_at): each user's latest recommendations per mode
 - `jobs` (name, last run, last success, error)
 
-Planned: `artist_cache`, `similar_cache`, `recommendations`, `feedback`, `blocklist` (phase 2); `flows`, `flow_runs`, `flow_tracks`, `playlists`, `playlist_tracks` (phase 4).
+Planned: `feedback`, `blocklist` (phase 2); `flows`, `flow_runs`, `flow_tracks`, `playlists`, `playlist_tracks` (phase 4).
 
 ## API
 
@@ -172,6 +179,7 @@ All routes live under `/api/v1`. Implemented:
 - `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
 - `GET /settings/lidarr`, `PUT /settings/lidarr`
 - `GET /settings/lastfm`, `PUT /settings/lastfm` (checked with Last.fm), `DELETE /settings/lastfm` (admin)
+- `GET /discover?mode=safer|balanced|deeper`, `POST /discover/refresh`
 - `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service)
 - `GET /library`, `POST /library/refresh`
 - `GET /search?q=`
@@ -181,7 +189,7 @@ All routes live under `/api/v1`. Implemented:
 - `GET /events` (Server-Sent Events: `activity` snapshots and `add-result`)
 - `GET /images/artist/:id`, `GET /images/album/:mbid`, `GET /images/remote` (signed)
 
-Planned: `/discover` and `/blocklist` (phase 2), `/users` (phase 3), `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
+Planned: `/blocklist` (phase 2), `/users` (phase 3), `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
 
 ## Details that save pain later
 

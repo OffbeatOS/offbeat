@@ -2,6 +2,7 @@ import Fastify, { type FastifyServerOptions } from 'fastify';
 import { Activity, type ActivityOptions } from './activity/activity.js';
 import { api } from './api/index.js';
 import { Catalog, type CatalogOptions } from './catalog/catalog.js';
+import { Discovery, type DiscoveryOptions } from './discovery/discovery.js';
 import type { LoginLimiter } from './auth/login-limiter.js';
 import type { Config } from './config.js';
 import { SecretBox } from './crypto/secret-box.js';
@@ -10,6 +11,7 @@ import { ArtworkCache } from './library/artwork.js';
 import { ImageUrls } from './library/image-urls.js';
 import type { LastfmClient } from './integrations/lastfm/client.js';
 import { lastfmClientFor } from './integrations/lastfm/settings.js';
+import { currentClient } from './integrations/lidarr/settings.js';
 import { ListenBrainzClient } from './integrations/listenbrainz/client.js';
 import { MUSICBRAINZ_URL, MusicBrainzClient } from './integrations/musicbrainz/client.js';
 import { Library } from './library/library.js';
@@ -25,6 +27,7 @@ declare module 'fastify' {
     imageUrls: ImageUrls;
     catalog: Catalog;
     activity: Activity;
+    discovery: Discovery;
     /** Listening and similarity sources. Last.fm is null until an admin connects it. */
     sources: { lastfm: () => LastfmClient | null; listenbrainz: ListenBrainzClient };
   }
@@ -51,7 +54,8 @@ export interface AppOptions {
   catalog?: CatalogOptions;
   activity?: ActivityOptions;
   /** Override in tests to point at fake Last.fm and ListenBrainz servers. */
-  sources?: { lastfmUrl?: string; listenbrainzUrl?: string };
+  sources?: { lastfmUrl?: string; listenbrainzUrl?: string; listenbrainzLabsUrl?: string };
+  discovery?: DiscoveryOptions;
 }
 
 export async function buildApp({
@@ -68,6 +72,7 @@ export async function buildApp({
   catalog = {},
   activity = {},
   sources = {},
+  discovery = {},
 }: AppOptions) {
   const app = Fastify({
     logger: logger ?? { level: config.logLevel },
@@ -79,7 +84,11 @@ export async function buildApp({
   app.decorate('settings', settings);
   app.decorate('sources', {
     lastfm: () => lastfmClientFor(settings, sources.lastfmUrl, upstreamTimeoutMs),
-    listenbrainz: new ListenBrainzClient({ url: sources.listenbrainzUrl, timeoutMs: upstreamTimeoutMs }),
+    listenbrainz: new ListenBrainzClient({
+      url: sources.listenbrainzUrl,
+      labsUrl: sources.listenbrainzLabsUrl,
+      timeoutMs: upstreamTimeoutMs,
+    }),
   });
   const artwork = new ArtworkCache(imageCacheDir, app.log, imageCacheBytes);
   app.decorate('artwork', artwork);
@@ -116,6 +125,21 @@ export async function buildApp({
     if (activity.autoStart !== false) app.activity.start();
   });
   app.addHook('onClose', async () => app.activity.stop());
+
+  app.decorate(
+    'discovery',
+    new Discovery(
+      db,
+      app.library,
+      { lastfm: app.sources.lastfm, listenbrainz: app.sources.listenbrainz, lidarr: currentClient(settings) },
+      imageUrls,
+      app.log,
+      discovery,
+    ),
+  );
+  // The daily refresh runs for the life of the app.
+  app.addHook('onReady', async () => app.discovery.start());
+  app.addHook('onClose', async () => app.discovery.stop());
 
   await app.register(api, {
     prefix: `${config.baseUrl}/api/v1`,
