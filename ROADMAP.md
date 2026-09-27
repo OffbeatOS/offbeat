@@ -58,7 +58,8 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 - Player in the bottom bar, full Now Playing view, queue drawer
 - Play actions on every card and track row
 - Short previews for artists not yet in the library
-- Evaluate implementing the Subsonic API so existing mobile clients work
+- Native streaming API for the Offbeat web app
+- Subsonic API, so existing third-party clients (mobile and desktop) can stream from Offbeat too
 
 ## Distribution (ongoing)
 
@@ -68,7 +69,6 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 
 ## Open decisions
 
-- **Streaming architecture (phase 5).** A native streaming API only, or also the Subsonic API for third-party clients.
 - **Preview source (phase 5).** Which service provides short previews for artists not in the library.
 
-Have an opinion on one of these? Start a thread in [Discussions](https://github.com/OffbeatOS/offbeat/discussions).
+Have an opinion? Start a thread in [Discussions](https://github.com/OffbeatOS/offbeat/discussions).
