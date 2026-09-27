@@ -91,10 +91,11 @@ Use these identically everywhere a release appears.
 | --- | --- |
 | Not in library | Outlined "Add" pill with a plus icon |
 | Wanted (monitored, nothing on disk yet) | `--status-progress` text |
+| Adding, Searching, Queued, Importing | `--status-progress` text with a small pulsing dot, so work under way never looks like a plain Wanted |
 | Downloading | `--status-progress` text with percentage and a 3px progress bar |
 | In Library | `--text-2` with a check icon |
 | Partial | `--text-3` text, for example "2 missing" |
-| Failed | `--status-failed` with an alert icon, plus a Retry action |
+| Failed, Import blocked | `--status-failed` with an alert icon; Retry lives on the Activity page |
 
 ### Album page states
 

@@ -103,7 +103,8 @@ The MusicBrainz ID (MBID) is the join key across every service. Pages are routed
 - `GET /artist/lookup` and `/album/lookup` for search (`lidarr:<mbid>` looks up one artist)
 - `POST /artist` to add, `PUT /album/monitor` to monitor one album, `POST /command` for `AlbumSearch`
 - `GET /album?artistId=` for per-album status. Use `statistics.totalTrackCount`: `trackCount` is 0 for unmonitored artists.
-- `GET /command` to wait for a new artist's refresh and post-add actions before monitoring a single album (they would otherwise reset it)
+- `GET /command` to wait for a new artist's refresh and post-add actions before monitoring a single album (they would otherwise reset it), and to show albums Lidarr is searching for
+- `GET /queue` and `GET /history` for Activity; `DELETE /queue/:id` to cancel, or to retry with `blocklist=true` followed by a fresh `AlbumSearch`
 - `GET /qualityprofile`, `/metadataprofile`, `/rootfolder` for onboarding
 - `/MediaCover/...` for artwork, proxied
 
@@ -120,6 +121,16 @@ The MusicBrainz ID (MBID) is the join key across every service. Pages are routed
 **slskd (phase 4).** External Soulseek client, used through its REST API. Offbeat does not embed a Soulseek client.
 
 **Ticketmaster (phase 3, optional).** Nearby shows.
+
+## Activity
+
+One server-side poller reads Lidarr's queue, commands, and history, and pushes a snapshot to every open tab over Server-Sent Events (`GET /api/v1/events`). Browsers never poll Lidarr, and ten open tabs cost the same as one.
+
+- **Cadence.** Every 3 seconds while something is moving and someone is watching, 30 seconds when idle, 15 or 120 seconds with no tabs open. After anything that can lead to a grab (an add, Search Missing, a retry) or a new "grabbed" event in Lidarr's history (a search started in Lidarr), it stays at the fast rate for three minutes: a small download can be grabbed and imported between two idle polls.
+- **States.** Lidarr's client status and tracked download state become one plain state: adding, searching, queued, downloading, importing, paused, import blocked, failed. Import blocked and failed go under Needs Attention with a plain-English reason, Lidarr's own messages behind a toggle, and a link to the right Lidarr page.
+- **Adds are non-blocking.** `POST /albums/:mbid` answers 202 at once; the add runs in the background and reports back as an `add-result` event. A failed add shows under Needs Attention with Retry.
+- **Attribution.** Items added through Offbeat say who asked for them (from `requests`); everything else says "Added in Lidarr".
+- When an item leaves the queue, album statuses and the library cache refresh.
 
 ## Discovery engine
 
@@ -164,9 +175,11 @@ All routes live under `/api/v1`. Implemented:
 - `GET /search?q=`
 - `GET /artists/:mbid`, `POST /artists/:mbid` (add), `PATCH /artists/:mbid` (monitoring)
 - `GET /albums/:mbid`, `POST /albums/:mbid` (add), `PATCH /albums/:mbid` (monitoring), `POST /albums/:mbid/search`
+- `GET /activity`, `POST /activity/:id/retry`, `DELETE /activity/:id` (cancel a download)
+- `GET /events` (Server-Sent Events: `activity` snapshots and `add-result`)
 - `GET /images/artist/:id`, `GET /images/remote` (signed)
 
-Planned: `/activity` and retry (phase 1), `/discover` and `/blocklist` (phase 2), `/users` (phase 3), `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
+Planned: `/discover` and `/blocklist` (phase 2), `/users` (phase 3), `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
 
 ## Details that save pain later
 

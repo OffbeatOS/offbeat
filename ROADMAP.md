@@ -24,8 +24,8 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 - [x] Lidarr client with caching
 - [x] Library screen
 - [x] Search, Artist page, Album page, one-click add with saved defaults
-- [ ] Activity screen: queue, history, failures, retry
-- [ ] Bottom bar shows live download activity
+- [x] Activity screen: queue, history, failures, retry
+- [x] Bottom bar shows live download activity
 
 ## Phase 2: Discovery
 
