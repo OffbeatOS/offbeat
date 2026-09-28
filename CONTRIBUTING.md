@@ -75,6 +75,10 @@ After changing `server/src/db/schema.ts`, run `npm run db:generate` and commit t
 - Update the docs when behavior changes: the README for user-facing setup, [docs/architecture.md](docs/architecture.md) for how things work.
 - Pull requests are squash merged, so the title becomes the commit message. Use a conventional prefix there too.
 
+## Releases
+
+Maintainers cut releases: they bump the version, tag it, and write the release notes. In your pull request, leave version numbers in `package.json` and the image tags in the README and `docker-compose.yml` as they are, and do not push tags. Your change ships in the next release after it merges.
+
 ## Where things live
 
 See the [architecture overview](docs/architecture.md#repo-layout). In short: `server/` is the Fastify API, `web/` is the Angular app, and `shared/` holds the API types both use.
