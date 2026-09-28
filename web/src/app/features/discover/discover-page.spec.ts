@@ -41,6 +41,7 @@ const response = (extra: Partial<DiscoverResponse> = {}): DiscoverResponse => ({
       status: { kind: 'available' },
     },
   ],
+  albumsPending: false,
   tags: ['Punk Rock', 'Skate Punk'],
   ...extra,
 });
@@ -75,6 +76,13 @@ describe('DiscoverPage', () => {
     expect((await render(response())).el.querySelector('.upgrade')?.textContent).toContain('These picks come from ListenBrainz');
     TestBed.resetTestingModule();
     expect((await render(response({ sources: { listenbrainz: true, lastfm: true } }))).el.querySelector('.upgrade')).toBeNull();
+  });
+
+  it('shows Top Picks while albums are still being found', async () => {
+    const { el, text } = await render(response({ refreshing: true, albums: [], albumsPending: true }));
+    expect(text('.pick .name')).toEqual(['Lagwagon', 'Good Riddance']);
+    expect(el.querySelectorAll('.album-ghost')).toHaveLength(6);
+    expect(el.textContent).toContain('Finding albums');
   });
 
   it('explains the wait while the first refresh runs', async () => {

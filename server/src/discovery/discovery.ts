@@ -144,6 +144,7 @@ export class Discovery {
       // Added since the refresh (a quick add): shown as in the library until the next one drops it.
       items: (stored?.items ?? []).map((item) => ({ ...item, inLibrary: library.has(item.mbid) })),
       albums: stored?.albums ?? [],
+      albumsPending: stored?.albumsPending ?? false,
       tags: stored?.tags ?? [],
     };
   }
@@ -192,35 +193,57 @@ export class Discovery {
     return { artists, albums, related };
   }
 
+  private stored(userId: number, mode: DiscoveryMode): StoredPayload | null {
+    const row = this.db
+      .select()
+      .from(recommendations)
+      .where(and(eq(recommendations.userId, userId), eq(recommendations.mode, mode)))
+      .get();
+    return row ? (JSON.parse(row.payload) as StoredPayload) : null;
+  }
+
+  /** Saves every mode at once, so the modes never disagree about when they were made. */
+  private store(userId: number, generatedAt: Date, payloadFor: (mode: DiscoveryMode) => StoredPayload) {
+    const payloads = new Map(MODES.map((mode) => [mode, JSON.stringify(payloadFor(mode))]));
+    this.db.transaction((tx) => {
+      for (const mode of MODES) {
+        const payload = payloads.get(mode)!;
+        tx.insert(recommendations)
+          .values({ userId, mode, payload, generatedAt })
+          .onConflictDoUpdate({ target: [recommendations.userId, recommendations.mode], set: { payload, generatedAt } })
+          .run();
+      }
+    });
+  }
+
   private async refreshNow(userId: number) {
     const started = Date.now();
     try {
       const seeds = await this.seedsFor(userId);
       const computed = await this.compute(seeds, { random: seededRandom(started ^ userId) });
       const items = await this.enrich(computed);
-      const extras = {} as Record<DiscoveryMode, { albums: ReleaseSummary[]; tags: string[] }>;
-      for (const mode of MODES) {
-        extras[mode] = { albums: await this.starterAlbums(items[mode].slice(0, STARTER_ALBUMS)), tags: topTags(items[mode]) };
-      }
       const generatedAt = new Date();
-      this.db.transaction((tx) => {
-        for (const mode of MODES) {
-          const payload = JSON.stringify({
-            items: items[mode],
-            albums: extras[mode].albums,
-            tags: extras[mode].tags,
-            seedCount: computed.seeds.length,
-            sources: computed.sources,
-          } satisfies StoredPayload);
-          tx.insert(recommendations)
-            .values({ userId, mode, payload, generatedAt })
-            .onConflictDoUpdate({
-              target: [recommendations.userId, recommendations.mode],
-              set: { payload, generatedAt },
-            })
-            .run();
-        }
+      const base = (mode: DiscoveryMode) => ({
+        items: items[mode],
+        tags: topTags(items[mode]),
+        seedCount: computed.seeds.length,
+        sources: computed.sources,
       });
+
+      // Top Picks first: albums take a minute on a first refresh (MusicBrainz, one
+      // request per second). Until they are ready, keep the previous refresh's
+      // albums, or mark them pending when there are none yet.
+      this.store(
+        userId,
+        generatedAt,
+        (mode) => {
+          const previous = this.stored(userId, mode)?.albums ?? [];
+          return { ...base(mode), albums: previous, albumsPending: previous.length === 0 };
+        },
+      );
+      const albums = {} as Record<DiscoveryMode, ReleaseSummary[]>;
+      for (const mode of MODES) albums[mode] = await this.starterAlbums(items[mode].slice(0, STARTER_ALBUMS));
+      this.store(userId, generatedAt, (mode) => ({ ...base(mode), albums: albums[mode], albumsPending: false }));
       this.errors.delete(userId);
       this.log.info(
         { userId, seeds: computed.seeds.length, ms: Date.now() - started, lastfm: computed.sources.lastfm },
@@ -503,6 +526,8 @@ export class Discovery {
 interface StoredPayload {
   items: Recommendation[];
   albums: ReleaseSummary[];
+  /** Albums to Start With are still being found (first refresh only). */
+  albumsPending?: boolean;
   tags: string[];
   seedCount: number;
   sources: { listenbrainz: boolean; lastfm: boolean };

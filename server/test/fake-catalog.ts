@@ -223,6 +223,8 @@ export async function startFakeCatalog(
       const monitorAll = input.addOptions.monitor === 'all';
       setTimeout(() => {
         for (const album of artist.albums) album.monitored = monitorAll;
+        // As seen on a real Lidarr: an artist added with no albums to monitor ends up unmonitored.
+        if (input.addOptions.monitor === 'none') artist.monitored = false;
         refresh.status = 'completed';
       }, albumDelayMs + postAddDelayMs);
       return json(res, 201, artistResource(artist));
@@ -231,7 +233,12 @@ export async function startFakeCatalog(
     if (artistMatch) {
       const artist = library.get(Number(artistMatch[1]));
       if (!artist) return json(res, 404, {});
-      if (req.method === 'PUT') artist.monitored = Boolean((body as { monitored: boolean }).monitored);
+      if (req.method === 'PUT') {
+        const update = body as { monitored: boolean; monitorNewItems?: string };
+        artist.monitored = Boolean(update.monitored);
+        if (update.monitorNewItems !== undefined) artist.monitorNewItems = update.monitorNewItems;
+        writes.push({ method: 'PUT', path, body });
+      }
       return json(res, req.method === 'PUT' ? 202 : 200, artistResource(artist));
     }
     if (path === 'album' && req.method === 'GET') {

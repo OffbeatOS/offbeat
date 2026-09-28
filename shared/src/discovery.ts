@@ -36,6 +36,8 @@ export interface DiscoverResponse {
   items: DiscoverPick[];
   /** Albums to Start With: the most played album of each top pick. */
   albums: ReleaseSummary[];
+  /** Albums to Start With are still being found: true only during a first refresh. */
+  albumsPending: boolean;
   /** Explore by Tag: genres across the recommendations, strongest first. */
   tags: string[];
 }

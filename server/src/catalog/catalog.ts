@@ -288,7 +288,7 @@ export class Catalog {
       if (!lidarrArtistId) {
         // Only the album asked for: no back catalog, and no future releases either.
         const added = await this.createArtist(artistMbid, settings, {
-          monitored: settings.addMonitored,
+          monitored: true,
           monitorAlbums: 'none',
           monitorNewItems: 'none',
           search: false,
@@ -298,6 +298,7 @@ export class Catalog {
         // rescan finish; monitoring the album before then would be undone.
         await this.waitForArtistSettled(lidarrArtistId);
       }
+      await this.keepArtistWatched(lidarrArtistId);
 
       const album = await this.waitForAlbum(lidarrArtistId, releaseGroupMbid);
       if (!album.monitored) {
@@ -309,6 +310,27 @@ export class Catalog {
       this.record(userId, artistMbid, releaseGroupMbid, lidarrArtistId, album.id);
       return this.album(releaseGroupMbid);
     });
+  }
+
+  /**
+   * Lidarr only searches, re-grabs, and upgrades albums of monitored artists,
+   * so a single-album add must leave the artist monitored, whatever "Monitor
+   * new artists" says. Adding an artist with no albums to monitor leaves it
+   * unmonitored in Lidarr, so this runs after the post-add actions. An
+   * unmonitored artist becomes monitored with future releases off, so nothing
+   * but the chosen album is monitored. An artist the user already monitors is
+   * left exactly as it is.
+   */
+  private async keepArtistWatched(lidarrArtistId: number) {
+    const client = this.client();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const raw = await client.rawArtist(lidarrArtistId);
+      if (raw.monitored === true) return;
+      await client.updateArtist(lidarrArtistId, { ...raw, monitored: true, monitorNewItems: 'none' });
+      await new Promise((resolve) => setTimeout(resolve, this.options.pollMs ?? 1000));
+    }
+    const raw = await client.rawArtist(lidarrArtistId);
+    if (raw.monitored !== true) throw new HttpError(422, 'Lidarr would not keep this artist monitored. Monitor it in Lidarr so the album is searched and upgraded.');
   }
 
   /** Changes whether Lidarr monitors an artist that is already in the library. */

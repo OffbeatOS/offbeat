@@ -302,6 +302,25 @@ section {
   }
 }
 
+.album-ghost {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  .square {
+    aspect-ratio: 1;
+    border-radius: var(--radius-art);
+    background: var(--surface);
+  }
+
+  .line {
+    width: 70%;
+    height: 12px;
+    border-radius: 6px;
+    background: var(--surface);
+  }
+}
+
 .tags {
   display: flex;
   flex-wrap: wrap;

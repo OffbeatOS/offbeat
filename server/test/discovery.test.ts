@@ -97,7 +97,7 @@ function setup({ lastfm = false, listenbrainzFails = false } = {}) {
   } as unknown as LidarrClient;
   const sources: DiscoverySources = { listenbrainz, lastfm: () => (lastfm ? lastfmClient : null), lidarr: () => lidarr, musicbrainz };
   const discovery = new Discovery(db, library, sources, new ImageUrls(randomBytes(32)), silentLog, { schedule: null });
-  return { db, discovery, userId: user.id, listenbrainz, lastfmClient, lookups };
+  return { db, discovery, userId: user.id, listenbrainz, lastfmClient, lookups, musicbrainz };
 }
 
 describe('Discovery', () => {
@@ -165,6 +165,27 @@ describe('Discovery', () => {
     ]);
     expect(page.albums.map((a) => a.title)).toContain('Operation Ivy Classic');
     expect(page.related).toEqual(['Skate Punk']);
+  });
+
+  it('shows Top Picks before Albums to Start With on a first refresh', async () => {
+    const { discovery, userId, musicbrainz } = setup();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const original = vi.mocked(musicbrainz.releaseGroups).getMockImplementation()!;
+    vi.mocked(musicbrainz.releaseGroups).mockImplementation(async (mbid: string) => {
+      await gate; // MusicBrainz is slow on a first refresh
+      return original(mbid);
+    });
+    const refreshing = discovery.refresh(userId);
+    for (let i = 0; i < 50 && !discovery.read(userId, 'balanced').generatedAt; i++) await new Promise((r) => setTimeout(r, 10));
+    const early = discovery.read(userId, 'balanced');
+    expect(early.items.length).toBeGreaterThan(0);
+    expect(early).toMatchObject({ refreshing: true, albums: [], albumsPending: true });
+
+    release();
+    await refreshing;
+    expect(discovery.read(userId, 'balanced')).toMatchObject({ refreshing: false, albumsPending: false });
+    expect(discovery.read(userId, 'balanced').albums.length).toBeGreaterThan(0);
   });
 
   it('caches upstream answers between refreshes', async () => {

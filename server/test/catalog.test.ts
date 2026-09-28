@@ -180,17 +180,52 @@ describe('adding a single album', () => {
     expect(fake.commands.filter((c) => c.name === 'AlbumSearch')).toHaveLength(1);
   });
 
-  it('adds the artist with nothing monitored, then monitors only that album', async () => {
-    const { app, call, fake } = await setup(safe);
+  // Lidarr only re-grabs and upgrades albums of monitored artists, so a single-album add must
+  // leave the artist monitored, whatever "Monitor new artists" says, with nothing else monitored.
+  it.each([
+    ['on', true],
+    ['off', false],
+  ])('with Monitor new artists %s, leaves the artist monitored with only this album and no future releases', async (_label, addMonitored) => {
+    const { app, call, fake } = await setup({ ...safe, addMonitored });
     const result = await addAlbum(app, call, GEOGADDI.mbid, BOC.mbid);
     expect(result).toMatchObject({ ok: true, status: { kind: 'requested' } });
     const detail = (await call('GET', `/albums/${GEOGADDI.mbid}`)).json<AlbumDetail>();
     expect(detail).toMatchObject({ title: 'Geogaddi', status: { kind: 'requested' }, artistInLibrary: true });
 
     const artist = [...fake.library.values()][0]!;
-    expect(artist.monitored).toBe(false);
+    expect(artist.monitored).toBe(true);
+    expect(artist.monitorNewItems).toBe('none');
     expect(artist.albums.filter((a) => a.monitored).map((a) => a.title)).toEqual(['Geogaddi']);
     expect(fake.commands).toEqual([]); // searchOnAdd is off
+  });
+
+  it('monitors an artist already in Lidarr but unmonitored, without taking on its future releases', async () => {
+    const { app, call, fake } = await setup(safe);
+    await call('POST', `/artists/${BOC.mbid}`, {}); // added unmonitored, as the test rules do
+    await new Promise((r) => setTimeout(r, 500)); // let its post-add actions finish
+    const artist = [...fake.library.values()][0]!;
+    artist.monitorNewItems = 'all'; // say the user had set this, while leaving the artist unmonitored
+    expect(artist.monitored).toBe(false);
+
+    await addAlbum(app, call, GEOGADDI.mbid, BOC.mbid);
+    expect(artist.monitored).toBe(true);
+    expect(artist.monitorNewItems).toBe('none');
+    expect(artist.albums.filter((a) => a.monitored).map((a) => a.title)).toEqual(['Geogaddi']);
+  });
+
+  it('leaves an artist the user already monitors exactly as it was', async () => {
+    const { app, call, fake } = await setup({ ...safe, addMonitored: true, addMonitorAlbums: 'future' });
+    await call('POST', `/artists/${BOC.mbid}`, {});
+    await new Promise((r) => setTimeout(r, 500));
+    const artist = [...fake.library.values()][0]!;
+    expect(artist).toMatchObject({ monitored: true, monitorNewItems: 'all' });
+    const puts = () => fake.writes.filter((w) => w.method === 'PUT' && w.path.startsWith('artist/')).length;
+    const before = puts();
+
+    await addAlbum(app, call, GEOGADDI.mbid, BOC.mbid);
+    expect(artist).toMatchObject({ monitored: true, monitorNewItems: 'all' });
+    expect(puts()).toBe(before);
+    expect(artist.albums.find((a) => a.title === 'Geogaddi')?.monitored).toBe(true);
   });
 
   it('searches for the album when searching on add is on', async () => {
@@ -228,6 +263,7 @@ describe('artist and album pages', () => {
     const { call } = await setup(safe);
     expect((await call('PATCH', `/artists/${BOC.mbid}`, { monitored: true })).statusCode).toBe(404);
     await call('POST', `/artists/${BOC.mbid}`, {});
+    await new Promise((r) => setTimeout(r, 500)); // Lidarr's post-add actions run shortly after an add
     const res = (await call('PATCH', `/artists/${BOC.mbid}`, { monitored: true })).json<ArtistDetail>();
     expect(res.monitored).toBe(true);
   });
