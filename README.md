@@ -12,7 +12,7 @@
 
 Self-hosted music discovery for Lidarr. Find new artists based on what you already have, add them to Lidarr in one click, and follow downloads as they land. Native streaming is planned.
 
-> **Status: early.** Library, requests, and discovery work today (see below). Versions before 1.0 may include breaking changes between releases, so read the release notes before upgrading. See the [roadmap](ROADMAP.md) for what is done and what is coming.
+> **Status: early.** Library, requests, discovery, and multiple users work today (see below). Versions before 1.0 may include breaking changes between releases, so read the release notes before upgrading. See the [roadmap](ROADMAP.md) for what is done and what is coming.
 
 ![Discover: top picks, each with the reason it was picked, and an album to start with from each](docs/screenshots/discover.png)
 
@@ -22,10 +22,12 @@ Self-hosted music discovery for Lidarr. Find new artists based on what you alrea
 - **Library.** Your Lidarr library as a fast, filterable grid, served from a local cache so it stays usable even when Lidarr is down.
 - **Search, Artist, and Album pages.** Look up anything on MusicBrainz, see what you already have track by track, and add an artist or a single album in one click.
 - **Sensible adds.** Adding an artist monitors their latest album and future releases; adding one album gets just that album. Lidarr searches right away, and everything Offbeat adds is tagged `offbeat`. All of it can be changed in Settings.
-- **Activity.** Searches, downloads, and imports update live, with plain-English reasons when an import is blocked, and Retry or Cancel in one click. The bottom bar shows the current download on every page.
+- **Activity.** Searches, downloads, and imports update live, with plain-English reasons when an import is blocked, and Retry or Cancel in one click. The bottom bar shows the current download on every page. Set up Lidarr's webhook (one click in Settings) and Activity updates within seconds.
+- **Multiple users.** Admins and Members, with permissions for what each Member can do: add artists, add albums, change monitoring, delete. Sign in with a password, through a reverse proxy such as Authelia or Authentik, or automatically on your local network. See [Sign-in options](#sign-in-options).
+- **Notifications.** Discord or any webhook when an album is imported, a download fails, an import is blocked, or a monitored artist has a new release. See [Notifications](#notifications).
 - **One small container.** One process, one port, SQLite. No external database or cache.
 
-Coming next: multi-user, flows and playlists, and streaming.
+Coming next: flows and playlists, then streaming.
 
 Offbeat talks to Lidarr for everything in your library; it never writes to your music folders itself.
 
@@ -39,7 +41,7 @@ Offbeat talks to Lidarr for everything in your library; it never writes to your 
 
 ## Quick start (Docker)
 
-Images are published for `linux/amd64` and `linux/arm64` as `ghcr.io/offbeatos/offbeat`. Pin a version (`0.2`) rather than `latest` while Offbeat is pre-1.0.
+Images are published for `linux/amd64` and `linux/arm64` as `ghcr.io/offbeatos/offbeat`. Pin a version (`0.3`) rather than `latest` while Offbeat is pre-1.0.
 
 With `docker run`:
 
@@ -48,7 +50,7 @@ docker run -d --name offbeat --restart unless-stopped \
   -p 3001:3001 \
   -e PUID=1000 -e PGID=1000 -e TZ=Etc/UTC \
   -v "$(pwd)/config:/app/config" \
-  ghcr.io/offbeatos/offbeat:0.2
+  ghcr.io/offbeatos/offbeat:0.3
 ```
 
 Or with Compose (the same file is in [docker-compose.yml](docker-compose.yml)):
@@ -56,7 +58,7 @@ Or with Compose (the same file is in [docker-compose.yml](docker-compose.yml)):
 ```yaml
 services:
   offbeat:
-    image: ghcr.io/offbeatos/offbeat:0.2
+    image: ghcr.io/offbeatos/offbeat:0.3
     restart: unless-stopped
     ports:
       - "3001:3001"

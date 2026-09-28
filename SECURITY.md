@@ -19,9 +19,9 @@ Offbeat is pre-1.0. Security fixes go into the latest release only, so please st
 
 Especially interesting:
 
-- Authentication or session bypass, including through `BASE_URL` or reverse-proxy headers
+- Authentication or session bypass, including through `BASE_URL`, reverse-proxy headers, local network auto-login, or the Lidarr webhook
 - Anything that exposes the Lidarr API key (or other stored credentials) to a browser, a log, or another host
-- Making the image proxy fetch arbitrary URLs
+- Making the image proxy or notifications fetch arbitrary URLs, or reach cloud metadata addresses
 - Cross-site request forgery or scripting
 - Offbeat writing outside its config directory or into the music library directly
 
