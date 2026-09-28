@@ -88,6 +88,8 @@ The shell has three regions: sidebar, main content, and a bottom bar. In phases 
 ## Security model
 
 - Every API route requires a session unless it is explicitly public (`status`, `setup/state`, `setup/admin` before an admin exists, `auth/*`). Admin-only routes are marked by role.
+- **Roles and permissions.** Admins can do everything. Members can browse and use their own Discover, feedback, and blocklist, plus what an admin grants: add artists, add albums (also Search Missing and Retry), change monitoring, delete from Lidarr (removing downloads), and use Flows. A route declares its permission and the guard enforces it on the server; the web app only hides what would be refused. A test lists every API route and fails if one is not public, admin only, permission gated, or on an explicit list open to any signed-in user.
+- **Accounts.** Admins add users and reset passwords, but never choose them: Offbeat makes a temporary password (shown once), and until the user replaces it every route except changing it answers 403. A reset signs the user out everywhere; removing a user does too. The last admin can never be demoted or removed, and nobody removes themselves. Permission changes apply on the next request, without signing in again.
 - Sessions are random tokens in HTTP-only, `SameSite=Lax` cookies scoped to `BASE_URL`, stored server side only as SHA-256 hashes. `Secure` is set when the request arrived over HTTPS through a trusted proxy.
 - State-changing requests must be `application/json`, which cross-site forms cannot send.
 - Failed logins are throttled per client address (proxy aware when `TRUST_PROXY` is set). Unknown usernames take as long as wrong passwords.
@@ -162,12 +164,12 @@ Discover sections: Top Picks for You (with quick add), Albums to Start With (eac
 
 Current tables (see `server/src/db/schema.ts`):
 
-- `users` (id, username unique regardless of case, password_hash, role, permissions, lastfm_username, listenbrainz_username, discover_prefs (JSON: default mode and section layout), created_at)
+- `users` (id, username unique regardless of case, password_hash, role, permissions, lastfm_username, listenbrainz_username, discover_prefs (JSON: default mode and section layout), last_seen_at (updated at most every five minutes), must_change_password, created_at)
 - `sessions` (sha256 of token, user_id, expires_at)
 - `settings` (key, value json or ciphertext, encrypted flag)
 - `library_artists` (cached Lidarr artists: ids, names, sort name, monitoring, stats, missing albums, artwork paths)
 - `musicbrainz_cache` (request path, body, fetched_at)
-- `requests` (user_id, artist and album MBIDs, Lidarr ids) to attribute adds to users
+- `requests` (user_id, requested_by, artist and album MBIDs, Lidarr ids) to attribute adds to users; `requested_by` keeps the username after the user is removed
 - `source_cache` (key, body, fetched_at): discovery's upstream answers
 - `recommendations` (user_id, mode, payload, generated_at): each user's latest recommendations per mode
 - `feedback` (user_id, artist_mbid, name, value, genres, created_at): thumbs up (+1) or down (-1), with the artist's genres at the time
@@ -188,7 +190,8 @@ All routes live under `/api/v1`. Implemented:
 - `GET /discover?mode=safer|balanced|deeper` (Top Picks, Albums to Start With, Explore by Tag; no mode means the user's default), `POST /discover/refresh`, `GET /discover/status`, `GET` and `PUT /discover/preferences`, `POST /discover/feedback`
 - `GET /blocklist` (blocked artists and tags, and hidden artists), `POST /blocklist`, `DELETE /blocklist/:id`
 - `GET /tags/:tag` (a tag page)
-- `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service)
+- `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service), `PUT /account/password`
+- `GET /users`, `POST /users` (answers with a temporary password), `PATCH /users/:id` (role and permissions), `POST /users/:id/password` (a new temporary password), `DELETE /users/:id`: admins only
 - `GET /library`, `POST /library/refresh`
 - `GET /search?q=`
 - `GET /artists/:mbid`, `POST /artists/:mbid` (add), `PATCH /artists/:mbid` (monitoring)
@@ -197,7 +200,7 @@ All routes live under `/api/v1`. Implemented:
 - `GET /events` (Server-Sent Events: `activity` snapshots and `add-result`)
 - `GET /images/artist/:id`, `GET /images/album/:mbid`, `GET /images/remote` (signed)
 
-Planned: `/users` (phase 3), `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
+Planned: `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
 
 ## Details that save pain later
 

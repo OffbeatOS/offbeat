@@ -6,13 +6,18 @@ import { Api, ApiError } from '../../core/api';
 import { Session } from '../../core/session';
 import { FormField } from '../../shared/form-field/form-field';
 import { Icon } from '../../shared/icon/icon';
+import { ChangePasswordForm } from '../auth/change-password-form';
 import { SettingsSection } from './settings-section';
 
 @Component({
   selector: 'ob-account-settings',
-  imports: [ReactiveFormsModule, RouterLink, FormField, Icon, SettingsSection],
+  imports: [ReactiveFormsModule, RouterLink, FormField, Icon, SettingsSection, ChangePasswordForm],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
+    .password {
+      max-width: 440px;
+    }
+
     :host {
       display: flex;
       flex-direction: column;
@@ -114,6 +119,10 @@ import { SettingsSection } from './settings-section';
           </button>
         </div>
       }
+    </ob-settings-section>
+
+    <ob-settings-section heading="Password" description="Changing it signs you out on your other devices.">
+      <div class="password"><ob-change-password-form /></div>
     </ob-settings-section>
 
     <ob-settings-section

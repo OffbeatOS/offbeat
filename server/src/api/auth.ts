@@ -1,5 +1,5 @@
 import type { CurrentUser } from '@offbeat/shared';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { type SessionCookieOptions, clearSessionCookie, setSessionCookie } from '../auth/guard.js';
@@ -44,6 +44,7 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { c
     limiter.succeed(request.ip);
     deleteExpiredSessions(app.db);
     const session = createSession(app.db, user.id);
+    app.db.update(users).set({ lastSeenAt: new Date() }).where(eq(users.id, user.id)).run();
     setSessionCookie(request, reply, session.token, session.expiresAt, cookie);
     return toCurrentUser(user);
   });

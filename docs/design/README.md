@@ -21,6 +21,9 @@ These are standalone HTML files exported from a design tool. They use its small 
 | `Shows.dc.html` | Shows (concert listings) | Phase 3 |
 | `Tag.dc.html` | Tag page (Explore by Tag) | Phase 2 |
 | `SettingsDiscovery.dc.html` | Settings, Discovery and blocklist | Phase 2 |
+| `SettingsUsers.dc.html` | Settings, Users and sign-in methods |
+| `SettingsNotifications.dc.html` | Settings, Notifications channels and delivery log |
+| `SettingsLidarr.dc.html` | Settings, Lidarr connection, defaults and webhook |
 
 Empty, loading, and error states are not in the mockups. Build them for every screen in the same style (see `ob-empty-state`).
 
@@ -82,6 +85,7 @@ Defined once as CSS custom properties in `web/src/app/shared/tokens.scss`. Never
 | `--status-failed-bg` | `#1C1719` | Failed row background |
 | `--status-failed-border` | `#3A2626` | Failed row border |
 | `--track` | `#2E2E33` | Progress and slider tracks |
+| `--avatar-1` to `--avatar-6` | `#3A4250`, `#4D3038`, `#45503A`, `#4B4136`, `#3A3A48`, `#40383A` | User avatars, picked by user id so each person keeps one color |
 
 Primary buttons are `--text` fill with `--bg` text (white pill, dark label).
 

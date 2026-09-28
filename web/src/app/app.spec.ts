@@ -20,7 +20,7 @@ function fakeSession(state: { needsAdmin?: boolean; user?: CurrentUser | null; l
   };
 }
 
-const admin: CurrentUser = { id: 1, username: 'admin', role: 'admin', permissions: [...PERMISSIONS] };
+const admin: CurrentUser = { id: 1, username: 'admin', role: 'admin', permissions: [...PERMISSIONS], mustChangePassword: false };
 
 async function boot(session: ReturnType<typeof fakeSession>, url: string) {
   TestBed.configureTestingModule({
@@ -67,9 +67,32 @@ describe('routing', () => {
   });
 
   it('does not hold non-admins at onboarding when Lidarr is missing', async () => {
-    const member: CurrentUser = { id: 2, username: 'member', role: 'user', permissions: [] };
+    const member: CurrentUser = { id: 2, username: 'member', role: 'user', permissions: [], mustChangePassword: false };
     const { router } = await boot(fakeSession({ user: member, lidarrConfigured: false }), '/library');
     expect(router.url).toBe('/library');
+  });
+
+  it('keeps Members out of admin settings, landing them on their own', async () => {
+    const member: CurrentUser = { id: 2, username: 'member', role: 'user', permissions: [], mustChangePassword: false };
+    const { router, el } = await boot(fakeSession({ user: member }), '/settings/users');
+    expect(router.url).toBe('/settings/discovery');
+    await router.navigateByUrl('/settings');
+    expect(router.url).toBe('/settings/discovery');
+    expect([...el.querySelectorAll('ob-settings-layout nav a')].map((a) => a.textContent?.trim())).toEqual([
+      'Discovery',
+      'Account',
+      'Notifications',
+      'About',
+    ]);
+  });
+
+  it('holds someone with a temporary password on the choose-a-password page', async () => {
+    const invited: CurrentUser = { id: 3, username: 'ada', role: 'user', permissions: [], mustChangePassword: true };
+    const { router, el } = await boot(fakeSession({ user: invited }), '/library');
+    expect(router.url).toBe('/change-password');
+    expect(el.querySelector('h1')?.textContent).toBe('Choose your password');
+    await router.navigateByUrl('/settings/account');
+    expect(router.url).toBe('/change-password');
   });
 
   it('only follows in-app return URLs', () => {

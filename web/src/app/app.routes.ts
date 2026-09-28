@@ -1,5 +1,5 @@
 import type { Route, Routes } from '@angular/router';
-import { onboardingGuard, signedInGuard, signedOutGuard } from './core/guards';
+import { adminGuard, onboardingGuard, passwordChangeGuard, signedInGuard, signedOutGuard } from './core/guards';
 import type { IconName } from './shared/icon/icon';
 
 const placeholder = (
@@ -36,6 +36,13 @@ export const routes: Routes = [
     title: 'Sign in',
     canActivate: [signedOutGuard],
     loadComponent: () => import('./features/auth/login-page').then((m) => m.LoginPage),
+  },
+  {
+    path: 'change-password',
+    title: 'Choose your password',
+    canActivate: [passwordChangeGuard],
+    loadComponent: () =>
+      import('./features/auth/change-password-page').then((m) => m.ChangePasswordPage),
   },
   {
     // Everything signed in lives inside the shell, which stays mounted across pages.
@@ -96,18 +103,21 @@ export const routes: Routes = [
           {
             path: 'integrations',
             title: 'Integrations settings',
+            canActivate: [adminGuard],
             loadComponent: () =>
               import('./features/settings/integrations-settings').then((m) => m.IntegrationsSettings),
           },
           {
             path: 'integrations/lidarr',
             title: 'Lidarr settings',
+            canActivate: [adminGuard],
             loadComponent: () =>
               import('./features/settings/lidarr-settings').then((m) => m.LidarrSettings),
           },
           {
             path: 'integrations/lastfm',
             title: 'Last.fm settings',
+            canActivate: [adminGuard],
             loadComponent: () =>
               import('./features/settings/lastfm-settings').then((m) => m.LastfmSettings),
           },
@@ -117,7 +127,12 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/settings/discovery-settings').then((m) => m.DiscoverySettings),
           },
-          settingsPlaceholder('users', 'Users', 'People who can use this Offbeat server.'),
+          {
+            path: 'users',
+            title: 'Users',
+            canActivate: [adminGuard],
+            loadComponent: () => import('./features/settings/users-settings').then((m) => m.UsersSettings),
+          },
           {
             path: 'account',
             title: 'Account settings',

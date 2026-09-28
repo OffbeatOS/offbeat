@@ -19,6 +19,9 @@ export function createSession(db: Db, userId: number, now = new Date()) {
   return { token, expiresAt };
 }
 
+/** Settings, Users shows when each person was last active; this is precise enough and saves a write per request. */
+const LAST_SEEN_EVERY_MS = 5 * 60 * 1000;
+
 export interface ResolvedSession {
   user: CurrentUser;
   expiresAt: Date;
@@ -32,7 +35,14 @@ export function resolveSession(db: Db, token: string, now = new Date()): Resolve
   const row = db
     .select({
       expiresAt: sessions.expiresAt,
-      user: { id: users.id, username: users.username, role: users.role, permissions: users.permissions },
+      user: {
+        id: users.id,
+        username: users.username,
+        role: users.role,
+        permissions: users.permissions,
+        mustChangePassword: users.mustChangePassword,
+        lastSeenAt: users.lastSeenAt,
+      },
     })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
@@ -43,6 +53,9 @@ export function resolveSession(db: Db, token: string, now = new Date()): Resolve
   if (row.expiresAt.getTime() <= now.getTime()) {
     db.delete(sessions).where(eq(sessions.id, id)).run();
     return null;
+  }
+  if (!row.user.lastSeenAt || now.getTime() - row.user.lastSeenAt.getTime() > LAST_SEEN_EVERY_MS) {
+    db.update(users).set({ lastSeenAt: now }).where(eq(users.id, row.user.id)).run();
   }
   if (row.expiresAt.getTime() - now.getTime() < REFRESH_BELOW_MS) {
     const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);

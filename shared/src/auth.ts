@@ -7,7 +7,7 @@ export type Permission = 'add-artists' | 'add-albums' | 'change-monitoring' | 'd
 export const PERMISSIONS: readonly Permission[] = ['add-artists', 'add-albums', 'change-monitoring', 'delete', 'flows'];
 
 /** What a new Member gets unless the admin chooses otherwise. */
-export const DEFAULT_MEMBER_PERMISSIONS: readonly Permission[] = ['add-artists', 'add-albums'];
+export const DEFAULT_MEMBER_PERMISSIONS: readonly Permission[] = ['add-albums'];
 
 /** The signed-in user, from `GET /auth/me`, login, and admin setup. */
 export interface CurrentUser {
@@ -16,6 +16,8 @@ export interface CurrentUser {
   role: UserRole;
   /** Everything for admins. */
   permissions: Permission[];
+  /** Signed in with a temporary password: nothing else works until they choose their own. */
+  mustChangePassword: boolean;
 }
 
 /** A user as Settings, Users lists them (admins only). */
@@ -26,14 +28,26 @@ export interface UserSummary {
   /** As saved; admins can do everything regardless. */
   permissions: Permission[];
   createdAt: string;
+  /** Null until they first sign in. */
+  lastSeenAt: string | null;
+  /** Still has a temporary password from an admin. */
+  mustChangePassword: boolean;
 }
 
-/** `POST /users`. */
+/** `POST /users`. Offbeat makes a temporary password; the user chooses their own at first sign-in. */
 export interface CreateUserRequest {
   username: string;
-  password: string;
   role: UserRole;
   permissions: Permission[];
+}
+
+/** A temporary password, shown once: `POST /users` and `POST /users/:id/password`. */
+export interface TemporaryPassword {
+  temporaryPassword: string;
+}
+
+export interface CreatedUser extends TemporaryPassword {
+  user: UserSummary;
 }
 
 /** `PATCH /users/:id`. */
@@ -42,9 +56,10 @@ export interface UpdateUserRequest {
   permissions?: Permission[];
 }
 
-/** `POST /users/:id/password`: sets a new password and signs the user out everywhere. */
-export interface ResetPasswordRequest {
-  password: string;
+/** `PUT /account/password`: required after signing in with a temporary password. */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
 }
 
 export interface LoginRequest {

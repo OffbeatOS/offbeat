@@ -44,8 +44,8 @@ export const setupRoutes: FastifyPluginAsync<{ cookie: SessionCookieOptions }> =
       if (hasUsers(tx as unknown as Db)) return null;
       return tx
         .insert(users)
-        .values({ username, passwordHash, role: 'admin' })
-        .returning({ id: users.id, username: users.username, role: users.role, permissions: users.permissions })
+        .values({ username, passwordHash, role: 'admin', lastSeenAt: new Date() })
+        .returning()
         .get();
     });
     if (!user) throw new HttpError(409, 'Setup is already complete. Sign in instead.');

@@ -1,4 +1,4 @@
-import type { ActivitySnapshot, UserSummary } from '@offbeat/shared';
+import type { ActivitySnapshot, CreatedUser, UserSummary } from '@offbeat/shared';
 import { randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ApiRouteInfo } from '../src/api/index.js';
@@ -48,15 +48,18 @@ async function setup(extra: { lidarrUrl?: string; apiKey?: string } = {}) {
       addTag: 'offbeat-test',
     });
   }
-  /** Creates a user through the API and signs them in. */
+  const login = (username: string, pw: string) => app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { username, password: pw } });
+  /** Creates a user through the API, signs them in with the temporary password, and chooses their own. */
   const member = async (username: string, permissions: string[] = [], role = 'user') => {
-    const pw = password();
-    const created = await call(admin, 'POST', '/users', { username, password: pw, role, permissions });
+    const created = await call(admin, 'POST', '/users', { username, role, permissions });
     expect(created.statusCode).toBe(201);
-    const login = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { username, password: pw } });
-    return { id: created.json<UserSummary>().id, cookie: cookieOf(login), password: pw };
+    const { user, temporaryPassword } = created.json<CreatedUser>();
+    const cookie = cookieOf(await login(username, temporaryPassword));
+    const pw = password();
+    expect((await call(cookie, 'PUT', '/account/password', { currentPassword: temporaryPassword, newPassword: pw })).statusCode).toBe(204);
+    return { id: user.id, cookie, password: pw };
   };
-  return { app, admin, call, member, routeTable, adminPassword };
+  return { app, admin, call, member, login, routeTable, adminPassword };
 }
 
 function cookieOf(res: { cookies: { name: string; value: string }[] }) {
@@ -96,6 +99,7 @@ const ANY_SIGNED_IN = new Set([
   'GET /tags/:tag',
   'GET /account',
   'PUT /account/listening',
+  'PUT /account/password',
 ]);
 
 describe('route audit', () => {
@@ -125,10 +129,10 @@ describe('permissions', () => {
       ['POST', '/activity/queue:1/retry'],
       ['DELETE', '/activity/queue:1'],
       ['GET', '/users'],
-      ['POST', '/users', { username: 'sneaky', password: password(), role: 'admin', permissions: [] }],
+      ['POST', '/users', { username: 'sneaky', role: 'admin', permissions: [] }],
       ['PATCH', '/users/1', { role: 'user' }],
       ['DELETE', '/users/1'],
-      ['POST', '/users/1/password', { password: password() }],
+      ['POST', '/users/1/password'],
       ['GET', '/settings/lidarr'],
       ['PUT', '/settings/lidarr', {}],
       ['GET', '/settings/lastfm'],
@@ -164,16 +168,39 @@ describe('permissions', () => {
 });
 
 describe('managing users', () => {
-  it('adds users, refuses a taken name in any case, and validates input', async () => {
+  it('adds users with a temporary password, refuses a taken name in any case, and validates input', async () => {
     const { call, admin } = await setup();
-    const res = await call(admin, 'POST', '/users', { username: 'Robin', password: password(), role: 'user', permissions: ['add-albums', 'add-artists'] });
-    expect(res.json()).toMatchObject({ username: 'Robin', role: 'user', permissions: ['add-artists', 'add-albums'] });
-    expect((await call(admin, 'POST', '/users', { username: 'robin', password: password(), role: 'user', permissions: [] })).statusCode).toBe(409);
-    expect((await call(admin, 'POST', '/users', { username: 'x', password: password(), role: 'user', permissions: [] })).statusCode).toBe(400);
-    expect((await call(admin, 'POST', '/users', { username: 'kim', password: 'short', role: 'user', permissions: [] })).statusCode).toBe(400);
-    expect((await call(admin, 'POST', '/users', { username: 'kim', password: password(), role: 'owner', permissions: [] })).statusCode).toBe(400);
-    expect((await call(admin, 'POST', '/users', { username: 'kim', password: password(), role: 'user', permissions: ['root'] })).statusCode).toBe(400);
+    const res = await call(admin, 'POST', '/users', { username: 'Robin', role: 'user', permissions: ['add-albums', 'add-artists'] });
+    const created = res.json<CreatedUser>();
+    expect(created.user).toMatchObject({ username: 'Robin', role: 'user', permissions: ['add-artists', 'add-albums'], lastSeenAt: null, mustChangePassword: true });
+    expect(created.temporaryPassword).toMatch(/^[a-z2-9]{4}(-[a-z2-9]{4}){3}$/);
+    expect((await call(admin, 'POST', '/users', { username: 'robin', role: 'user', permissions: [] })).statusCode).toBe(409);
+    expect((await call(admin, 'POST', '/users', { username: 'x', role: 'user', permissions: [] })).statusCode).toBe(400);
+    expect((await call(admin, 'POST', '/users', { username: 'kim', role: 'owner', permissions: [] })).statusCode).toBe(400);
+    expect((await call(admin, 'POST', '/users', { username: 'kim', role: 'user', permissions: ['root'] })).statusCode).toBe(400);
     expect((await call(admin, 'GET', '/users')).json<UserSummary[]>().map((u) => u.username)).toEqual(['boss', 'Robin']);
+  });
+
+  it('a temporary password only lets you choose your own; then everything works', async () => {
+    const { call, admin, login } = await setup();
+    const { temporaryPassword } = (await call(admin, 'POST', '/users', { username: 'ada', role: 'user', permissions: [] })).json<CreatedUser>();
+    const cookie = cookieOf(await login('ada', temporaryPassword));
+    expect((await call(cookie, 'GET', '/auth/me')).json()).toMatchObject({ user: { username: 'ada', mustChangePassword: true } });
+    expect((await call(cookie, 'GET', '/discover/preferences')).statusCode).toBe(403);
+    expect((await call(cookie, 'GET', '/library')).statusCode).toBe(403);
+
+    const mine = password();
+    expect((await call(cookie, 'PUT', '/account/password', { currentPassword: 'wrong-password', newPassword: mine })).statusCode).toBe(422);
+    expect((await call(cookie, 'PUT', '/account/password', { currentPassword: temporaryPassword, newPassword: temporaryPassword })).statusCode).toBe(422);
+    expect((await call(cookie, 'PUT', '/account/password', { currentPassword: temporaryPassword, newPassword: 'short' })).statusCode).toBe(400);
+    expect((await call(cookie, 'PUT', '/account/password', { currentPassword: temporaryPassword, newPassword: mine })).statusCode).toBe(204);
+    expect((await call(cookie, 'GET', '/discover/preferences')).statusCode).toBe(200);
+    expect((await login('ada', temporaryPassword)).statusCode).toBe(401);
+    expect((await login('ada', mine)).statusCode).toBe(200);
+    // Signed in now: no longer shown as never signed in.
+    const ada = (await call(admin, 'GET', '/users')).json<UserSummary[]>().find((u) => u.username === 'ada')!;
+    expect(ada.lastSeenAt).not.toBeNull();
+    expect(ada.mustChangePassword).toBe(false);
   });
 
   it('never demotes or removes the last admin, and nobody removes themselves', async () => {
@@ -191,22 +218,24 @@ describe('managing users', () => {
     expect((await call(admin, 'GET', '/users')).statusCode).toBe(403);
   });
 
-  it('resets a password: the new one works, the old one does not, and old sessions end', async () => {
-    const { call, admin, member, app } = await setup();
+  it('resets a password to a new temporary one: old sessions end and the old password stops working', async () => {
+    const { call, admin, member, login } = await setup();
     const bob = await member('bob');
-    const fresh = password();
-    expect((await call(admin, 'POST', `/users/${bob.id}/password`, { password: fresh })).statusCode).toBe(204);
+    const res = await call(admin, 'POST', `/users/${bob.id}/password`);
+    expect(res.statusCode).toBe(200);
+    const { temporaryPassword } = res.json<{ temporaryPassword: string }>();
     expect((await call(bob.cookie, 'GET', '/discover/preferences')).statusCode).toBe(401);
-    const login = (pw: string) => app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { username: 'bob', password: pw } });
-    expect((await login(bob.password)).statusCode).toBe(401);
-    expect((await login(fresh)).statusCode).toBe(200);
+    expect((await login('bob', bob.password)).statusCode).toBe(401);
+    const again = cookieOf(await login('bob', temporaryPassword));
+    expect((await call(again, 'GET', '/auth/me')).json().user.mustChangePassword).toBe(true);
   });
 
-  it('an admin resetting their own password stays signed in here', async () => {
-    const { call, admin, app } = await setup();
+  it('admins change their own password in Account, not by reset', async () => {
+    const { call, admin, app, adminPassword } = await setup();
     const bossId = app.db.select().from(users).get()!.id;
-    expect((await call(admin, 'POST', `/users/${bossId}/password`, { password: password() })).statusCode).toBe(204);
-    expect((await call(admin, 'GET', '/users')).statusCode).toBe(200);
+    expect((await call(admin, 'POST', `/users/${bossId}/password`)).statusCode).toBe(409);
+    expect((await call(admin, 'PUT', '/account/password', { currentPassword: adminPassword, newPassword: password() })).statusCode).toBe(204);
+    expect((await call(admin, 'GET', '/users')).statusCode).toBe(200); // still signed in here
   });
 
   it('removing a user signs them out and drops their own Discover data, but keeps their name on requests', async () => {

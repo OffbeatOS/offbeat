@@ -16,8 +16,20 @@ export function effectivePermissions(role: UserRole, json: string): Permission[]
   return role === 'admin' ? [...PERMISSIONS] : parsePermissions(json);
 }
 
-export function toCurrentUser(row: { id: number; username: string; role: UserRole; permissions: string }): CurrentUser {
-  return { id: row.id, username: row.username, role: row.role, permissions: effectivePermissions(row.role, row.permissions) };
+export function toCurrentUser(row: {
+  id: number;
+  username: string;
+  role: UserRole;
+  permissions: string;
+  mustChangePassword: boolean;
+}): CurrentUser {
+  return {
+    id: row.id,
+    username: row.username,
+    role: row.role,
+    permissions: effectivePermissions(row.role, row.permissions),
+    mustChangePassword: row.mustChangePassword,
+  };
 }
 
 export function can(user: CurrentUser, permission: Permission): boolean {

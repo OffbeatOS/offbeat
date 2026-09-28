@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d5c907b0-9c84-47bb-a7ab-748ee4874304",
+  "id": "cc60e17c-dd27-4864-846f-a9cbcd6869c4",
   "prevId": "73ea4300-edfa-43a2-b35c-03613501e777",
   "tables": {
     "blocklist": {
@@ -690,6 +690,21 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "must_change_password": {
+          "name": "must_change_password",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         },
         "discover_prefs": {
           "name": "discover_prefs",

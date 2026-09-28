@@ -20,8 +20,26 @@ export const signedInGuard: CanActivateFn = async (_route, state) => {
   if (!session.user()) {
     return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
   }
+  if (session.user()!.mustChangePassword) return router.parseUrl('/change-password');
   if (adminNeedsSetup(session)) return router.parseUrl('/onboarding');
   return true;
+};
+
+/** Choosing a password: only for someone signed in with a temporary one. */
+export const passwordChangeGuard: CanActivateFn = async () => {
+  const session = inject(Session);
+  const router = inject(Router);
+  await session.ensureLoaded();
+  if (!session.user()) return router.parseUrl('/login');
+  return session.user()!.mustChangePassword ? true : router.parseUrl('/discover');
+};
+
+/** Admin-only settings sections; Members land on the sections that are theirs. */
+export const adminGuard: CanActivateFn = async () => {
+  const session = inject(Session);
+  const router = inject(Router); // before the await: inject only works synchronously
+  await session.ensureLoaded();
+  return session.user()?.role === 'admin' ? true : router.parseUrl('/settings/discovery');
 };
 
 /** Onboarding covers the first run and any setup steps an admin has not finished. */

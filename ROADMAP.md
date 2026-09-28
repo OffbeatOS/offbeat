@@ -41,20 +41,20 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 - [x] Refresh Now in Settings, with progress
 - [x] Activity flags imports stuck for over an hour, with Lidarr's reason and a link to Manual Import
 
-## Phase 3: Multi-user and extras
+## Phase 3: Multi-user and extras (in progress)
 
-- Users and permissions (add artists, add albums, change monitoring, delete, access flows)
-- Reverse-proxy header auth, optional local-network auto-login
-- Notifications
+- [x] Users and permissions (add artists, add albums, change monitoring, delete, access flows), with temporary passwords for new users and resets
+- [ ] Reverse-proxy header auth, optional local-network auto-login
+- [ ] Notifications
   - Channels: ntfy, Discord, Gotify, and generic webhooks
   - Events: album imported, download failed, import blocked, and new release from a monitored artist
   - Each channel chooses which events it receives, with a Send Test button
   - Admin-configured channels at first; per-user preferences follow the users and permissions work
   - Messages link back to the album or artist in Offbeat when a base URL is set
   - Failed deliveries are retried and logged, and never block the rest of Offbeat
-- Lidarr webhook receiver (Settings, Connect, Webhook in Lidarr) for instant Activity updates on grab and import; polling stays as the fallback
-- Shows via Ticketmaster
-- Admin password reset CLI
+- [ ] Lidarr webhook receiver (Settings, Connect, Webhook in Lidarr) for instant Activity updates on grab and import; polling stays as the fallback
+- [ ] Shows via Ticketmaster
+- [ ] Admin password reset CLI
 
 ## Phase 4: Flows and playlists
 

@@ -1,0 +1,357 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 40px;
+  align-items: start;
+  max-width: 1100px;
+
+  // The side panel needs room beside the list; below this it sits underneath.
+  @media (max-width: 1200px) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+
+  h2 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  p {
+    margin-top: 6px;
+    font-size: 14px;
+    color: var(--text-3);
+  }
+
+  .btn {
+    height: 38px;
+    flex-shrink: 0;
+  }
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--divider);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+
+  &:hover {
+    background: var(--surface-input);
+  }
+
+  &.selected {
+    background: var(--surface-input);
+    border-bottom-color: transparent;
+    border-radius: 10px;
+  }
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+
+  &.big {
+    width: 52px;
+    height: 52px;
+    font-size: 19px;
+  }
+}
+
+.who {
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.line,
+.muted {
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--surface-3);
+}
+
+.panel {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-sidebar);
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+  }
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  .name {
+    font-size: 18px;
+  }
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+fieldset.group {
+  gap: 4px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-label);
+  padding: 0;
+}
+
+legend.field-label {
+  margin-bottom: 4px;
+}
+
+.segments {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border-radius: 10px;
+
+  button {
+    flex-grow: 1;
+    height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-lead);
+    font-size: 13px;
+    font-weight: 500;
+
+    &[aria-pressed='true'] {
+      background: var(--surface-4);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.5;
+    }
+  }
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 7px 0;
+  cursor: pointer;
+
+  &.disabled {
+    cursor: default;
+    color: var(--text-2);
+  }
+
+  // The native checkbox stays for keyboard and screen readers; the box is what shows.
+  input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+  }
+
+  .box {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border-button);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: transparent;
+  }
+
+  input:checked + .box {
+    border-color: transparent;
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+
+  input:focus-visible + .box {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  .btn {
+    height: 36px;
+  }
+}
+
+.btn-soft {
+  background: var(--surface-3);
+  color: var(--text-soft);
+
+  &:hover:not(:disabled) {
+    background: var(--surface-4);
+  }
+}
+
+.btn-danger {
+  background: var(--status-failed);
+  color: var(--bg);
+}
+
+.rule {
+  height: 1px;
+  background: var(--border-sidebar);
+}
+
+.remove {
+  align-self: flex-start;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--status-failed);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  p {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+}
+
+.temporary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  p {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-3);
+  }
+}
+
+.temp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  code {
+    flex-grow: 1;
+    padding: 10px 12px;
+    border-radius: var(--radius-input);
+    background: var(--surface-input);
+    border: 1px solid var(--border-input);
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    user-select: all;
+  }
+
+  .btn {
+    height: 40px;
+  }
+}
+
+.done {
+  align-self: flex-start;
+}
+
+.note {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-3);
+}
+
+.error {
+  font-size: 13px;
+  color: var(--status-failed);
+}

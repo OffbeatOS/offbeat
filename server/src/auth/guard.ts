@@ -15,6 +15,8 @@ declare module 'fastify' {
     role?: UserRole;
     /** A Member needs this permission (admins have them all). */
     permission?: Permission;
+    /** Reachable while signed in with a temporary password (choosing a new one). */
+    passwordChange?: boolean;
   }
   interface FastifyRequest {
     user: CurrentUser | null;
@@ -80,6 +82,9 @@ export function registerAuthGuard(app: FastifyInstance, cookie: SessionCookieOpt
     const config = request.routeOptions.config;
     if (config.public) return;
     if (!request.user) throw new HttpError(401, 'Sign in to continue');
+    if (request.user.mustChangePassword && !config.passwordChange) {
+      throw new HttpError(403, 'Choose a new password first');
+    }
     if (config.role === 'admin' && request.user.role !== 'admin') {
       throw new HttpError(403, 'Only admins can do that');
     }

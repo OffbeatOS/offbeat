@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import type { CreateAdminRequest, CurrentUser, LoginRequest, Permission, SetupState } from '@offbeat/shared';
+import type { ChangePasswordRequest, CreateAdminRequest, CurrentUser, LoginRequest, Permission, SetupState } from '@offbeat/shared';
 import { Api } from './api';
 
 /** Who is signed in, and whether first-run setup still needs an admin. */
@@ -37,6 +37,12 @@ export class Session {
   async createAdmin(request: CreateAdminRequest): Promise<void> {
     this.user.set(await this.api.post<CurrentUser>('setup/admin', request));
     this.needsAdmin.set(false);
+  }
+
+  /** Replaces the password; also how a temporary one is traded for the user's own. */
+  async changePassword(request: ChangePasswordRequest): Promise<void> {
+    await this.api.put('account/password', request);
+    this.user.update((u) => (u ? { ...u, mustChangePassword: false } : u));
   }
 
   async logout(): Promise<void> {
