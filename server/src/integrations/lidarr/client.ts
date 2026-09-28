@@ -163,6 +163,7 @@ const queueItemSchema = z.object({
   sizeleft: z.number().nullish(),
   timeleft: z.string().nullish(),
   added: z.string().nullish(),
+  downloadId: z.string().nullish(),
 });
 export type LidarrQueueItem = z.infer<typeof queueItemSchema>;
 
@@ -383,6 +384,19 @@ export class LidarrClient {
   /** Lidarr's command queue (refreshes, rescans, searches), newest last. */
   commands(): Promise<LidarrCommand[]> {
     return this.get('command', z.array(commandSchema));
+  }
+
+  /**
+   * Why Lidarr will not import a finished download on its own: the rejections
+   * its Manual Import preview lists for the download's files, deduplicated.
+   * Only reads; nothing is imported.
+   */
+  async importRejections(downloadId: string): Promise<string[]> {
+    const files = await this.get(
+      `manualimport?downloadId=${encodeURIComponent(downloadId)}&filterExistingFiles=true`,
+      z.array(z.object({ rejections: z.array(z.object({ reason: z.string().nullish() })).nullish() })),
+    );
+    return [...new Set(files.flatMap((f) => (f.rejections ?? []).map((r) => r.reason?.trim() ?? '')).filter(Boolean))];
   }
 
   async searchAlbums(albumIds: number[]): Promise<void> {

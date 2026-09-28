@@ -134,6 +134,7 @@ One server-side poller reads Lidarr's queue, commands, and history, and pushes a
 - **Adds are non-blocking.** `POST /albums/:mbid` answers 202 at once; the add runs in the background and reports back as an `add-result` event. A failed add shows under Needs Attention with Retry.
 - **Attribution.** Items added through Offbeat say who asked for them (from `requests`); everything else says "Added in Lidarr".
 - When an item leaves the queue, album statuses and the library cache refresh.
+- **Stuck imports.** Lidarr can leave a finished download in "importing" for good when it will not import it on its own (for example a match below 80%), without saying why on the queue item. After an hour in that state (counted from when Offbeat first saw it, since the queue has no completion time), the item moves to Needs Attention as Import stuck. Offbeat asks Lidarr's Manual Import preview for the rejections once, in the background, and explains them in plain words, with a link to Lidarr's queue, where Manual Import is.
 
 ## Discovery engine
 

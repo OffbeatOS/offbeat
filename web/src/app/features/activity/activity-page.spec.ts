@@ -53,12 +53,12 @@ const SNAPSHOT: ActivitySnapshot = {
   error: null,
 };
 
-async function render<T>(component: Type<T>) {
+async function render<T>(component: Type<T>, snapshot: ActivitySnapshot = SNAPSHOT) {
   TestBed.configureTestingModule({
     imports: [component],
     providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
   });
-  TestBed.inject(ActivityStore).snapshot.set(SNAPSHOT);
+  TestBed.inject(ActivityStore).snapshot.set(snapshot);
   const fixture = TestBed.createComponent(component);
   await fixture.whenStable();
   fixture.detectChanges();
@@ -80,6 +80,28 @@ describe('ActivityPage', () => {
     expect(rows.map((r) => r.querySelector('.state')?.textContent?.trim())).toEqual(['Downloading', 'Searching']);
     expect(rows[0]?.querySelector('.sub')?.textContent).toBe('Burial, requested by sam');
     expect(el.querySelector('.imported')?.textContent).toContain('Imported to library');
+  });
+
+  it('flags a stuck import and links to Manual Import in Lidarr', async () => {
+    const stuck = item({
+      id: 'queue:3',
+      state: 'import-stuck',
+      albumTitle: 'So Long and Thanks for All the Shoes',
+      progress: null,
+      detail: 'Downloaded, not imported',
+      reason: 'Lidarr downloaded this over an hour ago but will not import it on its own: the files match the album only 74%, and Lidarr needs 80%.',
+      messages: ['Album match is not close enough: 74.4 % vs 80 %'],
+      canRetry: true,
+      canCancel: false,
+      lidarrLink: 'http://lidarr:8686/activity/queue',
+    });
+    const el = await render(ActivityPage, { ...SNAPSHOT, attention: [stuck] });
+    const card = el.querySelector('.card')!;
+    expect(card.querySelector('.state')?.textContent).toContain('Import stuck');
+    expect(card.querySelector('.reason')?.textContent).toContain('only 74%, and Lidarr needs 80%');
+    const link = card.querySelector<HTMLAnchorElement>('.actions a')!;
+    expect(link.textContent?.trim()).toBe('Manual Import in Lidarr');
+    expect(link.getAttribute('href')).toBe('http://lidarr:8686/activity/queue');
   });
 
   it('asks before removing a download', async () => {

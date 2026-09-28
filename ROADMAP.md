@@ -39,6 +39,7 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 - [x] Per-user Last.fm and ListenBrainz usernames
 - [x] Scheduled daily refresh
 - [x] Refresh Now in Settings, with progress
+- [x] Activity flags imports stuck for over an hour, with Lidarr's reason and a link to Manual Import
 
 ## Phase 3: Multi-user and extras
 
