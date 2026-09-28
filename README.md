@@ -93,13 +93,15 @@ Settings, Users, Sign-in has three ways in. Local accounts (username and passwor
 
 **Reverse proxy header.** Behind Authelia, Authentik, or a similar proxy, Offbeat can trust the username the proxy sends (`Remote-User` by default).
 
-- List your proxy's address under Trusted proxies. The header is ignored from every other address, so nobody can send it straight to Offbeat.
+- List your proxy's address under Trusted proxies. The header is ignored from every other address. In Docker, if the address Offbeat sees for your proxy is one that stands for every visitor (the bridge gateway, or Docker Desktop's 192.168.65.x), Offbeat trusts it only together with the shared secret below.
 - Your proxy must set that header itself on every route to Offbeat, and remove it wherever it does not sign people in. A route that passes on a header the visitor made up would let anyone sign in as anyone.
 - Recommended: generate a shared secret in the same settings and have your proxy send it on every request (in `X-Offbeat-Proxy-Secret` by default). Offbeat then ignores the username unless the secret comes with it, so even a misconfigured route cannot be used to sign in.
 - Usernames Offbeat does not know are refused with a page asking them to see an admin. Turn on "Create accounts for new users" to add them automatically as Members who can add albums. They are never made admins.
 - Set Sign-out page to your proxy's sign-out address; otherwise signing out of Offbeat signs you straight back in.
 
 **Local network auto-login** signs everyone on the addresses you list in as one chosen Member, with no password. It is off by default and never signs in as an admin. Offbeat only trusts the address of the connection itself, or the forwarded address from a trusted proxy; a request with forwarding headers from anywhere else never counts as local. In Docker, the addresses that published ports hand out for every visitor (the bridge gateway, and Docker Desktop's 192.168.65.x) never count as local either, so list your devices' own addresses, or run Offbeat with host networking.
+
+Auto-login only answers requests addressed to Offbeat by a local name: an IP address, a name like `hoth`, a `.local`, `.lan`, or `.home.arpa` name, or the host of "Link back to Offbeat" in Settings, Notifications. That keeps a malicious web page from borrowing it through DNS rebinding.
 
 Auto-login does not work on Docker Desktop (Windows and macOS): it hands every visitor to the container from the same address, so Offbeat cannot tell your devices apart and never treats them as local. Use it with Docker on Linux (including Unraid), where each device's own address comes through, or on bare metal.
 

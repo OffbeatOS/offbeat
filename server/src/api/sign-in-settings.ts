@@ -2,7 +2,7 @@ import type { SignInSettings, SignInSettingsView } from '@offbeat/shared';
 import { eq } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { blockListOf, contains, parseRange } from '../auth/network.js';
-import { addressOf, dockerStandInAddresses, saveSignIn, signInForBrowser, signInSchema } from '../auth/sign-in.js';
+import { addressOf, dockerStandInAddresses, loadSignIn, saveSignIn, signInForBrowser, signInSchema } from '../auth/sign-in.js';
 import { users } from '../db/schema.js';
 import { HttpError, parse } from './errors.js';
 
@@ -31,6 +31,21 @@ export const signInSettingsRoutes: FastifyPluginAsync = async (app) => {
     const { proxy, autoLogin } = settings;
     if (proxy.enabled && proxy.trustedProxies.length === 0) {
       throw new HttpError(400, 'Add the address of your reverse proxy. Without one, the header is always ignored.');
+    }
+    if (proxy.enabled) {
+      for (const text of proxy.trustedProxies) {
+        if (parseRange(text)!.prefix === 0) throw new HttpError(400, `${text} is every address on the internet, not your proxy`);
+      }
+      // The secret this save leaves in place: a new one, the saved one (null keeps it), or none ("").
+      const secret = proxy.secret === null ? loadSignIn(app.settings).proxy.secret : proxy.secret;
+      const trusted = blockListOf(proxy.trustedProxies);
+      const standIn = dockerStandInAddresses().find((address) => contains(trusted, address));
+      if (standIn && !secret) {
+        throw new HttpError(
+          400,
+          `${standIn} can stand for anyone: Offbeat runs in Docker, where every connection through a published port may arrive from it, not only your proxy's. Trusting it alone would let anyone who reaches the port sign in as anyone. Set a shared secret to trust it, or use the proxy's own address on a Docker network.`,
+        );
+      }
     }
     if (!autoLogin.enabled) return;
     if (!autoLogin.userId) throw new HttpError(400, 'Choose who auto-login signs in as');

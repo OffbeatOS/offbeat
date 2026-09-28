@@ -7,7 +7,7 @@ import {
   USERNAME_PATTERN,
 } from '@offbeat/shared';
 import { eq, sql } from 'drizzle-orm';
-import type { BlockList } from 'node:net';
+import { type BlockList, isIP } from 'node:net';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import type { Db } from '../db/index.js';
@@ -152,6 +152,9 @@ export async function identityFromNetwork(
   if (settings.proxy.enabled && address.viaTrustedProxy) {
     // Without the shared secret (when one is set), the username is not the proxy's word: ignore it.
     if (!hasProxySecret(settings, headers)) return 'proxy-silent';
+    // A Docker address that stands for anyone is never enough on its own (settings saved
+    // before this rule existed): only the secret can show the request came from the proxy.
+    if (!settings.proxy.secret && address.socket && standIns.includes(address.socket)) return 'proxy-silent';
     const raw = headers[settings.proxy.header.toLowerCase()];
     const name = (Array.isArray(raw) ? raw[0] : raw)?.trim();
     // A trusted proxy that sent no username (a path it does not protect): fall back to the session.
@@ -181,10 +184,41 @@ export function autoLoginUser(
   const { settings, trusted, local } = compiled(store);
   if (!settings.autoLogin.enabled || !settings.autoLogin.userId) return null;
   if (!isLocal(clientAddress(socket, headers, trusted), local, trusted)) return null;
+  if (!localHost(headers.host, publicHost(store))) return null;
   const row = db.select().from(users).where(eq(users.id, settings.autoLogin.userId)).get();
   if (!row || row.role === 'admin') return null;
   touchLastSeen(db, row);
   return toCurrentUser(row);
+}
+
+/**
+ * Whether a request was addressed to Offbeat by a local name. A DNS
+ * rebinding page (an attacker's domain pointed at Offbeat's address) always
+ * arrives with the attacker's domain as Host, so auto-login ignores it. Local
+ * names: an IP address, localhost, a single-label name like "hoth", names
+ * under .local, .lan, or .home.arpa, and the host of "Link back to Offbeat".
+ */
+export function localHost(hostHeader: string | string[] | undefined, publicHostName: string | null): boolean {
+  const raw = (Array.isArray(hostHeader) ? hostHeader[0] : hostHeader)?.trim().toLowerCase();
+  if (!raw) return false;
+  // "[::1]:3001", "192.168.1.5:3001", "hoth:3001", "hoth."
+  const host = (raw.startsWith('[') ? raw.slice(1, raw.indexOf(']')) : raw.replace(/:\d+$/, '')).replace(/\.$/, '');
+  if (!host) return false;
+  if (isIP(host) || host === 'localhost') return true;
+  if (!host.includes('.')) return true;
+  if (/\.(local|lan|home\.arpa)$/.test(host)) return true;
+  return host === publicHostName;
+}
+
+/** The host of "Link back to Offbeat" (Settings, Notifications), if set. */
+function publicHost(store: SettingsStore): string | null {
+  const link = store.get('notifications', z.object({ publicUrl: z.string().nullable().default(null) }).passthrough())?.publicUrl;
+  if (!link) return null;
+  try {
+    return new URL(link).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
 }
 
 /** A Member for a username the proxy vouched for. Never an admin; the password is random and unknown. */

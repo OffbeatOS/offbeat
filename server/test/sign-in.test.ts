@@ -7,6 +7,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { blockListOf, clientAddress, dockerGateway, dockerStandIns } from '../src/auth/network.js';
+import { findDockerStandIns, localHost, saveSignIn } from '../src/auth/sign-in.js';
 import { openDatabase } from '../src/db/index.js';
 import { users } from '../src/db/schema.js';
 import { tmpImageDir } from './helpers.js';
@@ -241,5 +242,60 @@ describe('local network auto-login', () => {
   it('shows the admin which address Offbeat sees for them', async () => {
     const { adminCall } = await withAutoLogin();
     expect((await adminCall('GET', '/settings/sign-in')).json()).toMatchObject({ yourAddress: '127.0.0.1', dockerAddresses: [] });
+  });
+});
+
+describe('Docker addresses as the trusted proxy', () => {
+  // Pretend Offbeat runs in Docker, where 172.17.0.1 can stand for every visitor.
+  afterEach(() => findDockerStandIns(async () => []));
+
+  it('are refused without a shared secret, and so is trusting everyone', async () => {
+    const { configure } = await setup();
+    await findDockerStandIns(async () => ['172.17.0.1']);
+    const refused = await configure((s) => Object.assign(s.proxy, { enabled: true, trustedProxies: ['172.17.0.0/16'] }));
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json().message).toContain('172.17.0.1 can stand for anyone');
+    expect((await configure((s) => Object.assign(s.proxy, { enabled: true, trustedProxies: ['0.0.0.0/0'] }))).statusCode).toBe(400);
+    const secret = randomBytes(24).toString('base64url');
+    expect((await configure((s) => Object.assign(s.proxy, { enabled: true, trustedProxies: ['172.17.0.1'], secret }))).statusCode).toBe(200);
+    // The saved secret keeps it allowed when saved again without resending it.
+    expect((await configure((s) => (s.proxy.autoCreate = true))).statusCode).toBe(200);
+  });
+
+  it('never sign anyone in without the secret, even with settings saved before this rule', async () => {
+    const { as, app } = await setup();
+    saveSignIn(app.settings, {
+      localAccounts: true,
+      proxy: { enabled: true, header: 'Remote-User', trustedProxies: ['172.17.0.1'], autoCreate: false, logoutUrl: null, secretHeader: 'X-Offbeat-Proxy-Secret', secret: null },
+      autoLogin: { enabled: false, userId: null, networks: [] },
+    });
+    const viaGateway = as({ from: '172.17.0.1', headers: { 'remote-user': 'boss' } });
+    expect((await me(viaGateway('GET', '/auth/me'))).user?.username).toBe('boss'); // outside Docker: a real proxy address
+    await findDockerStandIns(async () => ['172.17.0.1']);
+    expect((await me(viaGateway('GET', '/auth/me'))).user).toBeNull();
+  });
+});
+
+describe('auto-login and DNS rebinding', () => {
+  it('counts only requests addressed to a local name', () => {
+    for (const host of ['192.168.1.5:3001', '[::1]:3001', 'localhost:3001', 'hoth', 'hoth:3001', 'music.local', 'nas.lan', 'box.home.arpa']) {
+      expect([host, localHost(host, null)]).toEqual([host, true]);
+    }
+    for (const host of ['rebind.attacker.example', 'offbeat.example.com', '', undefined]) {
+      expect([host, localHost(host, null)]).toEqual([host, false]);
+    }
+    expect(localHost('offbeat.example.com:443', 'offbeat.example.com')).toBe(true);
+  });
+
+  it('ignores a rebinding page, and allows the Link back to Offbeat address', async () => {
+    const ctx = await setup();
+    const sam = await ctx.addMember('sam');
+    await ctx.configure((s) => Object.assign(s.autoLogin, { enabled: true, userId: sam.user.id, networks: ['192.168.1.0/24'] }));
+    const from = (host: string) => ctx.as({ from: LAN_CLIENT, headers: { host } })('GET', '/auth/me');
+    expect((await me(from('192.168.1.10:3001'))).user?.username).toBe('sam');
+    expect((await me(from('rebind.attacker.example'))).user).toBeNull();
+    expect((await me(from('offbeat.example.com'))).user).toBeNull();
+    await ctx.adminCall('PUT', '/settings/notifications', { publicUrl: 'https://offbeat.example.com' });
+    expect((await me(from('offbeat.example.com'))).user?.username).toBe('sam');
   });
 });

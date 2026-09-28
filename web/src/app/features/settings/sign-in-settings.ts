@@ -263,7 +263,7 @@ const lines = (text: string) =>
               <label class="field">
                 Trusted proxies
                 <textarea class="input" rows="2" spellcheck="false" placeholder="172.20.0.5" [value]="d.proxy.trustedProxies.join('\\n')" (input)="patchProxy({ trustedProxies: lines($any($event.target).value) })"></textarea>
-                <span class="hint">Addresses or ranges (like 172.20.0.0/24), one per line. The header is ignored from anywhere else, so nobody can send it straight to Offbeat.</span>
+                <span class="hint">Addresses or ranges (like 172.20.0.0/24), one per line. The header is ignored from anywhere else. In Docker, where one address can stand for every visitor, Offbeat also needs the shared secret below before it trusts that address.</span>
               </label>
               <label class="field">
                 Header
@@ -362,7 +362,9 @@ const lines = (text: string) =>
                     Offbeat runs in Docker, where {{ view()!.dockerAddresses.join(' and ') }} can stand for anyone, so
                     {{ view()!.dockerAddresses.length === 1 ? 'it never counts' : 'they never count' }} as local.
                   }
-                  Behind a reverse proxy, add it under Trusted proxies so Offbeat sees each visitor's real address.
+                  Behind a reverse proxy, add it under Trusted proxies so Offbeat sees each visitor's real address. Auto-login
+                  only answers requests addressed to a local name: an IP address, a name like hoth, a .local, .lan, or .home.arpa
+                  name, or the "Link back to Offbeat" address in Notifications.
                 </span>
               </label>
             </div>
