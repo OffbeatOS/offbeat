@@ -39,7 +39,7 @@ Offbeat talks to Lidarr for everything in your library; it never writes to your 
 
 ## Quick start (Docker)
 
-Images are published for `linux/amd64` and `linux/arm64` as `ghcr.io/offbeatos/offbeat`. Pin a version (`0.1`) rather than `latest` while Offbeat is pre-1.0.
+Images are published for `linux/amd64` and `linux/arm64` as `ghcr.io/offbeatos/offbeat`. Pin a version (`0.2`) rather than `latest` while Offbeat is pre-1.0.
 
 With `docker run`:
 
@@ -48,7 +48,7 @@ docker run -d --name offbeat --restart unless-stopped \
   -p 3001:3001 \
   -e PUID=1000 -e PGID=1000 -e TZ=Etc/UTC \
   -v "$(pwd)/config:/app/config" \
-  ghcr.io/offbeatos/offbeat:0.1
+  ghcr.io/offbeatos/offbeat:0.2
 ```
 
 Or with Compose (the same file is in [docker-compose.yml](docker-compose.yml)):
@@ -56,7 +56,7 @@ Or with Compose (the same file is in [docker-compose.yml](docker-compose.yml)):
 ```yaml
 services:
   offbeat:
-    image: ghcr.io/offbeatos/offbeat:0.1
+    image: ghcr.io/offbeatos/offbeat:0.2
     restart: unless-stopped
     ports:
       - "3001:3001"
