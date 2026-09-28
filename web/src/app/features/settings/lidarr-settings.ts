@@ -5,12 +5,13 @@ import { Api, ApiError } from '../../core/api';
 import { Session } from '../../core/session';
 import { Icon } from '../../shared/icon/icon';
 import { LidarrForm } from '../lidarr/lidarr-form';
+import { LidarrWebhook } from './lidarr-webhook';
 import { SettingsSection } from './settings-section';
 
 /** Edit the Lidarr connection and defaults after setup. */
 @Component({
   selector: 'ob-lidarr-settings',
-  imports: [RouterLink, Icon, LidarrForm, SettingsSection],
+  imports: [RouterLink, Icon, LidarrForm, SettingsSection, LidarrWebhook],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .back {
@@ -39,6 +40,12 @@ import { SettingsSection } from './settings-section';
       font-size: 13px;
       color: var(--status-failed);
     }
+
+    .webhook {
+      margin-top: 24px;
+      padding-top: 32px;
+      border-top: 1px solid var(--divider);
+    }
   `,
   template: `
     <a class="back" routerLink="..">
@@ -56,6 +63,9 @@ import { SettingsSection } from './settings-section';
       }
       @if (savedAt()) {
         <p class="notice" role="status"><ob-icon name="check" [size]="14" [strokeWidth]="2.6" />Saved</p>
+      }
+      @if (existing()) {
+        <ob-lidarr-webhook class="webhook" />
       }
     </ob-settings-section>
   `,

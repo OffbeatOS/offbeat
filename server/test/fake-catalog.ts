@@ -17,6 +17,8 @@ export interface FakeCatalog {
   /** Lidarr's download queue; tests push items in the shape Lidarr returns. */
   queue: Record<string, unknown>[];
   history: Record<string, unknown>[];
+  /** Settings, Connect: notifications (webhooks) as Lidarr stores them. */
+  notifications: { id: number; name: string; implementation: string; fields: { name: string; value: unknown }[] }[];
   /** Manual Import preview per download id: the files and why each would be rejected. */
   manualImport: Map<string, { rejections: { reason: string }[] }[]>;
   /** Queue removals, with the flags Offbeat sent. */
@@ -95,6 +97,7 @@ export async function startFakeCatalog(
   const history: Record<string, unknown>[] = [];
   const removals: FakeCatalog['removals'] = [];
   const manualImport: FakeCatalog['manualImport'] = new Map();
+  const notifications: FakeCatalog['notifications'] = [];
   const hits: string[] = [];
   const control = { stallQueue: false, failAlbumLookup: false };
   const apiKey = randomBytes(16).toString('hex');
@@ -262,6 +265,45 @@ export async function startFakeCatalog(
       return json(res, 200, { totalRecords: downloads.length, records: downloads });
     }
     if (path === 'history') return json(res, 200, { totalRecords: history.length, records: history });
+    if (path === 'notification' && req.method === 'GET') return json(res, 200, notifications);
+    if (path === 'notification/test' && req.method === 'POST') {
+      // Like Lidarr: call the webhook with its Basic auth and a Test event; fail if that fails.
+      const posted = body as { fields: { name: string; value: unknown }[] };
+      const field = (name: string) => posted.fields.find((x) => x.name === name)?.value as string;
+      try {
+        const answer = await fetch(field('url'), {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Basic ${Buffer.from(`${field('username')}:${field('password')}`).toString('base64')}`,
+          },
+          body: JSON.stringify({ eventType: 'Test', instanceName: 'Lidarr' }),
+          signal: AbortSignal.timeout(3000),
+        });
+        if (!answer.ok) return json(res, 400, [{ propertyName: 'Url', errorMessage: `Unable to send test message: ${answer.status}` }]);
+        return json(res, 200, {});
+      } catch {
+        return json(res, 400, [{ propertyName: 'Url', errorMessage: 'Unable to send test message: connection refused' }]);
+      }
+    }
+    if (path === 'notification' && req.method === 'POST') {
+      const created = { ...(body as object), id: notifications.length + 100 } as FakeCatalog['notifications'][number];
+      notifications.push(created);
+      return json(res, 201, created);
+    }
+    const notificationMatch = path.match(/^notification\/(\d+)$/);
+    if (notificationMatch) {
+      const index = notifications.findIndex((n) => n.id === Number(notificationMatch[1]));
+      if (index < 0) return json(res, 404, {});
+      if (req.method === 'PUT') {
+        notifications[index] = { ...(body as object), id: notifications[index]!.id } as FakeCatalog['notifications'][number];
+        return json(res, 202, notifications[index]);
+      }
+      if (req.method === 'DELETE') {
+        notifications.splice(index, 1);
+        return json(res, 200, {});
+      }
+    }
     if (path === 'manualimport' && req.method === 'GET') {
       return json(res, 200, manualImport.get(url.searchParams.get('downloadId') ?? '') ?? []);
     }
@@ -354,6 +396,7 @@ export async function startFakeCatalog(
     queue: downloads,
     history,
     manualImport,
+    notifications,
     removals,
     hits,
     get stallQueue() {
