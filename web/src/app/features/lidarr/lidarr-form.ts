@@ -64,8 +64,8 @@ export class LidarrForm implements OnInit {
   });
 
   protected readonly monitorChoices: { value: ArtistMonitorChoice; label: string }[] = [
-    { value: 'latest', label: 'Latest album and future releases' },
     { value: 'all', label: 'All albums and future releases' },
+    { value: 'latest', label: 'Latest album and future releases' },
     { value: 'future', label: 'Only future releases' },
   ];
 
@@ -76,7 +76,7 @@ export class LidarrForm implements OnInit {
     metadataProfileId: [{ value: 0, disabled: true }, Validators.min(1)],
     rootFolderPath: [{ value: '', disabled: true }, Validators.required],
     addMonitored: [true],
-    addMonitorAlbums: ['latest' as ArtistMonitorChoice],
+    addMonitorAlbums: ['all' as ArtistMonitorChoice],
     searchOnAdd: [true],
     addTag: ['offbeat', Validators.pattern(/^[A-Za-z0-9._-]*$/)],
   });
