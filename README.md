@@ -1,4 +1,9 @@
-<h1 align="center"><img src="docs/screenshots/offbeat_logo.png" alt="Offbeat" width="240"></h1>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/offbeat_logo.png">
+    <img src="docs/screenshots/offbeat-logo-light.png" alt="Offbeat" width="240">
+  </picture>
+</h1>
 
 [![CI](https://github.com/OffbeatOS/offbeat/actions/workflows/ci.yml/badge.svg)](https://github.com/OffbeatOS/offbeat/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/OffbeatOS/offbeat?sort=semver)](https://github.com/OffbeatOS/offbeat/releases/latest)
