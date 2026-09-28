@@ -21,9 +21,9 @@ These are standalone HTML files exported from a design tool. They use its small 
 | `Shows.dc.html` | Shows (concert listings) | Later |
 | `Tag.dc.html` | Tag page (Explore by Tag) | Phase 2 |
 | `SettingsDiscovery.dc.html` | Settings, Discovery and blocklist | Phase 2 |
-| `SettingsUsers.dc.html` | Settings, Users and sign-in methods |
-| `SettingsNotifications.dc.html` | Settings, Notifications channels and delivery log |
-| `SettingsLidarr.dc.html` | Settings, Lidarr connection, defaults and webhook |
+| `SettingsUsers.dc.html` | Settings, Users and sign-in methods | Phase 3 |
+| `SettingsNotifications.dc.html` | Settings, Notifications channels and delivery log | Phase 3 |
+| `SettingsLidarr.dc.html` | Settings, Lidarr connection, defaults and webhook | Phase 3 |
 
 Empty, loading, and error states are not in the mockups. Build them for every screen in the same style (see `ob-empty-state`).
 
