@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 /** Settings edited in the UI. `value` is JSON, or ciphertext when `encrypted` is set. */
 export const settings = sqliteTable('settings', {
@@ -130,4 +130,48 @@ export const recommendations = sqliteTable(
     generatedAt: integer('generated_at', { mode: 'timestamp' }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.userId, table.mode] })],
+);
+
+/**
+ * Thumbs up or down on a recommended artist. Its genres at the time feed the
+ * user's tag weights; a thumbs down also keeps the artist out of future picks.
+ */
+export const feedback = sqliteTable(
+  'feedback',
+  {
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    artistMbid: text('artist_mbid').notNull(),
+    /** 1 for thumbs up, -1 for thumbs down. */
+    value: integer('value').notNull(),
+    /** JSON array of the artist's genres when rated. */
+    genres: text('genres').notNull().default('[]'),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.artistMbid] })],
+);
+
+/** Artists and tags a user never wants recommended. */
+export const blocklist = sqliteTable(
+  'blocklist',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['artist', 'tag'] }).notNull(),
+    /** The artist's MBID, or the tag in lower case. */
+    key: text('key').notNull(),
+    /** What to show: the artist's name, or the tag as written. */
+    name: text('name').notNull(),
+    /** Where it was blocked from: discover, search, or settings. */
+    source: text('source', { enum: ['discover', 'search', 'settings', 'tag'] }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [uniqueIndex('blocklist_user_kind_key').on(table.userId, table.kind, table.key)],
 );

@@ -57,6 +57,12 @@
       @if (addError()) {
         <p class="add-error" role="alert">{{ addError() }}</p>
       }
+      @if (undo(); as u) {
+        <p class="undo" role="status">
+          {{ u.text }}
+          <button type="button" (click)="runUndo()">Undo</button>
+        </p>
+      }
       <div class="scroller picks" #pickRow>
         @for (pick of picks(); track pick.mbid) {
           <article class="pick">
@@ -75,6 +81,23 @@
                 }
               </span>
             </a>
+            <div class="rate" role="group" [attr.aria-label]="'Rate ' + pick.name">
+              <button
+                type="button"
+                [attr.aria-pressed]="pick.feedback === 'up'"
+                [attr.aria-label]="'More like ' + pick.name"
+                title="More like this"
+                (click)="like(pick)"
+              >
+                <ob-icon name="thumbs-up" [size]="16" />
+              </button>
+              <button type="button" [attr.aria-label]="'Less like ' + pick.name" title="Less like this" (click)="dislike(pick)">
+                <ob-icon name="thumbs-down" [size]="16" />
+              </button>
+              <button type="button" [attr.aria-label]="'Never show ' + pick.name" title="Never show this" (click)="block(pick)">
+                <ob-icon name="block" [size]="16" />
+              </button>
+            </div>
             <ob-quick-add
               class="add"
               [mbid]="pick.mbid"

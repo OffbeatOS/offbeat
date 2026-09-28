@@ -18,6 +18,7 @@ const pick = (name: string, extra: Partial<DiscoverPick> = {}): DiscoverPick => 
   sources: ['listenbrainz'],
   listeners: 50_000,
   inLibrary: false,
+  feedback: null,
   ...extra,
 });
 
@@ -103,5 +104,27 @@ describe('refreshedLabel', () => {
     expect(refreshedLabel(new Date(2026, 8, 27, 19, 30).toISOString(), now)).toBe('Refreshed just now');
     expect(refreshedLabel(new Date(2026, 8, 26, 4, 0).toISOString(), now)).toBe('Refreshed yesterday');
     expect(refreshedLabel(new Date(2026, 8, 24, 4, 0).toISOString(), now)).toBe('Refreshed 3 days ago');
+  });
+});
+
+describe('DiscoverPage feedback', () => {
+  it('takes a thumbed-down pick away, and Undo puts it back where it was', async () => {
+    const { el, text, fixture } = await render(response({ items: [pick('Lagwagon'), pick('Pennywise'), pick('Strung Out')] }));
+    const http = TestBed.inject(HttpTestingController);
+    el.querySelector<HTMLButtonElement>('[aria-label="Less like Pennywise"]')!.click();
+    http.expectOne('api/v1/discover/feedback').flush(null, { status: 204, statusText: 'No Content' });
+    await new Promise((resolve) => setTimeout(resolve));
+    fixture.detectChanges();
+    expect(text('.pick .name')).toEqual(['Lagwagon', 'Strung Out']);
+    expect(el.querySelector('.undo')?.textContent).toContain('Pennywise is hidden');
+
+    el.querySelector<HTMLButtonElement>('.undo button')!.click();
+    http.expectOne('api/v1/discover/feedback').flush(null, { status: 204, statusText: 'No Content' });
+    await new Promise((resolve) => setTimeout(resolve));
+    fixture.detectChanges();
+    expect(text('.pick .name')).toEqual(['Lagwagon', 'Pennywise', 'Strung Out']);
+    // Changing the list never reloads it from the server.
+    http.expectNone('api/v1/discover?mode=balanced');
+    http.verify();
   });
 });

@@ -1,9 +1,18 @@
-import type { DiscoverResponse, Recommendation, ReleaseSummary, TagArtist } from '@offbeat/shared';
+import type {
+  BlockRequest,
+  BlockedItem,
+  BlocklistResponse,
+  DiscoverResponse,
+  FeedbackValue,
+  Recommendation,
+  ReleaseSummary,
+  TagArtist,
+} from '@offbeat/shared';
 import { Cron } from 'croner';
 import { and, eq } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Db } from '../db/index.js';
-import { recommendations, users } from '../db/schema.js';
+import { blocklist, feedback, recommendations, users } from '../db/schema.js';
 import type { LastfmClient } from '../integrations/lastfm/client.js';
 import type { LidarrClient, LidarrLookupArtist } from '../integrations/lidarr/client.js';
 import type { ListenBrainzClient } from '../integrations/listenbrainz/client.js';
@@ -26,7 +35,8 @@ import {
   resolveCandidate,
   seededRandom,
 } from './engine.js';
-import { pickGenres } from './genres.js';
+import { genreLabel, pickGenres } from './genres.js';
+import { applyTaste, tagWeights } from './taste.js';
 import { MAX_AGE, SourceCache } from './source-cache.js';
 
 export interface DiscoveryOptions {
@@ -34,6 +44,8 @@ export interface DiscoveryOptions {
   schedule?: string | null;
   /** Recommendations kept per mode. */
   limit?: number;
+  /** After feedback or a blocklist change, refresh this long after the last one (debounced). */
+  feedbackRefreshMs?: number;
 }
 
 export interface DiscoverySources {
@@ -80,6 +92,8 @@ export class Discovery {
   private readonly cache: SourceCache;
   private readonly running = new Map<number, Promise<void>>();
   private readonly errors = new Map<number, string>();
+  /** Pending refreshes after feedback, per user. */
+  private readonly feedbackTimers = new Map<number, ReturnType<typeof setTimeout>>();
   /** Candidate keys already checked by name in the current computation. */
   private verified = new Set<string>();
   private cron: Cron | null = null;
@@ -103,6 +117,8 @@ export class Discovery {
   stop() {
     this.cron?.stop();
     this.cron = null;
+    for (const timer of this.feedbackTimers.values()) clearTimeout(timer);
+    this.feedbackTimers.clear();
   }
 
   isRefreshing(userId: number): boolean {
@@ -134,6 +150,23 @@ export class Discovery {
       .get();
     const stored = row ? (JSON.parse(row.payload) as StoredPayload) : null;
     const library = new Set(this.library.read().artists.map((a) => a.mbid));
+    const ratings = new Map(
+      this.db
+        .select({ mbid: feedback.artistMbid, value: feedback.value })
+        .from(feedback)
+        .where(eq(feedback.userId, userId))
+        .all()
+        .map((r) => [r.mbid, (r.value > 0 ? 'up' : 'down') as FeedbackValue]),
+    );
+    // Feedback since the refresh is applied as the list is read, not written
+    // into it, so clearing a thumbs down or unblocking brings a pick back at once.
+    const blocked = this.db.select().from(blocklist).where(eq(blocklist.userId, userId)).all();
+    const blockedArtists = new Set(blocked.filter((b) => b.kind === 'artist').map((b) => b.key));
+    const blockedTags = new Set(blocked.filter((b) => b.kind === 'tag').map((b) => b.key));
+    const hidden = (item: Recommendation) =>
+      ratings.get(item.mbid) === 'down' || blockedArtists.has(item.mbid) || item.genres.some((g) => blockedTags.has(g.toLowerCase()));
+    const kept = (stored?.items ?? []).filter((item) => !hidden(item));
+    const gone = new Set((stored?.items ?? []).filter(hidden).map((i) => i.mbid));
     return {
       mode,
       generatedAt: row ? row.generatedAt.toISOString() : null,
@@ -142,10 +175,14 @@ export class Discovery {
       seedCount: stored?.seedCount ?? 0,
       sources: stored?.sources ?? { listenbrainz: true, lastfm: false },
       // Added since the refresh (a quick add): shown as in the library until the next one drops it.
-      items: (stored?.items ?? []).map((item) => ({ ...item, inLibrary: library.has(item.mbid) })),
-      albums: stored?.albums ?? [],
+      items: kept.map((item) => ({
+        ...item,
+        inLibrary: library.has(item.mbid),
+        feedback: ratings.get(item.mbid) ?? null,
+      })),
+      albums: (stored?.albums ?? []).filter((a) => !gone.has(a.artistMbid)),
       albumsPending: stored?.albumsPending ?? false,
-      tags: stored?.tags ?? [],
+      tags: gone.size ? topTags(kept) : (stored?.tags ?? []),
     };
   }
 
@@ -193,6 +230,101 @@ export class Discovery {
     return { artists, albums, related };
   }
 
+  // Feedback and blocklist ----------------------------------------------------
+
+  /**
+   * Thumbs up or down on a pick (or null to clear). The artist's genres feed
+   * the tag weights at the next refresh; a thumbs down also hides the artist
+   * from the user's picks now (see read) and keeps it out.
+   */
+  rate(userId: number, mbid: string, value: FeedbackValue | null) {
+    if (value === null) {
+      this.db.delete(feedback).where(and(eq(feedback.userId, userId), eq(feedback.artistMbid, mbid))).run();
+    } else {
+      const genres = JSON.stringify(this.genresOf(userId, mbid));
+      const vote = value === 'up' ? 1 : -1;
+      this.db
+        .insert(feedback)
+        .values({ userId, artistMbid: mbid, value: vote, genres })
+        .onConflictDoUpdate({ target: [feedback.userId, feedback.artistMbid], set: { value: vote, genres, createdAt: new Date() } })
+        .run();
+    }
+    this.refreshSoon(userId);
+  }
+
+  blocklist(userId: number): BlocklistResponse {
+    const rows = this.db.select().from(blocklist).where(eq(blocklist.userId, userId)).all();
+    const view = (r: (typeof rows)[number]): BlockedItem => ({
+      id: r.id,
+      kind: r.kind,
+      key: r.key,
+      name: r.name,
+      source: r.source,
+      createdAt: r.createdAt.toISOString(),
+    });
+    const newest = (a: BlockedItem, b: BlockedItem) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id;
+    return {
+      artists: rows.filter((r) => r.kind === 'artist').map(view).sort(newest),
+      tags: rows.filter((r) => r.kind === 'tag').map(view).sort(newest),
+    };
+  }
+
+  /** Blocks an artist or tag, which hides it from the user's picks now (see read). Blocking twice is fine. */
+  block(userId: number, request: BlockRequest): BlockedItem {
+    const key = request.kind === 'artist' ? request.mbid.toLowerCase() : request.name.trim().toLowerCase();
+    const name = request.kind === 'artist' ? request.name : genreLabel(request.name);
+    this.db
+      .insert(blocklist)
+      .values({ userId, kind: request.kind, key, name, source: request.source })
+      .onConflictDoNothing()
+      .run();
+    this.refreshSoon(userId);
+    return this.blocklist(userId)[request.kind === 'artist' ? 'artists' : 'tags'].find((b) => b.key === key)!;
+  }
+
+  /** Unblocks; picks it hid come back at once, and others can at the next refresh (started soon). */
+  unblock(userId: number, id: number): boolean {
+    const removed = this.db.delete(blocklist).where(and(eq(blocklist.userId, userId), eq(blocklist.id, id))).run().changes > 0;
+    if (removed) this.refreshSoon(userId);
+    return removed;
+  }
+
+  /** What the user's feedback means for a refresh. */
+  private taste(userId: number) {
+    const ratings = this.db.select().from(feedback).where(eq(feedback.userId, userId)).all();
+    const blocked = this.db.select().from(blocklist).where(eq(blocklist.userId, userId)).all();
+    return {
+      weights: tagWeights(ratings.map((r) => ({ value: r.value, genres: JSON.parse(r.genres) as string[] }))),
+      blockedTags: new Set(blocked.filter((b) => b.kind === 'tag').map((b) => b.key)),
+      excluded: [
+        ...blocked.filter((b) => b.kind === 'artist').map((b) => b.key),
+        ...ratings.filter((r) => r.value < 0).map((r) => r.artistMbid),
+      ],
+    };
+  }
+
+  /** A recommended artist's genres, from whichever mode has it. */
+  private genresOf(userId: number, mbid: string): string[] {
+    for (const mode of MODES) {
+      const item = this.stored(userId, mode)?.items.find((i) => i.mbid === mbid);
+      if (item) return item.genres;
+    }
+    return [];
+  }
+
+  /** Refresh a little after the last feedback, so several ratings in a row cost one refresh. */
+  private refreshSoon(userId: number) {
+    const delay = this.options.feedbackRefreshMs ?? 60_000;
+    if (delay < 0) return;
+    clearTimeout(this.feedbackTimers.get(userId));
+    const timer = setTimeout(() => {
+      this.feedbackTimers.delete(userId);
+      void this.refresh(userId).catch(() => undefined);
+    }, delay);
+    timer.unref?.();
+    this.feedbackTimers.set(userId, timer);
+  }
+
   private stored(userId: number, mode: DiscoveryMode): StoredPayload | null {
     const row = this.db
       .select()
@@ -220,8 +352,11 @@ export class Discovery {
     const started = Date.now();
     try {
       const seeds = await this.seedsFor(userId);
-      const computed = await this.compute(seeds, { random: seededRandom(started ^ userId) });
-      const items = await this.enrich(computed);
+      const taste = this.taste(userId);
+      const computed = await this.compute(seeds, { random: seededRandom(started ^ userId), exclude: taste.excluded });
+      const enriched = await this.enrich(computed);
+      const items = {} as Record<DiscoveryMode, Recommendation[]>;
+      for (const mode of MODES) items[mode] = applyTaste(enriched[mode], taste.weights, taste.blockedTags);
       const generatedAt = new Date();
       const base = (mode: DiscoveryMode) => ({
         items: items[mode],
@@ -290,7 +425,12 @@ export class Discovery {
    */
   async compute(
     seeds: Seed[],
-    { random = Math.random, useLastfm = true, limit = this.options.limit ?? 50 } = {},
+    {
+      random = Math.random,
+      useLastfm = true,
+      limit = this.options.limit ?? 50,
+      exclude: excluded = [] as Iterable<string>,
+    } = {},
   ): Promise<Computed> {
     this.verified = new Set();
     const lastfm = useLastfm ? this.sources.lastfm() : null;
@@ -301,7 +441,12 @@ export class Discovery {
     gather(pool, firstHop, listeners);
     await this.verifyNames(pool);
 
-    const exclude = new Set([...this.library.read().artists.map((a) => a.mbid), ...seeds.map((s) => s.mbid), VARIOUS_ARTISTS]);
+    const exclude = new Set([
+      ...this.library.read().artists.map((a) => a.mbid),
+      ...seeds.map((s) => s.mbid),
+      ...excluded,
+      VARIOUS_ARTISTS,
+    ]);
     const excludeNames = new Set(this.library.read().artists.map((a) => normalizeName(a.name)));
 
     // Deeper: follow the similar artists of its own first-hop picks (popularity already penalized),

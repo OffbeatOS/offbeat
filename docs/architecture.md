@@ -143,7 +143,7 @@ Works with no API key: ListenBrainz is always a source, and a Last.fm key adds a
 2. **Similar artists.** Per seed, ListenBrainz session-based similarity (keyed by MBID) and, when connected, Last.fm `artist.getSimilar`. ListenBrainz counts sessions, so popular artists score high next to anything: its scores are divided by listeners to the power 0.3 (ListenBrainz popularity data), with a floor of 20,000 and counts below a quarter of the list's typical one not trusted (the data has gaps for some big artists). With both sources, a match is 0.6 Last.fm plus 0.4 ListenBrainz, so artists both agree on rank highest; when one source knows nothing about a seed, the other counts in full.
 3. **Names.** Everything is keyed by MBID. A Last.fm suggestion ListenBrainz does not corroborate is checked by name through Lidarr's artist lookup, and the first exact match wins: Last.fm gives no MBID for some artists, and a wrong one for some shared names (several bands are called Face to Face).
 4. **Score.** Each candidate sums `match x seed_weight` over its seeds, so artists several seeds agree on rise.
-5. **Filter.** Remove library artists, seeds, Various Artists, and (slice 4) blocklisted artists and tags.
+5. **Filter.** Remove library artists, seeds, Various Artists, blocklisted artists and tags, and artists the user gave a thumbs down.
 6. **Mode.**
    - *Safer:* squared matches (strong ones count most) and a bigger boost for several seeds.
    - *Balanced:* the plain sum with a small boost for several seeds.
@@ -151,7 +151,7 @@ Works with no API key: ListenBrainz is always a source, and a Last.fm key adds a
 7. **Variety.** Each score is multiplied by a random factor within 10 percent, seeded per refresh.
 8. **Explanations.** The seed behind the strongest match: "Because you like X", or for Deeper's second hop, "Y, which is like X". No seed explains more than 3 of the top 10: a pick whose strongest seed is full is explained by another contributing seed with room, if that seed contributed at least half as much, and otherwise moves below the top 10. So every part of a library gets a voice.
 9. **Enrichment.** Names, disambiguation, and artwork from Lidarr's artist lookup (Last.fm has no real artist images). Genres from Last.fm's top tags when connected (filtered to real genres), otherwise from MusicBrainz's curated genres (for the top 30 per mode in a refresh, at one request per second), never free-form tags.
-10. **Feedback (slice 4).** Thumbs up or down adjusts tag weights. "Never show this" adds to the blocklist.
+10. **Feedback.** Thumbs up or down adjusts tag weights: each rating counts +1 or -1 for the artist's genres, and a pick's score is multiplied by 1 + 0.15 times the sum of tanh(weight / 2) over its genres, clamped to 0.4 to 1.6 (`taste.ts`). The per-seed cap is applied again after re-weighting. "Never show this" adds to the blocklist, managed in Settings, Discovery. A thumbs down or block hides the pick at once, since stored recommendations are filtered when read rather than rewritten, so undoing it brings the pick back in place; a refresh follows a minute after the last change.
 
 Every upstream answer is cached in `source_cache` (similar artists and popularity 7 days, lookups 30 days, listening stats 1 day) and served stale if a source is down. `server/scripts/discover-sample.ts` prints a sample per mode and source mix for reviewing quality.
 
@@ -169,9 +169,11 @@ Current tables (see `server/src/db/schema.ts`):
 - `requests` (user_id, artist and album MBIDs, Lidarr ids) to attribute adds to users
 - `source_cache` (key, body, fetched_at): discovery's upstream answers
 - `recommendations` (user_id, mode, payload, generated_at): each user's latest recommendations per mode
+- `feedback` (user_id, artist_mbid, value, genres, created_at): thumbs up (+1) or down (-1), with the artist's genres at the time
+- `blocklist` (id, user_id, kind, key, name, source, created_at): blocked artists (keyed by MBID) and tags (keyed lowercase)
 - `jobs` (name, last run, last success, error)
 
-Planned: `feedback`, `blocklist` (phase 2); `flows`, `flow_runs`, `flow_tracks`, `playlists`, `playlist_tracks` (phase 4).
+Planned: `flows`, `flow_runs`, `flow_tracks`, `playlists`, `playlist_tracks` (phase 4).
 
 ## API
 
@@ -182,7 +184,8 @@ All routes live under `/api/v1`. Implemented:
 - `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
 - `GET /settings/lidarr`, `PUT /settings/lidarr`
 - `GET /settings/lastfm`, `PUT /settings/lastfm` (checked with Last.fm), `DELETE /settings/lastfm` (admin)
-- `GET /discover?mode=safer|balanced|deeper` (Top Picks, Albums to Start With, Explore by Tag), `POST /discover/refresh`
+- `GET /discover?mode=safer|balanced|deeper` (Top Picks, Albums to Start With, Explore by Tag), `POST /discover/refresh`, `POST /discover/feedback`
+- `GET /blocklist`, `POST /blocklist`, `DELETE /blocklist/:id`
 - `GET /tags/:tag` (a tag page)
 - `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service)
 - `GET /library`, `POST /library/refresh`
@@ -193,7 +196,7 @@ All routes live under `/api/v1`. Implemented:
 - `GET /events` (Server-Sent Events: `activity` snapshots and `add-result`)
 - `GET /images/artist/:id`, `GET /images/album/:mbid`, `GET /images/remote` (signed)
 
-Planned: `/blocklist` (phase 2), `/users` (phase 3), `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
+Planned: `/users` (phase 3), `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
 
 ## Details that save pain later
 

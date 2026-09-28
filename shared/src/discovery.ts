@@ -45,6 +45,8 @@ export interface DiscoverResponse {
 /** A recommended artist as Discover shows it, including whether it is in the library now (after a quick add). */
 export interface DiscoverPick extends Recommendation {
   inLibrary: boolean;
+  /** The user's own rating of this pick, if any. */
+  feedback: FeedbackValue | null;
 }
 
 /** An artist on a tag page. */
@@ -66,3 +68,35 @@ export interface TagPage {
   /** Genres that go with this one in the user's recommendations. */
   related: string[];
 }
+
+export type FeedbackValue = 'up' | 'down';
+
+/** `POST /discover/feedback`. `null` clears a rating. */
+export interface FeedbackRequest {
+  mbid: string;
+  value: FeedbackValue | null;
+}
+
+export type BlockSource = 'discover' | 'search' | 'settings' | 'tag';
+
+/** An artist or tag on the user's blocklist. */
+export interface BlockedItem {
+  id: number;
+  kind: 'artist' | 'tag';
+  /** The artist's MBID, or the tag in lower case. */
+  key: string;
+  name: string;
+  source: BlockSource;
+  createdAt: string;
+}
+
+/** `GET /blocklist`. */
+export interface BlocklistResponse {
+  artists: BlockedItem[];
+  tags: BlockedItem[];
+}
+
+/** `POST /blocklist`. */
+export type BlockRequest =
+  | { kind: 'artist'; mbid: string; name: string; source: BlockSource }
+  | { kind: 'tag'; name: string; source: BlockSource };

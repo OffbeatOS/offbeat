@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import type { DiscoverPick, DiscoverResponse, DiscoveryMode } from '@offbeat/shared';
+import type { BlockedItem, DiscoverPick, DiscoverResponse, DiscoveryMode, FeedbackRequest, ReleaseSummary } from '@offbeat/shared';
 import { Api, ApiError } from '../../core/api';
 import { Session } from '../../core/session';
 import { Cover } from '../../shared/catalog/cover';
@@ -14,6 +14,8 @@ const MODES: { id: DiscoveryMode; label: string }[] = [
   { id: 'balanced', label: 'Balanced' },
   { id: 'deeper', label: 'Deeper' },
 ];
+/** How long an Undo stays offered. */
+const UNDO_MS = 8000;
 /** While the server is refreshing, ask again this often. */
 const POLL_MS = 3000;
 
@@ -42,7 +44,9 @@ export class DiscoverPage {
   protected readonly data = signal<DiscoverResponse | null>(null);
   protected readonly error = signal('');
   protected readonly addError = signal('');
+  protected readonly undo = signal<{ text: string; run: () => Promise<void> } | null>(null);
   private poll: ReturnType<typeof setTimeout> | undefined;
+  private undoTimer: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly firstRun = computed(() => !this.data()?.generatedAt && !!this.data()?.refreshing);
   protected readonly refreshed = computed(() => {
@@ -52,8 +56,16 @@ export class DiscoverPage {
   protected readonly picks = computed(() => this.data()?.items.slice(0, 12) ?? []);
 
   constructor() {
-    effect(() => void this.load(this.current()));
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.poll));
+    // Load when the mode changes, and only then: load() reads the current data,
+    // which must not make every change to the list trigger a reload.
+    effect(() => {
+      const mode = this.current();
+      untracked(() => void this.load(mode));
+    });
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.poll);
+      clearTimeout(this.undoTimer);
+    });
   }
 
   protected choose(mode: DiscoveryMode) {
@@ -69,6 +81,92 @@ export class DiscoverPage {
   protected scroll(row: HTMLElement, direction: 1 | -1) {
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     row.scrollBy({ left: direction * row.clientWidth, behavior: reduce ? 'auto' : 'smooth' });
+  }
+
+  /** Thumbs up, or clears it when already up. */
+  protected async like(pick: DiscoverPick) {
+    const value = pick.feedback === 'up' ? null : 'up';
+    await this.send({ mbid: pick.mbid, value }, () => this.setFeedback(pick.mbid, value));
+  }
+
+  /** Thumbs down: fewer like this, and this one goes away (with Undo). */
+  protected async dislike(pick: DiscoverPick) {
+    await this.send({ mbid: pick.mbid, value: 'down' }, () => {
+      const restore = this.remove(pick.mbid);
+      this.offerUndo(`${pick.name} is hidden. You will see less like it.`, async () => {
+        await this.api.post('discover/feedback', { mbid: pick.mbid, value: pick.feedback } satisfies FeedbackRequest);
+        restore();
+      });
+    });
+  }
+
+  /** Never show this artist: it goes on the blocklist (Settings, Discovery), with Undo. */
+  protected async block(pick: DiscoverPick) {
+    try {
+      const item = await this.api.post<BlockedItem>('blocklist', { kind: 'artist', mbid: pick.mbid, name: pick.name, source: 'discover' });
+      const restore = this.remove(pick.mbid);
+      this.offerUndo(`${pick.name} is blocked.`, async () => {
+        await this.api.delete(`blocklist/${item.id}`);
+        restore();
+      });
+    } catch (error) {
+      this.addError.set(error instanceof ApiError ? error.message : 'Could not block this artist');
+    }
+  }
+
+  protected async runUndo() {
+    const pending = this.undo();
+    if (!pending) return;
+    clearTimeout(this.undoTimer);
+    this.undo.set(null);
+    try {
+      await pending.run();
+    } catch (error) {
+      this.addError.set(error instanceof ApiError ? error.message : 'Could not undo that');
+    }
+  }
+
+  private async send(body: FeedbackRequest, then: () => void) {
+    this.addError.set('');
+    try {
+      await this.api.post('discover/feedback', body);
+      then();
+    } catch (error) {
+      this.addError.set(error instanceof ApiError ? error.message : 'Could not save that');
+    }
+  }
+
+  private setFeedback(mbid: string, value: DiscoverPick['feedback']) {
+    this.data.update((d) => (d ? { ...d, items: d.items.map((i) => (i.mbid === mbid ? { ...i, feedback: value } : i)) } : d));
+  }
+
+  /** Takes a pick (and its album) off the page; returns how to put them back where they were. */
+  private remove(mbid: string): () => void {
+    const before = this.data();
+    if (!before) return () => undefined;
+    const index = before.items.findIndex((i) => i.mbid === mbid);
+    const item = before.items[index];
+    const albums: [number, ReleaseSummary][] = before.albums.flatMap((a, i) => (a.artistMbid === mbid ? [[i, a]] : []));
+    this.data.set({
+      ...before,
+      items: before.items.filter((i) => i.mbid !== mbid),
+      albums: before.albums.filter((a) => a.artistMbid !== mbid),
+    });
+    return () =>
+      this.data.update((d) => {
+        if (!d || !item) return d;
+        const items = [...d.items];
+        items.splice(index, 0, item);
+        const restored = [...d.albums];
+        for (const [i, album] of albums) restored.splice(i, 0, album);
+        return { ...d, items, albums: restored };
+      });
+  }
+
+  private offerUndo(text: string, run: () => Promise<void>) {
+    clearTimeout(this.undoTimer);
+    this.undo.set({ text, run });
+    this.undoTimer = setTimeout(() => this.undo.set(null), UNDO_MS);
   }
 
   protected onAdded(pick: DiscoverPick) {

@@ -30,7 +30,7 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 
 - [x] Recommendation engine (see [architecture](docs/architecture.md#discovery-engine)); works without any key through ListenBrainz
 - [ ] Discover page with sections, mode switch, feedback, quick add
-- [ ] Blocklist (artists and tags)
+- [x] Blocklist (artists and tags)
 - [x] Last.fm connection (optional step in onboarding, and in Settings), moved from phase 1 since discovery is its first use
 - [x] Per-user Last.fm and ListenBrainz usernames
 - [ ] Scheduled refresh with a manual trigger

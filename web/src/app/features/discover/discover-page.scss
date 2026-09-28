@@ -255,16 +255,73 @@ section {
     }
   }
 
+  // Rating controls over the artwork's top right corner.
+  .rate {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 6px;
+
+    button {
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(17, 17, 19, 0.72);
+      backdrop-filter: blur(6px);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:hover {
+        background: rgba(17, 17, 19, 0.9);
+      }
+
+      &[aria-pressed='true'] {
+        background: var(--accent);
+        color: var(--on-accent);
+      }
+    }
+  }
+
   @media (hover: hover) {
-    .add:not(.done) {
+    .add:not(.done),
+    .rate {
       opacity: 0;
       transition: opacity 120ms ease;
     }
 
-    &:hover .add,
-    &:focus-within .add {
+    // A thumbs up stays visible, so the rating shows at a glance.
+    .rate:has([aria-pressed='true']) {
       opacity: 1;
     }
+
+    &:hover .add,
+    &:focus-within .add,
+    &:hover .rate,
+    &:focus-within .rate {
+      opacity: 1;
+    }
+  }
+}
+
+.undo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-2);
+
+  button {
+    border: 0;
+    background: none;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    text-decoration: underline;
   }
 }
 

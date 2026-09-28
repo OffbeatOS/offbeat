@@ -245,3 +245,100 @@ describe('discover routes', () => {
     }
   });
 });
+
+describe('feedback and blocklist', () => {
+  it('a thumbs down takes the artist out now and keeps it out; a thumbs up does not', async () => {
+    const { discovery, userId } = setup();
+    await discovery.refresh(userId);
+    discovery.rate(userId, id('Lagwagon'), 'down');
+    discovery.rate(userId, id('No Use for a Name'), 'up');
+    const now = discovery.read(userId, 'balanced').items;
+    expect(now.map((i) => i.name)).not.toContain('Lagwagon');
+    expect(now.find((i) => i.name === 'No Use for a Name')?.feedback).toBe('up');
+
+    await discovery.refresh(userId);
+    expect(discovery.read(userId, 'balanced').items.map((i) => i.name)).not.toContain('Lagwagon');
+  });
+
+  it('undoing a thumbs down or a block brings the pick straight back, in its place', async () => {
+    const { discovery, userId } = setup();
+    await discovery.refresh(userId);
+    const before = discovery.read(userId, 'balanced');
+    discovery.rate(userId, id('Lagwagon'), 'down');
+    discovery.rate(userId, id('Lagwagon'), null);
+    expect(discovery.read(userId, 'balanced')).toEqual(before);
+
+    const blocked = discovery.block(userId, { kind: 'artist', mbid: id('Lagwagon'), name: 'Lagwagon', source: 'discover' });
+    expect(discovery.read(userId, 'balanced').albums.map((a) => a.artistMbid)).not.toContain(id('Lagwagon'));
+    discovery.unblock(userId, blocked.id);
+    expect(discovery.read(userId, 'balanced')).toEqual(before);
+  });
+
+  it('blocks artists and tags now and at every refresh, and unblocking lets them back', async () => {
+    const { discovery, userId } = setup();
+    await discovery.refresh(userId);
+    const blocked = discovery.block(userId, { kind: 'artist', mbid: id('Rancid'), name: 'Rancid', source: 'discover' });
+    expect(discovery.read(userId, 'deeper').items.map((i) => i.name)).not.toContain('Rancid');
+    await discovery.refresh(userId);
+    expect(discovery.read(userId, 'deeper').items.map((i) => i.name)).not.toContain('Rancid');
+
+    discovery.block(userId, { kind: 'tag', name: 'skate punk', source: 'settings' });
+    expect(discovery.read(userId, 'balanced').items).toEqual([]); // every pick here is skate punk
+    expect(discovery.blocklist(userId).tags.map((t) => [t.name, t.key])).toEqual([['Skate Punk', 'skate punk']]);
+
+    expect(discovery.unblock(userId, blocked.id)).toBe(true);
+    expect(discovery.unblock(userId, blocked.id)).toBe(false);
+    expect(discovery.blocklist(userId).artists).toEqual([]);
+  });
+
+  it('keeps each user\'s feedback and blocklist to themselves', async () => {
+    const { db, discovery, userId } = setup();
+    const other = db.insert(users).values({ username: 'pat', passwordHash: 'x', role: 'user' }).returning().get();
+    discovery.block(userId, { kind: 'tag', name: 'Punk', source: 'settings' });
+    expect(discovery.blocklist(other.id)).toEqual({ artists: [], tags: [] });
+    expect(discovery.unblock(other.id, discovery.blocklist(userId).tags[0]!.id)).toBe(false);
+  });
+});
+
+describe('feedback and blocklist routes', () => {
+  it('accept ratings and blocks, validate them, and 404 what is not there', async () => {
+    const { buildApp } = await import('../src/app.js');
+    const { tmpImageDir } = await import('./helpers.js');
+    const app = await buildApp({
+      config: { baseUrl: '', trustProxy: false, logLevel: 'error' },
+      db: openDatabase(':memory:'),
+      secretKey: randomBytes(32),
+      imageCacheDir: tmpImageDir(),
+      webRoot: null,
+      logger: false,
+      activity: { autoStart: false },
+      discovery: { schedule: null, feedbackRefreshMs: -1 },
+    });
+    try {
+      const setup = await app.inject({ method: 'POST', url: '/api/v1/setup/admin', payload: { username: 'sam', password: randomBytes(12).toString('base64url') } });
+      const headers = { cookie: `offbeat_session=${setup.cookies.find((c) => c.name === 'offbeat_session')?.value}` };
+      const call = (method: 'GET' | 'POST' | 'DELETE', url: string, payload?: object) =>
+        app.inject({ method, url: `/api/v1${url}`, headers, ...(payload ? { payload } : {}) });
+      const mbid = id('Lagwagon');
+
+      expect((await call('POST', '/discover/feedback', { mbid, value: 'down' })).statusCode).toBe(204);
+      expect((await call('POST', '/discover/feedback', { mbid, value: 'meh' })).statusCode).toBe(400);
+      expect((await call('POST', '/discover/feedback', { mbid: 'nope', value: 'up' })).statusCode).toBe(400);
+
+      const created = await call('POST', '/blocklist', { kind: 'artist', mbid, name: 'Lagwagon', source: 'discover' });
+      expect(created.statusCode).toBe(201);
+      expect(created.json()).toMatchObject({ kind: 'artist', key: mbid, name: 'Lagwagon', source: 'discover' });
+      expect((await call('POST', '/blocklist', { kind: 'tag', name: '', source: 'settings' })).statusCode).toBe(400);
+      expect((await call('POST', '/blocklist', { kind: 'artist', name: 'x', source: 'settings' })).statusCode).toBe(400);
+      expect((await call('GET', '/blocklist')).json()).toMatchObject({ artists: [{ name: 'Lagwagon' }], tags: [] });
+
+      const itemId = created.json<{ id: number }>().id;
+      expect((await call('DELETE', `/blocklist/${itemId}`, {})).statusCode).toBe(204);
+      expect((await call('DELETE', `/blocklist/${itemId}`, {})).statusCode).toBe(404);
+      expect((await call('DELETE', '/blocklist/abc', {})).statusCode).toBe(400);
+      expect((await app.inject({ method: 'GET', url: '/api/v1/blocklist' })).statusCode).toBe(401);
+    } finally {
+      await app.close();
+    }
+  });
+});

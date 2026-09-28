@@ -111,7 +111,12 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/settings/lastfm-settings').then((m) => m.LastfmSettings),
           },
-          settingsPlaceholder('discovery', 'Discovery', 'How recommendations are chosen and refreshed.'),
+          {
+            path: 'discovery',
+            title: 'Discovery settings',
+            loadComponent: () =>
+              import('./features/settings/discovery-settings').then((m) => m.DiscoverySettings),
+          },
           settingsPlaceholder('users', 'Users', 'People who can use this Offbeat server.'),
           {
             path: 'account',
