@@ -3,16 +3,24 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
-import { type CurrentUser, PERMISSIONS } from '@offbeat/shared';
+import { type CurrentUser, PERMISSIONS, type SignInVia } from '@offbeat/shared';
 import { App } from './app';
 import { routes } from './app.routes';
 import { safeReturnUrl } from './core/guards';
 import { Session } from './core/session';
 
 /** Session stand-in so routing can be tested without a server. */
-function fakeSession(state: { needsAdmin?: boolean; user?: CurrentUser | null; lidarrConfigured?: boolean }) {
+function fakeSession(state: {
+  needsAdmin?: boolean;
+  user?: CurrentUser | null;
+  lidarrConfigured?: boolean;
+  unknownProxyUser?: string | null;
+}) {
   return {
     user: signal(state.user ?? null),
+    via: signal<SignInVia | null>(state.user ? 'password' : null),
+    signOutUrl: signal<string | null>(null),
+    unknownProxyUser: signal<string | null>(state.unknownProxyUser ?? null),
     needsAdmin: signal(state.needsAdmin ?? false),
     lidarrConfigured: signal(state.lidarrConfigured ?? true),
     unreachable: signal(false),
@@ -102,6 +110,13 @@ describe('routing', () => {
     session.user.set({ ...admin, role: 'user', permissions: [] });
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(router.url).toBe('/settings/discovery');
+  });
+
+  it('sends someone the proxy vouched for, with no account here, to a page that says so', async () => {
+    const { router, el } = await boot(fakeSession({ unknownProxyUser: 'eve' }), '/library');
+    expect(router.url).toBe('/no-account');
+    expect(el.querySelector('h1')?.textContent).toBe('No Offbeat account');
+    expect(el.textContent).toContain('eve');
   });
 
   it('only follows in-app return URLs', () => {

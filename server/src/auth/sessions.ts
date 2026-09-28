@@ -54,15 +54,20 @@ export function resolveSession(db: Db, token: string, now = new Date()): Resolve
     db.delete(sessions).where(eq(sessions.id, id)).run();
     return null;
   }
-  if (!row.user.lastSeenAt || now.getTime() - row.user.lastSeenAt.getTime() > LAST_SEEN_EVERY_MS) {
-    db.update(users).set({ lastSeenAt: now }).where(eq(users.id, row.user.id)).run();
-  }
+  touchLastSeen(db, row.user, now);
   if (row.expiresAt.getTime() - now.getTime() < REFRESH_BELOW_MS) {
     const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
     db.update(sessions).set({ expiresAt }).where(eq(sessions.id, id)).run();
     return { user: toCurrentUser(row.user), expiresAt, refreshed: true };
   }
   return { user: toCurrentUser(row.user), expiresAt: row.expiresAt, refreshed: false };
+}
+
+/** Records that someone used Offbeat, at most every few minutes. */
+export function touchLastSeen(db: Db, user: { id: number; lastSeenAt: Date | null }, now = new Date()) {
+  if (!user.lastSeenAt || now.getTime() - user.lastSeenAt.getTime() > LAST_SEEN_EVERY_MS) {
+    db.update(users).set({ lastSeenAt: now }).where(eq(users.id, user.id)).run();
+  }
 }
 
 export function deleteSession(db: Db, token: string) {

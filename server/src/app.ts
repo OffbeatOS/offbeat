@@ -1,6 +1,7 @@
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import { Activity, type ActivityOptions } from './activity/activity.js';
 import { type ApiRouteInfo, api } from './api/index.js';
+import { findDockerStandIns } from './auth/sign-in.js';
 import { Catalog, type CatalogOptions } from './catalog/catalog.js';
 import { Discovery, type DiscoveryOptions } from './discovery/discovery.js';
 import type { LoginLimiter } from './auth/login-limiter.js';
@@ -148,6 +149,9 @@ export async function buildApp({
   // The daily refresh runs for the life of the app.
   app.addHook('onReady', async () => app.discovery.start());
   app.addHook('onClose', async () => app.discovery.stop());
+
+  // Docker addresses that stand for anyone never count as the local network (auth/network.ts).
+  await findDockerStandIns();
 
   await app.register(api, {
     prefix: `${config.baseUrl}/api/v1`,

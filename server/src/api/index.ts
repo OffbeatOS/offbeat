@@ -6,6 +6,7 @@ import { activityRoutes } from './activity.js';
 import { authRoutes } from './auth.js';
 import { catalogRoutes } from './catalog.js';
 import { discoverRoutes } from './discover.js';
+import { signInSettingsRoutes } from './sign-in-settings.js';
 import { userRoutes } from './users.js';
 import { HttpError, apiErrorHandler, errorBody } from './errors.js';
 import { libraryRoutes } from './library.js';
@@ -82,6 +83,7 @@ export const api: FastifyPluginAsync<ApiOptions> = async (
   await app.register(activityRoutes);
   await app.register(discoverRoutes);
   await app.register(userRoutes, { cookie });
+  await app.register(signInSettingsRoutes);
 
   app.setNotFoundHandler((request, reply) => {
     reply.code(404).send(errorBody(404, `No route for ${request.method} ${request.url}`));

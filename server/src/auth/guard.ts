@@ -1,8 +1,9 @@
-import type { CurrentUser, Permission, UserRole } from '@offbeat/shared';
+import type { CurrentUser, Permission, SignInVia, UserRole } from '@offbeat/shared';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { HttpError } from '../api/errors.js';
 import { can } from './permissions.js';
 import { resolveSession } from './sessions.js';
+import { autoLoginUser, identityFromNetwork } from './sign-in.js';
 
 /** Default session cookie name; change it with SESSION_COOKIE when several instances share a host. */
 export const DEFAULT_SESSION_COOKIE = 'offbeat_session';
@@ -20,6 +21,10 @@ declare module 'fastify' {
   }
   interface FastifyRequest {
     user: CurrentUser | null;
+    /** How `user` was signed in. */
+    authVia: SignInVia | null;
+    /** A username the trusted proxy vouched for that has no Offbeat account. */
+    unknownProxyUser: string | null;
   }
 }
 
@@ -51,7 +56,8 @@ export function clearSessionCookie(reply: FastifyReply, { baseUrl, name }: Sessi
 }
 
 /**
- * Resolves `request.user` from the session cookie and enforces each route's
+ * Resolves `request.user` (proxy header from a trusted proxy, then the session
+ * cookie, then local network auto-login; see sign-in.ts) and enforces each route's
  * `public`, `role`, and `permission` config. Must be registered inside the API scope after
  * @fastify/cookie.
  */
@@ -63,26 +69,49 @@ const PERMISSION_DENIED: Record<Permission, string> = {
   flows: 'Your account cannot use flows. Ask an admin.',
 };
 
+export const NO_ACCOUNT = 'There is no Offbeat account for this user. Ask an admin.';
+
 export function registerAuthGuard(app: FastifyInstance, cookie: SessionCookieOptions) {
   app.decorateRequest('user', null);
+  app.decorateRequest('authVia', null);
+  app.decorateRequest('unknownProxyUser', null);
+  // Sign-in methods beyond passwords need the settings store (absent in some tests).
+  const store = app.hasDecorator('settings') ? app.settings : null;
 
   app.addHook('onRequest', async (request, reply) => {
-    const token = request.cookies[cookie.name];
-    if (token) {
-      const session = resolveSession(app.db, token);
-      if (session) {
-        request.user = session.user;
-        if (session.refreshed) setSessionCookie(request, reply, token, session.expiresAt, cookie);
-      } else {
-        clearSessionCookie(reply, cookie);
+    const network = store ? await identityFromNetwork(app.db, store, request.socket.remoteAddress, request.headers) : null;
+    if (network && network !== 'proxy-silent') {
+      // The trusted proxy decides who this is, whatever cookie the browser sends.
+      request.user = network.user;
+      request.authVia = network.via;
+      request.unknownProxyUser = network.unknownProxyUser;
+    } else {
+      const token = request.cookies[cookie.name];
+      if (token) {
+        const session = resolveSession(app.db, token);
+        if (session) {
+          request.user = session.user;
+          request.authVia = 'password';
+          if (session.refreshed) setSessionCookie(request, reply, token, session.expiresAt, cookie);
+        } else {
+          clearSessionCookie(reply, cookie);
+        }
+      }
+      // No proxy said who this is, and no session: the local network, if enabled and verified.
+      if (!request.user && store && network !== 'proxy-silent') {
+        request.user = autoLoginUser(app.db, store, request.socket.remoteAddress, request.headers);
+        if (request.user) request.authVia = 'auto-login';
       }
     }
 
     if (request.is404) return;
     const config = request.routeOptions.config;
     if (config.public) return;
-    if (!request.user) throw new HttpError(401, 'Sign in to continue');
-    if (request.user.mustChangePassword && !config.passwordChange) {
+    if (!request.user) {
+      throw new HttpError(401, request.unknownProxyUser ? NO_ACCOUNT : 'Sign in to continue');
+    }
+    // Only a password sign-in can be holding a temporary password.
+    if (request.user.mustChangePassword && request.authVia === 'password' && !config.passwordChange) {
       throw new HttpError(403, 'Choose a new password first');
     }
     if (config.role === 'admin' && request.user.role !== 'admin') {

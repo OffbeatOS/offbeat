@@ -32,6 +32,8 @@
     } @else if (!error()) {
       <p class="muted" aria-busy="true">Loading users</p>
     }
+
+    <ob-sign-in-settings [users]="users() ?? []" />
   </div>
 
   @if (panel(); as p) {

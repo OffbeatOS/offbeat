@@ -83,7 +83,7 @@ export class ShellLayout {
     effect(() => {
       const user = session.user();
       if (!user) return;
-      if (user.mustChangePassword) {
+      if (user.mustChangePassword && session.via() === 'password') {
         void router.navigateByUrl('/change-password');
       } else if (user.role !== 'admin' && ADMIN_SETTINGS.some((path) => router.url.startsWith(path))) {
         void router.navigateByUrl('/settings/discovery');

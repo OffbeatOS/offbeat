@@ -44,7 +44,7 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 ## Phase 3: Multi-user and extras (in progress)
 
 - [x] Users and permissions (add artists, add albums, change monitoring, delete, access flows), with temporary passwords for new users and resets
-- [ ] Reverse-proxy header auth, optional local-network auto-login
+- [x] Reverse-proxy header auth, optional local-network auto-login
 - [ ] Notifications
   - Channels: ntfy, Discord, Gotify, and generic webhooks
   - Events: album imported, download failed, import blocked, and new release from a monitored artist

@@ -1,5 +1,5 @@
 import type { Route, Routes } from '@angular/router';
-import { adminGuard, onboardingGuard, passwordChangeGuard, signedInGuard, signedOutGuard } from './core/guards';
+import { adminGuard, noAccountGuard, onboardingGuard, passwordChangeGuard, signedInGuard, signedOutGuard } from './core/guards';
 import type { IconName } from './shared/icon/icon';
 
 const placeholder = (
@@ -36,6 +36,12 @@ export const routes: Routes = [
     title: 'Sign in',
     canActivate: [signedOutGuard],
     loadComponent: () => import('./features/auth/login-page').then((m) => m.LoginPage),
+  },
+  {
+    path: 'no-account',
+    title: 'No account',
+    canActivate: [noAccountGuard],
+    loadComponent: () => import('./features/auth/no-account-page').then((m) => m.NoAccountPage),
   },
   {
     path: 'change-password',

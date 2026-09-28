@@ -16,6 +16,7 @@ import { Session } from '../../core/session';
 import { avatarColor } from '../../shared/avatar';
 import { timeAgo } from '../../shared/format';
 import { Icon } from '../../shared/icon/icon';
+import { SignInSettingsPanel } from './sign-in-settings';
 
 export const PERMISSION_LABEL: Record<Permission, string> = {
   'add-artists': 'Add artists',
@@ -60,7 +61,7 @@ export function activityLine(user: UserSummary, meId: number | undefined, now = 
  */
 @Component({
   selector: 'ob-users-settings',
-  imports: [NgTemplateOutlet, Icon],
+  imports: [NgTemplateOutlet, Icon, SignInSettingsPanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './users-settings.html',
   styleUrl: './users-settings.scss',

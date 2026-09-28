@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import type { AccountView, UpdateListeningRequest } from '@offbeat/shared';
 import { Api, ApiError } from '../../core/api';
 import { Session } from '../../core/session';
+import { avatarColor } from '../../shared/avatar';
 import { FormField } from '../../shared/form-field/form-field';
 import { Icon } from '../../shared/icon/icon';
 import { ChangePasswordForm } from '../auth/change-password-form';
@@ -109,21 +110,25 @@ import { SettingsSection } from './settings-section';
     <ob-settings-section heading="Account">
       @if (session.user(); as user) {
         <div class="row">
-          <div class="avatar" aria-hidden="true">{{ user.username.charAt(0) }}</div>
+          <div class="avatar" aria-hidden="true" [style.background]="color(user.id)">{{ user.username.charAt(0) }}</div>
           <div class="who">
             <span class="name">{{ user.username }}</span>
-            <span class="role">{{ user.role === 'admin' ? 'Admin' : 'Member' }}</span>
+            <span class="role">{{ user.role === 'admin' ? 'Admin' : 'Member' }}{{ viaNote() }}</span>
           </div>
-          <button class="btn btn-outline btn-sm" type="button" [disabled]="busy()" (click)="signOut()">
-            Sign out
-          </button>
+          @if (session.via() !== 'auto-login') {
+            <button class="btn btn-outline btn-sm" type="button" [disabled]="busy()" (click)="signOut()">
+              Sign out
+            </button>
+          }
         </div>
       }
     </ob-settings-section>
 
-    <ob-settings-section heading="Password" description="Changing it signs you out on your other devices.">
-      <div class="password"><ob-change-password-form /></div>
-    </ob-settings-section>
+    @if (session.via() === 'password') {
+      <ob-settings-section heading="Password" description="Changing it signs you out on your other devices.">
+        <div class="password"><ob-change-password-form /></div>
+      </ob-settings-section>
+    }
 
     <ob-settings-section
       heading="Listening history"
@@ -173,6 +178,7 @@ import { SettingsSection } from './settings-section';
 })
 export class AccountSettings implements OnInit {
   protected readonly session = inject(Session);
+  protected readonly color = avatarColor;
   private readonly router = inject(Router);
   private readonly api = inject(Api);
 
@@ -214,11 +220,21 @@ export class AccountSettings implements OnInit {
     }
   }
 
+  /** How they got in, when it was not a password. */
+  protected viaNote(): string {
+    const via = this.session.via();
+    if (via === 'proxy') return ', signed in through your reverse proxy';
+    if (via === 'auto-login') return ', signed in automatically on this network';
+    return '';
+  }
+
   protected async signOut() {
     this.busy.set(true);
     try {
+      const toProxy = !!this.session.signOutUrl();
       await this.session.logout();
-      await this.router.navigateByUrl('/login');
+      // Behind an auth proxy the browser is already on its way to the proxy's sign-out page.
+      if (!toProxy) await this.router.navigateByUrl('/login');
     } finally {
       this.busy.set(false);
     }

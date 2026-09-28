@@ -1,5 +1,14 @@
 import { Injectable, inject, signal } from '@angular/core';
-import type { ChangePasswordRequest, CreateAdminRequest, CurrentUser, LoginRequest, Permission, SetupState } from '@offbeat/shared';
+import type {
+  ChangePasswordRequest,
+  CreateAdminRequest,
+  CurrentUser,
+  LoginRequest,
+  MeResponse,
+  Permission,
+  SetupState,
+  SignInVia,
+} from '@offbeat/shared';
 import { Api } from './api';
 
 /** Who is signed in, and whether first-run setup still needs an admin. */
@@ -11,6 +20,12 @@ export class Session {
   private refreshedAt = 0;
 
   readonly user = signal<CurrentUser | null>(null);
+  /** How they are signed in: a password, the reverse proxy, or local network auto-login. */
+  readonly via = signal<SignInVia | null>(null);
+  /** The reverse proxy's sign-out page, when signed in through it. */
+  readonly signOutUrl = signal<string | null>(null);
+  /** The proxy vouched for this username, but it has no Offbeat account. */
+  readonly unknownProxyUser = signal<string | null>(null);
   readonly needsAdmin = signal(false);
   /** Admins are sent back to onboarding until this is true. */
   readonly lidarrConfigured = signal(false);
@@ -34,6 +49,7 @@ export class Session {
 
   async login(request: LoginRequest): Promise<void> {
     this.user.set(await this.api.post<CurrentUser>('auth/login', request));
+    this.via.set('password');
   }
 
   async createAdmin(request: CreateAdminRequest): Promise<void> {
@@ -48,8 +64,11 @@ export class Session {
   }
 
   async logout(): Promise<void> {
+    const signOutUrl = this.signOutUrl();
     await this.api.post('auth/logout');
     this.user.set(null);
+    // Behind an auth proxy, signing out of Offbeat alone would sign straight back in.
+    if (signOutUrl) window.location.assign(signOutUrl);
   }
 
   /**
@@ -60,10 +79,10 @@ export class Session {
   refresh(minGapMs = 0): Promise<void> {
     if (!this.user() || Date.now() - this.refreshedAt < minGapMs) return Promise.resolve();
     this.refreshing ??= this.api
-      .get<{ user: CurrentUser | null }>('auth/me')
+      .get<MeResponse>('auth/me')
       .then((me) => {
         this.refreshedAt = Date.now();
-        this.user.set(me.user);
+        this.apply(me);
       })
       .catch(() => undefined)
       .finally(() => (this.refreshing = null));
@@ -75,15 +94,22 @@ export class Session {
     this.user.set(null);
   }
 
+  private apply(me: MeResponse) {
+    this.user.set(me.user);
+    this.via.set(me.via);
+    this.signOutUrl.set(me.signOutUrl);
+    this.unknownProxyUser.set(me.unknownProxyUser);
+  }
+
   private async load(): Promise<void> {
     try {
       const [state, me] = await Promise.all([
         this.api.get<SetupState>('setup/state'),
-        this.api.get<{ user: CurrentUser | null }>('auth/me'),
+        this.api.get<MeResponse>('auth/me'),
       ]);
       this.needsAdmin.set(state.needsAdmin);
       this.lidarrConfigured.set(state.lidarrConfigured);
-      this.user.set(me.user);
+      this.apply(me);
       this.unreachable.set(false);
     } catch {
       this.unreachable.set(true);

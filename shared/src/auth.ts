@@ -90,3 +90,54 @@ export interface CreateAdminRequest {
 export const USERNAME_PATTERN = /^[A-Za-z0-9._-]{3,32}$/;
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 256;
+
+/** How someone is signed in right now. */
+export type SignInVia = 'password' | 'proxy' | 'auto-login';
+
+/** `GET /auth/me`. */
+export interface MeResponse {
+  user: CurrentUser | null;
+  via: SignInVia | null;
+  /** Where Sign out should go (a reverse proxy's own sign-out page), when signed in through the proxy. */
+  signOutUrl: string | null;
+  /** The proxy vouched for this username, but no Offbeat account has it (and auto-create is off). */
+  unknownProxyUser: string | null;
+}
+
+/** Settings, Users, Sign-in (admins only). */
+export interface SignInSettings {
+  /** Username and password sign-in for Members. Admins can always use it. */
+  localAccounts: boolean;
+  proxy: {
+    enabled: boolean;
+    /** The header the proxy puts the username in. */
+    header: string;
+    /** Addresses or CIDR ranges of the proxies allowed to send it. Empty means the header is always ignored. */
+    trustedProxies: string[];
+    /** Create unknown usernames as Members with the default permissions (never admins). */
+    autoCreate: boolean;
+    /** The proxy's sign-out page, so Sign out does not sign you straight back in. */
+    logoutUrl: string | null;
+  };
+  autoLogin: {
+    enabled: boolean;
+    /** The Member everyone on these networks is signed in as. Never an admin. */
+    userId: number | null;
+    /** Addresses or CIDR ranges counted as the local network. */
+    networks: string[];
+  };
+}
+
+/** `GET /settings/sign-in`: the settings, and what Offbeat sees of this request, to help fill them in. */
+export interface SignInSettingsView extends SignInSettings {
+  /** The address this request came from, as Offbeat sees it (through trusted proxies). */
+  yourAddress: string | null;
+  /** In Docker, addresses that can stand for anyone (the bridge gateway, Docker Desktop's gateway), so never count as local. */
+  dockerAddresses: string[];
+}
+
+export const DEFAULT_SIGN_IN: SignInSettings = {
+  localAccounts: true,
+  proxy: { enabled: false, header: 'Remote-User', trustedProxies: [], autoCreate: false, logoutUrl: null },
+  autoLogin: { enabled: false, userId: null, networks: [] },
+};

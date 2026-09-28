@@ -55,6 +55,9 @@ describe('first-run setup', () => {
         permissions: ['add-artists', 'add-albums', 'change-monitoring', 'delete', 'flows'],
         mustChangePassword: false,
       },
+      via: 'password',
+      signOutUrl: null,
+      unknownProxyUser: null,
     });
     expect((await app.inject('/api/v1/setup/state')).json()).toEqual({ needsAdmin: false, lidarrConfigured: false });
   });
@@ -158,7 +161,7 @@ describe('login and logout', () => {
     expect(out.statusCode).toBe(204);
     // Replaying the old cookie must not work.
     const me = await app.inject({ url: '/api/v1/auth/me', headers: { cookie } });
-    expect(me.json()).toEqual({ user: null });
+    expect(me.json()).toEqual({ user: null, via: null, signOutUrl: null, unknownProxyUser: null });
   });
 
   it('rejects form posts, which a cross-site page could forge', async () => {
