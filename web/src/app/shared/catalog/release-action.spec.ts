@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import type { ActivityItem, ActivitySnapshot, ReleaseSummary } from '@offbeat/shared';
 import { ActivityStore } from '../../core/activity-store';
 import { ReleaseAction } from './release-action';
+import { ADMIN, MEMBER, signIn } from '../../testing/users';
 
 const MBID = 'd035d4d8-0344-3b64-8b70-f6d74860fbea';
 
@@ -56,6 +57,7 @@ describe('ReleaseAction', () => {
       imports: [ReleaseAction],
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
+    signIn(ADMIN);
     const store = TestBed.inject(ActivityStore);
     const http = TestBed.inject(HttpTestingController);
     store.snapshot.set(snapshot([importing]));
@@ -76,11 +78,21 @@ describe('ReleaseAction', () => {
     http.verify();
   });
 
+  it('shows no Add to a Member who cannot add albums', async () => {
+    TestBed.configureTestingModule({ imports: [ReleaseAction], providers: [provideHttpClient(), provideHttpClientTesting()] });
+    signIn(MEMBER);
+    const fixture = TestBed.createComponent(ReleaseAction);
+    fixture.componentRef.setInput('release', release({ kind: 'available' }));
+    await settle(fixture);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.add')).toBeNull();
+  });
+
   it('lets fresh data from the page replace its own status', async () => {
     TestBed.configureTestingModule({
       imports: [ReleaseAction],
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
+    signIn(ADMIN);
     const store = TestBed.inject(ActivityStore);
     const http = TestBed.inject(HttpTestingController);
     store.snapshot.set(snapshot([importing]));
@@ -102,6 +114,7 @@ describe('ReleaseAction', () => {
       imports: [ReleaseAction],
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
+    signIn(ADMIN);
     const http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(ReleaseAction);
     fixture.componentRef.setInput('release', release({ kind: 'available' }));

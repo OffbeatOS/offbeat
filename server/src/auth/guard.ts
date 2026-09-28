@@ -1,6 +1,7 @@
-import type { CurrentUser, UserRole } from '@offbeat/shared';
+import type { CurrentUser, Permission, UserRole } from '@offbeat/shared';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { HttpError } from '../api/errors.js';
+import { can } from './permissions.js';
 import { resolveSession } from './sessions.js';
 
 /** Default session cookie name; change it with SESSION_COOKIE when several instances share a host. */
@@ -12,6 +13,8 @@ declare module 'fastify' {
     public?: boolean;
     /** Minimum role; defaults to any signed-in user. */
     role?: UserRole;
+    /** A Member needs this permission (admins have them all). */
+    permission?: Permission;
   }
   interface FastifyRequest {
     user: CurrentUser | null;
@@ -47,9 +50,17 @@ export function clearSessionCookie(reply: FastifyReply, { baseUrl, name }: Sessi
 
 /**
  * Resolves `request.user` from the session cookie and enforces each route's
- * `public` and `role` config. Must be registered inside the API scope after
+ * `public`, `role`, and `permission` config. Must be registered inside the API scope after
  * @fastify/cookie.
  */
+const PERMISSION_DENIED: Record<Permission, string> = {
+  'add-artists': 'Your account cannot add artists. Ask an admin.',
+  'add-albums': 'Your account cannot add albums. Ask an admin.',
+  'change-monitoring': 'Your account cannot change monitoring. Ask an admin.',
+  delete: 'Your account cannot remove downloads. Ask an admin.',
+  flows: 'Your account cannot use flows. Ask an admin.',
+};
+
 export function registerAuthGuard(app: FastifyInstance, cookie: SessionCookieOptions) {
   app.decorateRequest('user', null);
 
@@ -71,6 +82,9 @@ export function registerAuthGuard(app: FastifyInstance, cookie: SessionCookieOpt
     if (!request.user) throw new HttpError(401, 'Sign in to continue');
     if (config.role === 'admin' && request.user.role !== 'admin') {
       throw new HttpError(403, 'Only admins can do that');
+    }
+    if (config.permission && !can(request.user, config.permission)) {
+      throw new HttpError(403, PERMISSION_DENIED[config.permission]);
     }
   });
 }

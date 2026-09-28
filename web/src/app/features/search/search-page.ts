@@ -21,6 +21,7 @@ import { Cover } from '../../shared/catalog/cover';
 import { ReleaseAction } from '../../shared/catalog/release-action';
 import { EmptyState } from '../../shared/empty-state/empty-state';
 import { Icon } from '../../shared/icon/icon';
+import { Session } from '../../core/session';
 
 type SearchState =
   | { kind: 'idle' }
@@ -44,6 +45,8 @@ const DEBOUNCE_MS = 300;
 })
 export class SearchPage implements OnInit {
   private readonly http = inject(HttpClient);
+  /** Hides what the server would refuse this user (see Session.can). */
+  protected readonly can = inject(Session).can;
   private readonly api = inject(Api);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);

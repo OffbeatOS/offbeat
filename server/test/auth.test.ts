@@ -47,7 +47,9 @@ describe('first-run setup', () => {
     expect(cookie).toMatchObject({ httpOnly: true, sameSite: 'Lax', path: '/' });
 
     const me = await app.inject({ url: '/api/v1/auth/me', headers: { cookie: sessionCookie(res) } });
-    expect(me.json()).toEqual({ user: { id: 1, username: 'Admin', role: 'admin' } });
+    expect(me.json()).toEqual({
+      user: { id: 1, username: 'Admin', role: 'admin', permissions: ['add-artists', 'add-albums', 'change-monitoring', 'delete', 'flows'] },
+    });
     expect((await app.inject('/api/v1/setup/state')).json()).toEqual({ needsAdmin: false, lidarrConfigured: false });
   });
 

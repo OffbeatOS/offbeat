@@ -4,6 +4,7 @@ import { ActivityStore } from '../../core/activity-store';
 import { Api, ApiError } from '../../core/api';
 import { Icon } from '../icon/icon';
 import { STATE_LABEL, percent, stateTone } from './activity-labels';
+import { Session } from '../../core/session';
 
 /**
  * The status chip for a release, or its Add button (status chip rules in
@@ -47,9 +48,11 @@ import { STATE_LABEL, percent, stateTone } from './activity-labels';
           <span class="chip progress" role="status"><span class="pulse" aria-hidden="true"></span>Adding</span>
         }
         @default {
-          <button class="add" type="button" [attr.aria-label]="'Add ' + release().title" (click)="add($event)">
-            <ob-icon name="plus" [size]="13" [strokeWidth]="2.4" />Add
-          </button>
+          @if (can('add-albums')) {
+            <button class="add" type="button" [attr.aria-label]="'Add ' + release().title" (click)="add($event)">
+              <ob-icon name="plus" [size]="13" [strokeWidth]="2.4" />Add
+            </button>
+          }
         }
       }
     }
@@ -69,6 +72,8 @@ import { STATE_LABEL, percent, stateTone } from './activity-labels';
 })
 export class ReleaseAction {
   private readonly api = inject(Api);
+  /** Hides what the server would refuse this user (see Session.can). */
+  protected readonly can = inject(Session).can;
   private readonly store = inject(ActivityStore);
 
   readonly release = input.required<ReleaseSummary>();

@@ -490,7 +490,7 @@ export class Activity {
   /** "requested by <user>" for adds made through Offbeat, keyed by Lidarr album id and by MBID. */
   private requestSources() {
     const rows = this.db
-      .select({ albumId: requests.lidarrAlbumId, albumMbid: requests.albumMbid, username: users.username, userId: users.id })
+      .select({ albumId: requests.lidarrAlbumId, albumMbid: requests.albumMbid, username: users.username, requestedBy: requests.requestedBy })
       .from(requests)
       .leftJoin(users, eq(requests.userId, users.id))
       .all();
@@ -498,7 +498,9 @@ export class Activity {
     const byMbid = new Map<string, string>();
     const names = new Map<number, string>();
     for (const row of rows) {
-      const label = row.username ? `requested by ${row.username}` : 'Requested in Offbeat';
+      // A removed user keeps their name on what they asked for.
+      const who = row.username ?? row.requestedBy;
+      const label = who ? `requested by ${who}` : 'Requested in Offbeat';
       if (row.albumId != null) byAlbumId.set(row.albumId, label);
       if (row.albumMbid) byMbid.set(row.albumMbid, label);
     }

@@ -1,6 +1,6 @@
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import { Activity, type ActivityOptions } from './activity/activity.js';
-import { api } from './api/index.js';
+import { type ApiRouteInfo, api } from './api/index.js';
 import { Catalog, type CatalogOptions } from './catalog/catalog.js';
 import { Discovery, type DiscoveryOptions } from './discovery/discovery.js';
 import type { LoginLimiter } from './auth/login-limiter.js';
@@ -56,6 +56,8 @@ export interface AppOptions {
   /** Override in tests to point at fake Last.fm and ListenBrainz servers. */
   sources?: { lastfmUrl?: string; listenbrainzUrl?: string; listenbrainzLabsUrl?: string };
   discovery?: DiscoveryOptions;
+  /** Filled with every API route and its access config (for tests). */
+  routeTable?: ApiRouteInfo[];
 }
 
 export async function buildApp({
@@ -73,6 +75,7 @@ export async function buildApp({
   activity = {},
   sources = {},
   discovery = {},
+  routeTable,
 }: AppOptions) {
   const app = Fastify({
     logger: logger ?? { level: config.logLevel },
@@ -153,6 +156,7 @@ export async function buildApp({
     loginLimiter,
     upstreamTimeoutMs,
     lastfmUrl: sources.lastfmUrl,
+    routeTable,
   });
 
   if (webRoot) {

@@ -51,13 +51,14 @@ export const activityRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.post('/activity/:id/retry', async (request, reply) => {
+  // Retry blocklists the release and searches again: asking for the album anew.
+  app.post('/activity/:id/retry', { config: { permission: 'add-albums' } }, async (request, reply) => {
     const { id } = parse(itemParams, request.params);
     await guard(() => app.activity.retry(id));
     return reply.code(202).send({ queued: true });
   });
 
-  app.delete('/activity/:id', async (request, reply) => {
+  app.delete('/activity/:id', { config: { permission: 'delete' } }, async (request, reply) => {
     const { id } = parse(itemParams, request.params);
     await guard(() => app.activity.cancel(id));
     return reply.code(202).send({ removed: true });

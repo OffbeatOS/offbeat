@@ -81,6 +81,8 @@ export const requests = sqliteTable(
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
     userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Who asked, as their username then, so the request stays attributed after the user is removed. */
+    requestedBy: text('requested_by'),
     artistMbid: text('artist_mbid').notNull(),
     albumMbid: text('album_mbid'),
     lidarrArtistId: integer('lidarr_artist_id'),

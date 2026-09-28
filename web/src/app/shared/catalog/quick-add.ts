@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, input, output, signal } fro
 import type { ArtistDetail } from '@offbeat/shared';
 import { Api, ApiError } from '../../core/api';
 import { Icon } from '../icon/icon';
+import { Session } from '../../core/session';
 
 /**
  * The round coral add button on artist artwork (Discover and Tag mockups).
@@ -73,25 +74,29 @@ import { Icon } from '../icon/icon';
     }
   `,
   template: `
-    <button
-      type="button"
-      [disabled]="busy() || added()"
-      [attr.aria-label]="added() ? name() + ' is in your library' : 'Add ' + name() + ' to your library'"
-      [title]="error() || (added() ? 'In your library' : 'Add to library')"
-      (click)="add($event)"
-    >
-      @if (busy()) {
-        <span class="spinner" aria-hidden="true"></span>
-      } @else if (added()) {
-        <ob-icon name="check" [size]="18" [strokeWidth]="2.6" />
-      } @else {
-        <ob-icon name="plus" [size]="18" [strokeWidth]="2.4" />
-      }
-    </button>
+    @if (added() || can('add-artists')) {
+      <button
+        type="button"
+        [disabled]="busy() || added()"
+        [attr.aria-label]="added() ? name() + ' is in your library' : 'Add ' + name() + ' to your library'"
+        [title]="error() || (added() ? 'In your library' : 'Add to library')"
+        (click)="add($event)"
+      >
+        @if (busy()) {
+          <span class="spinner" aria-hidden="true"></span>
+        } @else if (added()) {
+          <ob-icon name="check" [size]="18" [strokeWidth]="2.6" />
+        } @else {
+          <ob-icon name="plus" [size]="18" [strokeWidth]="2.4" />
+        }
+      </button>
+    }
   `,
 })
 export class QuickAdd {
   private readonly api = inject(Api);
+  /** Hides what the server would refuse this user (see Session.can). */
+  protected readonly can = inject(Session).can;
 
   readonly mbid = input.required<string>();
   readonly name = input.required<string>();

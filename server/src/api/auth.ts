@@ -7,6 +7,7 @@ import { LoginLimiter } from '../auth/login-limiter.js';
 import { verifyPassword } from '../auth/password.js';
 import { createSession, deleteExpiredSessions, deleteSession } from '../auth/sessions.js';
 import { users } from '../db/schema.js';
+import { toCurrentUser } from '../auth/permissions.js';
 import { HttpError, parse } from './errors.js';
 
 const loginBody = z.object({
@@ -44,7 +45,7 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { c
     deleteExpiredSessions(app.db);
     const session = createSession(app.db, user.id);
     setSessionCookie(request, reply, session.token, session.expiresAt, cookie);
-    return { id: user.id, username: user.username, role: user.role };
+    return toCurrentUser(user);
   });
 
   // Public so a stale or expired cookie can always be cleared.

@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import type { CreateAdminRequest, CurrentUser, LoginRequest, SetupState } from '@offbeat/shared';
+import type { CreateAdminRequest, CurrentUser, LoginRequest, Permission, SetupState } from '@offbeat/shared';
 import { Api } from './api';
 
 /** Who is signed in, and whether first-run setup still needs an admin. */
@@ -14,6 +14,15 @@ export class Session {
   readonly lidarrConfigured = signal(false);
   /** Set when the server could not be reached; the sign-in page explains it. */
   readonly unreachable = signal(false);
+
+  /**
+   * Whether the signed-in user may do this (admins may do everything). The
+   * server enforces it too; this only keeps buttons it would refuse off the page.
+   */
+  readonly can = (permission: Permission): boolean => {
+    const user = this.user();
+    return !!user && (user.role === 'admin' || user.permissions.includes(permission));
+  };
 
   /** Loads session state once; guards await this before deciding where to route. */
   ensureLoaded(): Promise<void> {

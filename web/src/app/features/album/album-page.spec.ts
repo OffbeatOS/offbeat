@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import type { ActivityItem, AlbumDetail } from '@offbeat/shared';
 import { ActivityStore } from '../../core/activity-store';
 import { AlbumPage } from './album-page';
+import { ADMIN, MEMBER, signIn } from '../../testing/users';
 
 const MBID = '11111111-0000-4000-8000-000000000002';
 
@@ -37,6 +38,7 @@ function configure() {
     imports: [AlbumPage],
     providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
   });
+  signIn(ADMIN);
 }
 
 async function render(detail: AlbumDetail, { configured = false } = {}) {
@@ -58,6 +60,7 @@ async function render(detail: AlbumDetail, { configured = false } = {}) {
     },
     status: () => el.querySelector('.status')?.textContent?.trim() ?? null,
     buttons: () => [...el.querySelectorAll('.actions button')].map((b) => b.textContent?.trim()),
+    el,
     statusColumn: () => !!el.querySelector('.track-head .right'),
     missingTitles: () => [...el.querySelectorAll('li.missing .title')].map((t) => t.textContent?.trim()),
     meta: () => el.querySelector('.meta')?.textContent?.trim(),
@@ -90,6 +93,19 @@ describe('AlbumPage states', () => {
     expect(page.buttons()).toEqual(['Monitored', 'Search Missing']);
     expect(page.statusColumn()).toBe(true);
     expect(page.missingTitles()).toEqual(['Archangel']);
+  });
+
+  it('shows a Member without permissions the status, but no Add, Search Missing, or monitoring change', async () => {
+    configure();
+    signIn(MEMBER);
+    const missing = await render(album({ artistInLibrary: false }), { configured: true });
+    expect(missing.buttons()).toEqual([]);
+    TestBed.resetTestingModule();
+    configure();
+    signIn(MEMBER);
+    const partial = await render(album({ monitored: true, trackFileCount: 1, trackCount: 2, status: { kind: 'partial', missingTracks: 1 } }), { configured: true });
+    expect(partial.buttons()).toEqual(['Monitored']);
+    expect(partial.el.querySelector<HTMLButtonElement>('button.primary')?.disabled).toBe(true);
   });
 
   it('wanted: monitored with no files', async () => {

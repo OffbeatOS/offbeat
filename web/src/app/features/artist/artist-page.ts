@@ -4,6 +4,7 @@ import { Api, ApiError } from '../../core/api';
 import { AlbumCard } from '../../shared/catalog/album-card';
 import { EmptyState } from '../../shared/empty-state/empty-state';
 import { Icon } from '../../shared/icon/icon';
+import { Session } from '../../core/session';
 
 type TypeFilter = 'All' | ReleaseType;
 const FILTER_LABELS: Record<string, string> = { All: 'All', Album: 'Albums', EP: 'EPs', Compilation: 'Compilations' };
@@ -22,6 +23,8 @@ const FILTER_LABELS: Record<string, string> = { All: 'All', Album: 'Albums', EP:
 })
 export class ArtistPage {
   private readonly api = inject(Api);
+  /** Hides what the server would refuse this user (see Session.can). */
+  protected readonly can = inject(Session).can;
 
   /** Route parameter, via component input binding. */
   readonly mbid = input.required<string>();

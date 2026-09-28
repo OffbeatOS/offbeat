@@ -1,10 +1,50 @@
+/** `user` is shown as Member. */
 export type UserRole = 'admin' | 'user';
+
+/** What a Member may do beyond browsing; admins can do everything. */
+export type Permission = 'add-artists' | 'add-albums' | 'change-monitoring' | 'delete' | 'flows';
+
+export const PERMISSIONS: readonly Permission[] = ['add-artists', 'add-albums', 'change-monitoring', 'delete', 'flows'];
+
+/** What a new Member gets unless the admin chooses otherwise. */
+export const DEFAULT_MEMBER_PERMISSIONS: readonly Permission[] = ['add-artists', 'add-albums'];
 
 /** The signed-in user, from `GET /auth/me`, login, and admin setup. */
 export interface CurrentUser {
   id: number;
   username: string;
   role: UserRole;
+  /** Everything for admins. */
+  permissions: Permission[];
+}
+
+/** A user as Settings, Users lists them (admins only). */
+export interface UserSummary {
+  id: number;
+  username: string;
+  role: UserRole;
+  /** As saved; admins can do everything regardless. */
+  permissions: Permission[];
+  createdAt: string;
+}
+
+/** `POST /users`. */
+export interface CreateUserRequest {
+  username: string;
+  password: string;
+  role: UserRole;
+  permissions: Permission[];
+}
+
+/** `PATCH /users/:id`. */
+export interface UpdateUserRequest {
+  role?: UserRole;
+  permissions?: Permission[];
+}
+
+/** `POST /users/:id/password`: sets a new password and signs the user out everywhere. */
+export interface ResetPasswordRequest {
+  password: string;
 }
 
 export interface LoginRequest {

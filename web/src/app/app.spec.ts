@@ -3,7 +3,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
-import type { CurrentUser } from '@offbeat/shared';
+import { type CurrentUser, PERMISSIONS } from '@offbeat/shared';
 import { App } from './app';
 import { routes } from './app.routes';
 import { safeReturnUrl } from './core/guards';
@@ -20,7 +20,7 @@ function fakeSession(state: { needsAdmin?: boolean; user?: CurrentUser | null; l
   };
 }
 
-const admin: CurrentUser = { id: 1, username: 'admin', role: 'admin' };
+const admin: CurrentUser = { id: 1, username: 'admin', role: 'admin', permissions: [...PERMISSIONS] };
 
 async function boot(session: ReturnType<typeof fakeSession>, url: string) {
   TestBed.configureTestingModule({
@@ -67,7 +67,7 @@ describe('routing', () => {
   });
 
   it('does not hold non-admins at onboarding when Lidarr is missing', async () => {
-    const member: CurrentUser = { id: 2, username: 'member', role: 'user' };
+    const member: CurrentUser = { id: 2, username: 'member', role: 'user', permissions: [] };
     const { router } = await boot(fakeSession({ user: member, lidarrConfigured: false }), '/library');
     expect(router.url).toBe('/library');
   });

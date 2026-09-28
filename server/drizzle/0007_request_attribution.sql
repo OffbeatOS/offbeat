@@ -1,0 +1,2 @@
+ALTER TABLE `requests` ADD `requested_by` text;--> statement-breakpoint
+UPDATE `requests` SET `requested_by` = (SELECT `username` FROM `users` WHERE `users`.`id` = `requests`.`user_id`) WHERE `user_id` IS NOT NULL;
