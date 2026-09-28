@@ -36,14 +36,16 @@ export const discoverRoutes: FastifyPluginAsync = async (app) => {
     const userId = request.user!.id;
     const mode = parse(modeQuery, request.query).mode ?? app.discovery.preferences(userId).defaultMode;
     const current = app.discovery.read(userId, mode);
-    // Nothing yet: start the first refresh, and say so.
-    if (!current.generatedAt && !current.refreshing && !current.error) {
+    // Nothing yet, or a first refresh cut off before its albums (a restart
+    // mid-run): start one, and say so.
+    if ((!current.generatedAt || current.albumsPending) && !current.refreshing && !current.error) {
       void app.discovery.refresh(userId).catch(() => undefined);
       return { ...current, refreshing: true };
     }
     const albums = await app.catalog.withStatuses(current.albums);
     warm(albums.map((a) => a.mbid));
-    return { ...current, albums };
+    // Albums are only pending while a refresh runs; after a failed one, say so instead of waiting.
+    return { ...current, albums, albumsPending: current.albumsPending && current.refreshing };
   });
 
   /** Refresh now instead of waiting for the daily run. Answers at once; poll GET /discover for the result. */

@@ -163,3 +163,44 @@ describe('DiscoverPage feedback', () => {
     http.verify();
   });
 });
+
+describe('DiscoverPage while refreshing', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('keeps checking through a failed check, and fills in albums when they are ready', async () => {
+    vi.useFakeTimers();
+    TestBed.configureTestingModule({
+      imports: [DiscoverPage],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(DiscoverPage);
+    const el = fixture.nativeElement as HTMLElement;
+    const settle = async () => {
+      await vi.advanceTimersByTimeAsync(0);
+      fixture.detectChanges();
+    };
+    fixture.detectChanges();
+    http.expectOne('api/v1/discover').flush(response({ refreshing: true, albums: [], albumsPending: true }));
+    await settle();
+    expect(el.querySelectorAll('.album-ghost')).toHaveLength(6);
+
+    // One check fails (a proxy timeout, say): no error replaces the page, and it tries again.
+    await vi.advanceTimersByTimeAsync(3000);
+    http.expectOne('api/v1/discover').flush({ message: 'Bad gateway' }, { status: 502, statusText: 'Bad Gateway' });
+    await settle();
+    expect(el.querySelector('.notice')).toBeNull();
+    expect(el.querySelectorAll('.album-ghost')).toHaveLength(6);
+
+    await vi.advanceTimersByTimeAsync(6000);
+    http.expectOne('api/v1/discover').flush(response());
+    await settle();
+    expect(el.querySelectorAll('.album-ghost')).toHaveLength(0);
+    expect(el.querySelectorAll('.album')).toHaveLength(1);
+
+    // Done: no more checks.
+    await vi.advanceTimersByTimeAsync(30_000);
+    http.expectNone('api/v1/discover');
+    http.verify();
+  });
+});
