@@ -2,7 +2,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import { randomBytes } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { openDatabase } from '../src/db/index.js';
-import { users } from '../src/db/schema.js';
+import { recommendations, users } from '../src/db/schema.js';
 import { Discovery, type DiscoverySources } from '../src/discovery/discovery.js';
 import { SourceCache } from '../src/discovery/source-cache.js';
 import type { LastfmClient } from '../src/integrations/lastfm/client.js';
@@ -240,6 +240,14 @@ describe('discover routes', () => {
       expect(refresh).toHaveBeenCalledTimes(2);
       expect((await app.inject({ method: 'GET', url: '/api/v1/discover?mode=loud', headers })).statusCode).toBe(400);
       expect((await app.inject({ method: 'GET', url: '/api/v1/discover' })).statusCode).toBe(401);
+
+      // A first refresh cut off before its albums (a restart mid-run): the next visit starts one to finish.
+      const userId = app.db.select().from(users).get()!.id;
+      const payload = { items: [], albums: [], albumsPending: true, tags: [], seedCount: 1, sources: { listenbrainz: true, lastfm: false } };
+      app.db.insert(recommendations).values({ userId, mode: 'balanced', payload: JSON.stringify(payload), generatedAt: new Date() }).run();
+      const resumed = await app.inject({ method: 'GET', url: '/api/v1/discover?mode=balanced', headers });
+      expect(resumed.json()).toMatchObject({ refreshing: true, albumsPending: true });
+      expect(refresh).toHaveBeenCalledTimes(3);
     } finally {
       await app.close();
     }
