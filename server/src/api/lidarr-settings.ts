@@ -86,7 +86,7 @@ export const lidarrSettingsRoutes: FastifyPluginAsync<LidarrRoutesOptions> = asy
       rootFolderPath: body.rootFolderPath,
       // Omitted fields keep their saved value, so onboarding never resets them.
       addMonitored: body.addMonitored ?? previous?.addMonitored ?? true,
-      addMonitorAlbums: body.addMonitorAlbums ?? previous?.addMonitorAlbums ?? 'latest',
+      addMonitorAlbums: body.addMonitorAlbums ?? previous?.addMonitorAlbums ?? 'all',
       searchOnAdd: body.searchOnAdd ?? previous?.searchOnAdd ?? true,
       // New installs tag what Offbeat adds, for filtering in Lidarr and for cleanup later.
       addTag: body.addTag === undefined ? (previous ? previous.addTag : 'offbeat') : body.addTag || null,

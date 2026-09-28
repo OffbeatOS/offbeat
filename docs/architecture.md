@@ -43,7 +43,7 @@ Backing up Offbeat means backing up this folder.
 
 ## Settings live in the UI
 
-Environment variables cover deployment only. Everything else (Lidarr URL and key, add defaults, discovery tuning) is configured through onboarding and Settings, and stored in SQLite. Add defaults out of the box: adding an artist monitors their latest album and future releases, adding one album monitors just that album, Lidarr searches right away, and everything Offbeat adds is tagged `offbeat`. Sections that hold credentials are encrypted as a whole with AES-256-GCM using `secret.key`.
+Environment variables cover deployment only. Everything else (Lidarr URL and key, add defaults, discovery tuning) is configured through onboarding and Settings, and stored in SQLite. Add defaults out of the box: adding an artist monitors all their albums and future releases (settings saved before Albums to monitor existed keep the latest album only), adding one album monitors just that album, Lidarr searches right away, and everything Offbeat adds is tagged `offbeat`. Sections that hold credentials are encrypted as a whole with AES-256-GCM using `secret.key`.
 
 | Variable | Purpose |
 | --- | --- |

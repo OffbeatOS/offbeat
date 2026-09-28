@@ -14,6 +14,8 @@ export const storedLidarrSchema = z.object({
   rootFolderPath: z.string(),
   // Added after the first release; older saved settings get the defaults.
   addMonitored: z.boolean().default(true),
+  // New setups default to 'all' (see the save route); settings saved before this
+  // option existed keep 'latest', the behavior they were added with.
   addMonitorAlbums: z.enum(['latest', 'all', 'future']).default('latest'),
   searchOnAdd: z.boolean().default(true),
   addTag: z.string().nullable().default(null),

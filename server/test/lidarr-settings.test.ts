@@ -50,7 +50,7 @@ async function signedInAdmin() {
 
 const defaults = { qualityProfileId: 2, metadataProfileId: 1, rootFolderPath: '/music' };
 /** What the view reports for add behavior when the form never set it. */
-const addDefaults = { addMonitored: true, addMonitorAlbums: 'latest', searchOnAdd: true, addTag: 'offbeat' };
+const addDefaults = { addMonitored: true, addMonitorAlbums: 'all', searchOnAdd: true, addTag: 'offbeat' };
 
 describe('normalizeLidarrUrl', () => {
   it.each([
@@ -184,6 +184,24 @@ describe('saving Lidarr settings', () => {
       expect(res.body).not.toMatch(/apiKey/i);
     }
     expect((await call('GET', '/setup/state')).json()).toEqual({ needsAdmin: false, lidarrConfigured: true });
+  });
+
+  it('keeps a saved Albums to monitor choice when a save leaves it out', async () => {
+    const lidarr = await fake();
+    const { call } = await signedInAdmin();
+    await call('POST', '/setup/lidarr', { url: lidarr.url, apiKey: lidarr.apiKey, ...defaults, addMonitorAlbums: 'latest' });
+
+    const saved = await call('PUT', '/settings/lidarr', { url: lidarr.url, ...defaults });
+    expect(saved.json()).toMatchObject({ addMonitorAlbums: 'latest' });
+  });
+
+  it('keeps the latest album for settings saved before Albums to monitor existed', async () => {
+    const lidarr = await fake();
+    const { app, call } = await signedInAdmin();
+    app.settings.set('lidarr', { url: lidarr.url, apiKey: lidarr.apiKey, ...defaults }, { encrypted: true });
+
+    const read = await call('GET', '/settings/lidarr');
+    expect(read.json().settings).toMatchObject({ addMonitored: true, addMonitorAlbums: 'latest' });
   });
 
   it('keeps the saved key when editing the same address, but not for a new one', async () => {

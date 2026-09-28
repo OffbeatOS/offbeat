@@ -152,23 +152,23 @@ describe('adding an artist', () => {
     expect(fake.writes.filter((w) => w.method === 'POST' && w.path === 'artist')).toHaveLength(1);
   });
 
-  it('with default settings, monitors the latest album and future releases, searches, and tags offbeat', async () => {
+  it('with default settings, monitors every album and future releases, searches, and tags offbeat', async () => {
     const { call, fake } = await setup();
     await call('POST', `/artists/${BOC.mbid}`, {});
     const post = fake.writes.find((w) => w.path === 'artist')!.body as Record<string, unknown>;
     expect(post).toMatchObject({
       monitored: true,
       monitorNewItems: 'all',
-      addOptions: { monitor: 'latest', searchForMissingAlbums: true },
+      addOptions: { monitor: 'all', searchForMissingAlbums: true },
       tags: [fake.tags.find((t) => t.label === 'offbeat')!.id],
     });
   });
 
-  it('can monitor the whole discography instead', async () => {
-    const { call, fake } = await setup({ addMonitorAlbums: 'all' });
+  it('can monitor only the latest album instead', async () => {
+    const { call, fake } = await setup({ addMonitorAlbums: 'latest' });
     await call('POST', `/artists/${BOC.mbid}`, {});
     const post = fake.writes.find((w) => w.path === 'artist')!.body as Record<string, unknown>;
-    expect(post).toMatchObject({ monitored: true, monitorNewItems: 'all', addOptions: { monitor: 'all' } });
+    expect(post).toMatchObject({ monitored: true, monitorNewItems: 'all', addOptions: { monitor: 'latest' } });
   });
 });
 
