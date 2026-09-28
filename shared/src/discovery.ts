@@ -74,6 +74,8 @@ export type FeedbackValue = 'up' | 'down';
 /** `POST /discover/feedback`. `null` clears a rating. */
 export interface FeedbackRequest {
   mbid: string;
+  /** The artist's name, shown in the Hidden list after a thumbs down. */
+  name?: string;
   value: FeedbackValue | null;
 }
 
@@ -90,10 +92,18 @@ export interface BlockedItem {
   createdAt: string;
 }
 
-/** `GET /blocklist`. */
+/** An artist hidden by a thumbs down. Clearing the rating shows it again. */
+export interface HiddenArtist {
+  mbid: string;
+  name: string;
+  createdAt: string;
+}
+
+/** `GET /blocklist`: blocked artists and tags, and artists hidden by a thumbs down. */
 export interface BlocklistResponse {
   artists: BlockedItem[];
   tags: BlockedItem[];
+  hidden: HiddenArtist[];
 }
 
 /** `POST /blocklist`. */

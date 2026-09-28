@@ -163,6 +163,40 @@ h1 {
   color: var(--status-failed);
 }
 
+.confirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 640px;
+  font-size: 13px;
+  color: var(--text-2);
+
+  p {
+    flex-basis: 100%;
+  }
+
+  button {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .confirm-yes {
+    border: 0;
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+
+  .confirm-no {
+    border: 1px solid var(--border-button);
+    background: transparent;
+    color: var(--text);
+  }
+}
+
 .tracks {
   display: flex;
   flex-direction: column;

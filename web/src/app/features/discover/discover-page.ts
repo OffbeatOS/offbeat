@@ -86,15 +86,15 @@ export class DiscoverPage {
   /** Thumbs up, or clears it when already up. */
   protected async like(pick: DiscoverPick) {
     const value = pick.feedback === 'up' ? null : 'up';
-    await this.send({ mbid: pick.mbid, value }, () => this.setFeedback(pick.mbid, value));
+    await this.send({ mbid: pick.mbid, name: pick.name, value }, () => this.setFeedback(pick.mbid, value));
   }
 
   /** Thumbs down: fewer like this, and this one goes away (with Undo). */
   protected async dislike(pick: DiscoverPick) {
-    await this.send({ mbid: pick.mbid, value: 'down' }, () => {
+    await this.send({ mbid: pick.mbid, name: pick.name, value: 'down' }, () => {
       const restore = this.remove(pick.mbid);
-      this.offerUndo(`${pick.name} is hidden. You will see less like it.`, async () => {
-        await this.api.post('discover/feedback', { mbid: pick.mbid, value: pick.feedback } satisfies FeedbackRequest);
+      this.offerUndo(`${pick.name} is hidden, and you will see less like it. Settings, Discovery lists what you hide.`, async () => {
+        await this.api.post('discover/feedback', { mbid: pick.mbid, name: pick.name, value: pick.feedback } satisfies FeedbackRequest);
         restore();
       });
     });

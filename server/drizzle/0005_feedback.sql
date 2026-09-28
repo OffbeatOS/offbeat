@@ -13,6 +13,7 @@ CREATE UNIQUE INDEX `blocklist_user_kind_key` ON `blocklist` (`user_id`,`kind`,`
 CREATE TABLE `feedback` (
 	`user_id` integer NOT NULL,
 	`artist_mbid` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`value` integer NOT NULL,
 	`genres` text DEFAULT '[]' NOT NULL,
 	`created_at` integer DEFAULT (unixepoch()) NOT NULL,

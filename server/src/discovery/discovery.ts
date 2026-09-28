@@ -9,7 +9,7 @@ import type {
   TagArtist,
 } from '@offbeat/shared';
 import { Cron } from 'croner';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Db } from '../db/index.js';
 import { blocklist, feedback, recommendations, users } from '../db/schema.js';
@@ -237,16 +237,21 @@ export class Discovery {
    * the tag weights at the next refresh; a thumbs down also hides the artist
    * from the user's picks now (see read) and keeps it out.
    */
-  rate(userId: number, mbid: string, value: FeedbackValue | null) {
+  rate(userId: number, mbid: string, value: FeedbackValue | null, name?: string) {
     if (value === null) {
       this.db.delete(feedback).where(and(eq(feedback.userId, userId), eq(feedback.artistMbid, mbid))).run();
     } else {
-      const genres = JSON.stringify(this.genresOf(userId, mbid));
+      const known = this.pickOf(userId, mbid);
+      const genres = JSON.stringify(known?.genres ?? []);
+      const label = name || known?.name || '';
       const vote = value === 'up' ? 1 : -1;
       this.db
         .insert(feedback)
-        .values({ userId, artistMbid: mbid, value: vote, genres })
-        .onConflictDoUpdate({ target: [feedback.userId, feedback.artistMbid], set: { value: vote, genres, createdAt: new Date() } })
+        .values({ userId, artistMbid: mbid, name: label, value: vote, genres })
+        .onConflictDoUpdate({
+          target: [feedback.userId, feedback.artistMbid],
+          set: { name: label, value: vote, genres, createdAt: new Date() },
+        })
         .run();
     }
     this.refreshSoon(userId);
@@ -263,9 +268,17 @@ export class Discovery {
       createdAt: r.createdAt.toISOString(),
     });
     const newest = (a: BlockedItem, b: BlockedItem) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id;
+    const hidden = this.db
+      .select()
+      .from(feedback)
+      .where(and(eq(feedback.userId, userId), eq(feedback.value, -1)))
+      .orderBy(desc(feedback.createdAt))
+      .all()
+      .map((r) => ({ mbid: r.artistMbid, name: r.name || r.artistMbid, createdAt: r.createdAt.toISOString() }));
     return {
       artists: rows.filter((r) => r.kind === 'artist').map(view).sort(newest),
       tags: rows.filter((r) => r.kind === 'tag').map(view).sort(newest),
+      hidden,
     };
   }
 
@@ -303,13 +316,13 @@ export class Discovery {
     };
   }
 
-  /** A recommended artist's genres, from whichever mode has it. */
-  private genresOf(userId: number, mbid: string): string[] {
+  /** A recommended artist as stored, from whichever mode has it. */
+  private pickOf(userId: number, mbid: string): Recommendation | undefined {
     for (const mode of MODES) {
       const item = this.stored(userId, mode)?.items.find((i) => i.mbid === mbid);
-      if (item) return item.genres;
+      if (item) return item;
     }
-    return [];
+    return undefined;
   }
 
   /** Refresh a little after the last feedback, so several ratings in a row cost one refresh. */

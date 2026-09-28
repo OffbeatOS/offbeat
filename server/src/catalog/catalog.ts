@@ -313,6 +313,23 @@ export class Catalog {
   }
 
   /**
+   * Other albums a single-album add would start monitoring again: when the
+   * artist is in Lidarr but unmonitored, monitoring it (see keepArtistWatched)
+   * also resumes every album still marked monitored, so Lidarr would search
+   * for those too. Empty when the artist is new or already monitored.
+   */
+  async albumsResumedBy(releaseGroupMbid: string, artistMbid: string): Promise<string[]> {
+    const row = this.library.byMbid(artistMbid);
+    if (!row) return [];
+    const client = this.client();
+    const raw = await client.rawArtist(row.lidarrId);
+    if (raw.monitored === true) return [];
+    return (await client.albums(row.lidarrId))
+      .filter((a) => a.monitored && a.foreignAlbumId !== releaseGroupMbid)
+      .map((a) => a.title);
+  }
+
+  /**
    * Lidarr only searches, re-grabs, and upgrades albums of monitored artists,
    * so a single-album add must leave the artist monitored, whatever "Monitor
    * new artists" says. Adding an artist with no albums to monitor leaves it

@@ -258,6 +258,13 @@ describe('feedback and blocklist', () => {
 
     await discovery.refresh(userId);
     expect(discovery.read(userId, 'balanced').items.map((i) => i.name)).not.toContain('Lagwagon');
+
+    // Listed as hidden (thumbs downs only), with the name from the stored pick; clearing it shows it again.
+    expect(discovery.blocklist(userId).hidden).toMatchObject([{ mbid: id('Lagwagon'), name: 'Lagwagon' }]);
+    discovery.rate(userId, id('Lagwagon'), null);
+    expect(discovery.blocklist(userId).hidden).toEqual([]);
+    await discovery.refresh(userId); // it was left out of the last one
+    expect(discovery.read(userId, 'balanced').items.map((i) => i.name)).toContain('Lagwagon');
   });
 
   it('undoing a thumbs down or a block brings the pick straight back, in its place', async () => {
@@ -295,7 +302,7 @@ describe('feedback and blocklist', () => {
     const { db, discovery, userId } = setup();
     const other = db.insert(users).values({ username: 'pat', passwordHash: 'x', role: 'user' }).returning().get();
     discovery.block(userId, { kind: 'tag', name: 'Punk', source: 'settings' });
-    expect(discovery.blocklist(other.id)).toEqual({ artists: [], tags: [] });
+    expect(discovery.blocklist(other.id)).toEqual({ artists: [], tags: [], hidden: [] });
     expect(discovery.unblock(other.id, discovery.blocklist(userId).tags[0]!.id)).toBe(false);
   });
 });

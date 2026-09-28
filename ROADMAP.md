@@ -29,11 +29,16 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 ## Phase 2: Discovery (in progress)
 
 - [x] Recommendation engine (see [architecture](docs/architecture.md#discovery-engine)); works without any key through ListenBrainz
-- [ ] Discover page with sections, mode switch, feedback, quick add
-- [x] Blocklist (artists and tags)
+- [x] Discover page: Top Picks, Albums to Start With, Explore by Tag, mode switch, quick add
+- [x] Tag pages
+- [x] Feedback: thumbs up and down, and "never show this", with Undo
+- [x] Blocklist (artists and tags) and hidden artists, managed in Settings, Discovery
+- [ ] Section controls: reorder and hide Discover sections per user
+- [ ] Settings, Discovery: default mode
 - [x] Last.fm connection (optional step in onboarding, and in Settings), moved from phase 1 since discovery is its first use
 - [x] Per-user Last.fm and ListenBrainz usernames
-- [ ] Scheduled refresh with a manual trigger
+- [x] Scheduled daily refresh
+- [ ] Refresh Now in Settings, with progress
 
 ## Phase 3: Multi-user and extras
 

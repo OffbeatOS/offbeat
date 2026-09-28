@@ -143,6 +143,8 @@ export const feedback = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     artistMbid: text('artist_mbid').notNull(),
+    /** The artist's name when rated, for the Hidden list in Settings, Discovery. */
+    name: text('name').notNull().default(''),
     /** 1 for thumbs up, -1 for thumbs down. */
     value: integer('value').notNull(),
     /** JSON array of the artist's genres when rated. */

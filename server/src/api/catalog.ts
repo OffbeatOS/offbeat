@@ -11,7 +11,11 @@ import { currentClient } from '../integrations/lidarr/settings.js';
 const COVER_URL = /api\/v1\/images\/album\/([0-9a-f-]{36})(?:\?src=(lidarr))?/g;
 const mbidParams = z.object({ mbid: z.string().regex(MBID, 'not a MusicBrainz id') });
 const searchQuery = z.object({ q: z.string().trim().min(2, 'type at least 2 characters').max(100) });
-const addAlbumBody = z.object({ artistMbid: z.string().regex(MBID, 'not a MusicBrainz id') });
+const addAlbumBody = z.object({
+  artistMbid: z.string().regex(MBID, 'not a MusicBrainz id'),
+  // Confirms monitoring an unmonitored artist again even though other albums would resume.
+  resumeMonitoring: z.boolean().default(false),
+});
 // PATCH bodies for artists and albums share one shape.
 const updateArtistBody = z.object({ monitored: z.boolean() });
 
@@ -86,13 +90,19 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
   });
 
   /**
-   * Starts adding an album and answers at once: an album add can take a while
-   * (Lidarr has to load a new artist first). The result arrives as an
+   * Starts adding an album and answers at once, unless the artist is
+   * unmonitored in Lidarr with other albums still monitored: monitoring it
+   * again would resume those too, so that needs `resumeMonitoring` (409 first).
+   * An album add can take a while (Lidarr has to load a new artist first). The result arrives as an
    * add-result event on /events and shows in Activity.
    */
   app.post('/albums/:mbid', async (request, reply) => {
     const { mbid } = parse(mbidParams, request.params);
-    const { artistMbid } = parse(addAlbumBody, request.body);
+    const { artistMbid, resumeMonitoring } = parse(addAlbumBody, request.body);
+    if (!resumeMonitoring) {
+      const resumed = await upstream(request, () => app.catalog.albumsResumedBy(mbid.toLowerCase(), artistMbid.toLowerCase()));
+      if (resumed.length) throw new HttpError(409, resumesMessage(resumed));
+    }
     await upstream(request, () =>
       app.activity.startAlbumAdd(mbid.toLowerCase(), artistMbid.toLowerCase(), request.user?.id ?? null),
     );
@@ -100,3 +110,12 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(202).send({ status });
   });
 };
+
+/** Explains which albums monitoring the artist again would resume (at most three named). */
+export function resumesMessage(titles: string[]): string {
+  const shown = titles.slice(0, 3);
+  const more = titles.length - shown.length;
+  const list = more ? `${shown.join(', ')} and ${more} more` : shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}` : shown[0];
+  const count = titles.length === 1 ? '1 other album' : `${titles.length} other albums`;
+  return `This will also resume monitoring ${count} by this artist in Lidarr: ${list}.`;
+}

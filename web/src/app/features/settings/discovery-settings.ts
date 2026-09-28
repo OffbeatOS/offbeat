@@ -1,10 +1,27 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, type OnInit, computed, inject, signal } from '@angular/core';
-import type { ArtistSummary, BlockSource, BlockedItem, BlocklistResponse, DiscoverResponse, SearchResponse } from '@offbeat/shared';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  type OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import type {
+  ArtistSummary,
+  BlockSource,
+  BlockedItem,
+  BlocklistResponse,
+  DiscoverResponse,
+  FeedbackRequest,
+  HiddenArtist,
+  SearchResponse,
+} from '@offbeat/shared';
 import { Api, ApiError } from '../../core/api';
 import { Icon } from '../../shared/icon/icon';
 import { SettingsSection } from './settings-section';
 
-type Kind = 'artists' | 'tags';
+type Kind = 'artists' | 'tags' | 'hidden';
 
 const SOURCE_LABEL: Record<BlockSource, string> = {
   discover: 'Discover',
@@ -26,8 +43,9 @@ export function whenLabel(iso: string, now = new Date()): string {
 }
 
 /**
- * Settings, Discovery (Settings Discovery mockup). This slice has the
- * blocklist: artists and tags that never appear in recommendations.
+ * Settings, Discovery (Settings Discovery mockup): the blocklist (artists
+ * and tags that never appear in recommendations), and the artists hidden by
+ * a thumbs down, so either can be undone later.
  */
 @Component({
   selector: 'ob-discovery-settings',
@@ -226,77 +244,143 @@ export function whenLabel(iso: string, now = new Date()): string {
     }
   `,
   template: `
-    <ob-settings-section heading="Discovery" description="These settings apply to your account only.">
+    <ob-settings-section
+      heading="Discovery"
+      description="These settings apply to your account only."
+    >
       <section class="block">
         <div class="block-head">
           <div>
             <h3>Blocklist</h3>
-            <p class="desc">Blocked artists and tags never appear in your recommendations.</p>
+            <p class="desc">
+              @if (kind() === 'hidden') {
+                Artists you rated Less like this. They stay out of your recommendations until you
+                show them again.
+              } @else {
+                Blocked artists and tags never appear in your recommendations.
+              }
+            </p>
           </div>
           <div class="kinds" role="group" aria-label="Blocklist type">
-            <button type="button" [attr.aria-pressed]="kind() === 'artists'" (click)="switchTo('artists')">
+            <button
+              type="button"
+              [attr.aria-pressed]="kind() === 'artists'"
+              (click)="switchTo('artists')"
+            >
               Artists {{ list()?.artists?.length ?? 0 }}
             </button>
-            <button type="button" [attr.aria-pressed]="kind() === 'tags'" (click)="switchTo('tags')">
+            <button
+              type="button"
+              [attr.aria-pressed]="kind() === 'tags'"
+              (click)="switchTo('tags')"
+            >
               Tags {{ list()?.tags?.length ?? 0 }}
+            </button>
+            <button
+              type="button"
+              [attr.aria-pressed]="kind() === 'hidden'"
+              (click)="switchTo('hidden')"
+            >
+              Hidden {{ list()?.hidden?.length ?? 0 }}
             </button>
           </div>
         </div>
 
-        <div class="find">
-          <label>
-            <span class="visually-hidden">{{ kind() === 'artists' ? 'Block an artist' : 'Block a tag' }}</span>
-            <ob-icon name="block" [size]="16" />
-            <input
-              type="text"
-              autocomplete="off"
-              spellcheck="false"
-              [placeholder]="kind() === 'artists' ? 'Block an artist' : 'Block a tag, then press Enter'"
-              [value]="query()"
-              (input)="onType($any($event.target).value)"
-              (keydown.enter)="kind() === 'tags' && blockTag()"
-              (keydown.escape)="clear()"
-              [attr.list]="kind() === 'tags' ? 'known-tags' : null"
-            />
-          </label>
-          <datalist id="known-tags">
-            @for (tag of knownTags(); track tag) {
-              <option [value]="tag"></option>
-            }
-          </datalist>
-          @if (kind() === 'artists' && matches().length) {
-            <div class="suggestions" role="group" aria-label="Artists to block">
-              @for (artist of matches(); track artist.mbid) {
-                <button type="button" (click)="blockArtist(artist)">
-                  {{ artist.name }}
-                  @if (artist.disambiguation) {
-                    <span class="dis">{{ artist.disambiguation }}</span>
-                  }
-                </button>
+        @if (kind() !== 'hidden') {
+          <div class="find">
+            <label>
+              <span class="visually-hidden">{{
+                kind() === 'artists' ? 'Block an artist' : 'Block a tag'
+              }}</span>
+              <ob-icon name="block" [size]="16" />
+              <input
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                [placeholder]="
+                  kind() === 'artists' ? 'Block an artist' : 'Block a tag, then press Enter'
+                "
+                [value]="query()"
+                (input)="onType($any($event.target).value)"
+                (keydown.enter)="kind() === 'tags' && blockTag()"
+                (keydown.escape)="clear()"
+                [attr.list]="kind() === 'tags' ? 'known-tags' : null"
+              />
+            </label>
+            <datalist id="known-tags">
+              @for (tag of knownTags(); track tag) {
+                <option [value]="tag"></option>
               }
-            </div>
-          }
-        </div>
+            </datalist>
+            @if (kind() === 'artists' && matches().length) {
+              <div class="suggestions" role="group" aria-label="Artists to block">
+                @for (artist of matches(); track artist.mbid) {
+                  <button type="button" (click)="blockArtist(artist)">
+                    {{ artist.name }}
+                    @if (artist.disambiguation) {
+                      <span class="dis">{{ artist.disambiguation }}</span>
+                    }
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
 
         @if (error()) {
           <p class="error" role="alert">{{ error() }}</p>
         }
 
         <div class="list">
-          @for (item of shown(); track item.id) {
-            <div class="row">
-              <span class="avatar" [class.tag-avatar]="item.kind === 'tag'" aria-hidden="true">
-                {{ item.kind === 'tag' ? '#' : item.name.charAt(0) }}
-              </span>
-              <span class="who">
-                <span class="name">{{ item.name }}</span>
-                <span class="note">Blocked from {{ sourceLabel[item.source] }}, {{ when(item.createdAt) }}</span>
-              </span>
-              <button class="unblock" type="button" [disabled]="busy() === item.id" (click)="unblock(item)">Unblock</button>
-            </div>
-          } @empty {
-            @if (list()) {
-              <p class="empty">{{ kind() === 'artists' ? 'No artists blocked.' : 'No tags blocked.' }}</p>
+          @if (kind() === 'hidden') {
+            @for (item of list()?.hidden ?? []; track item.mbid) {
+              <div class="row">
+                <span class="avatar" aria-hidden="true">{{ item.name.charAt(0) }}</span>
+                <span class="who">
+                  <span class="name">{{ item.name }}</span>
+                  <span class="note">Hidden from Discover, {{ when(item.createdAt) }}</span>
+                </span>
+                <button
+                  class="unblock"
+                  type="button"
+                  [disabled]="busy() === item.mbid"
+                  (click)="unhide(item)"
+                >
+                  Show again
+                </button>
+              </div>
+            } @empty {
+              @if (list()) {
+                <p class="empty">No hidden artists.</p>
+              }
+            }
+          } @else {
+            @for (item of shown(); track item.id) {
+              <div class="row">
+                <span class="avatar" [class.tag-avatar]="item.kind === 'tag'" aria-hidden="true">
+                  {{ item.kind === 'tag' ? '#' : item.name.charAt(0) }}
+                </span>
+                <span class="who">
+                  <span class="name">{{ item.name }}</span>
+                  <span class="note"
+                    >Blocked from {{ sourceLabel[item.source] }}, {{ when(item.createdAt) }}</span
+                  >
+                </span>
+                <button
+                  class="unblock"
+                  type="button"
+                  [disabled]="busy() === item.id"
+                  (click)="unblock(item)"
+                >
+                  Unblock
+                </button>
+              </div>
+            } @empty {
+              @if (list()) {
+                <p class="empty">
+                  {{ kind() === 'artists' ? 'No artists blocked.' : 'No tags blocked.' }}
+                </p>
+              }
             }
           }
         </div>
@@ -315,8 +399,12 @@ export class DiscoverySettings implements OnInit {
   protected readonly matches = signal<ArtistSummary[]>([]);
   protected readonly knownTags = signal<string[]>([]);
   protected readonly error = signal('');
-  protected readonly busy = signal<number | null>(null);
-  protected readonly shown = computed(() => this.list()?.[this.kind()] ?? []);
+  /** The entry being changed: a blocklist id, or a hidden artist's MBID. */
+  protected readonly busy = signal<number | string | null>(null);
+  protected readonly shown = computed(() => {
+    const kind = this.kind();
+    return kind === 'hidden' ? [] : (this.list()?.[kind] ?? []);
+  });
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
   private searchSeq = 0;
 
@@ -375,7 +463,15 @@ export class DiscoverySettings implements OnInit {
     this.error.set('');
     try {
       await this.api.delete(`blocklist/${item.id}`);
-      this.list.update((l) => (l ? { artists: l.artists.filter((a) => a.id !== item.id), tags: l.tags.filter((t) => t.id !== item.id) } : l));
+      this.list.update((l) =>
+        l
+          ? {
+              ...l,
+              artists: l.artists.filter((a) => a.id !== item.id),
+              tags: l.tags.filter((t) => t.id !== item.id),
+            }
+          : l,
+      );
     } catch (error) {
       this.error.set(error instanceof ApiError ? error.message : 'Could not unblock');
     } finally {
@@ -383,12 +479,37 @@ export class DiscoverySettings implements OnInit {
     }
   }
 
-  private async add(body: { kind: 'artist'; mbid: string; name: string; source: BlockSource } | { kind: 'tag'; name: string; source: BlockSource }) {
+  /** Clears the thumbs down: the artist can come back at the next refresh (started soon). */
+  protected async unhide(item: HiddenArtist) {
+    this.busy.set(item.mbid);
+    this.error.set('');
+    try {
+      await this.api.post('discover/feedback', {
+        mbid: item.mbid,
+        value: null,
+      } satisfies FeedbackRequest);
+      this.list.update((l) =>
+        l ? { ...l, hidden: l.hidden.filter((h) => h.mbid !== item.mbid) } : l,
+      );
+    } catch (error) {
+      this.error.set(
+        error instanceof ApiError ? error.message : 'Could not show this artist again',
+      );
+    } finally {
+      this.busy.set(null);
+    }
+  }
+
+  private async add(
+    body:
+      | { kind: 'artist'; mbid: string; name: string; source: BlockSource }
+      | { kind: 'tag'; name: string; source: BlockSource },
+  ) {
     this.error.set('');
     try {
       const item = await this.api.post<BlockedItem>('blocklist', body);
       this.list.update((l) => {
-        const current = l ?? { artists: [], tags: [] };
+        const current = l ?? { artists: [], tags: [], hidden: [] };
         const key = item.kind === 'artist' ? 'artists' : 'tags';
         return { ...current, [key]: [item, ...current[key].filter((i) => i.id !== item.id)] };
       });

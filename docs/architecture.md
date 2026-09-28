@@ -105,7 +105,7 @@ The MusicBrainz ID (MBID) is the join key across every service. Pages are routed
 - `POST /artist` to add, `PUT /album/monitor` to monitor one album, `POST /command` for `AlbumSearch`
 - `GET /album?artistId=` for per-album status. Use `statistics.totalTrackCount`: `trackCount` is 0 for unmonitored artists.
 - `GET /command` to wait for a new artist's refresh and post-add actions before monitoring a single album (they would otherwise reset it), and to show albums Lidarr is searching for
-- A single-album add leaves the artist monitored (Lidarr only searches, re-grabs, and upgrades albums of monitored artists), with future releases off and only that album monitored, whatever "Monitor new artists" says. Lidarr leaves an artist added with no albums to monitor unmonitored, so Offbeat re-applies it after the post-add actions. An artist already in Lidarr but unmonitored becomes monitored with future releases off; one the user already monitors is left as it is.
+- A single-album add leaves the artist monitored (Lidarr only searches, re-grabs, and upgrades albums of monitored artists), with future releases off and only that album monitored, whatever "Monitor new artists" says. Lidarr leaves an artist added with no albums to monitor unmonitored, so Offbeat re-applies it after the post-add actions. An artist already in Lidarr but unmonitored becomes monitored with future releases off; one the user already monitors is left as it is. Monitoring an unmonitored artist again also resumes any of its albums still marked monitored, so in that case `POST /albums/:mbid` answers 409 naming those albums, and the add goes ahead only with `resumeMonitoring: true` (the UI asks first: Add anyway or Cancel).
 - Deleting an artist while Lidarr is still refreshing it makes Lidarr add it back ("Adding missing parent artist"). Anything that removes artists must wait until no RefreshArtist is queued or running.
 - `GET /queue` and `GET /history` for Activity; `DELETE /queue/:id` to cancel, or to retry with `blocklist=true` followed by a fresh `AlbumSearch`
 - `GET /qualityprofile`, `/metadataprofile`, `/rootfolder` for onboarding
@@ -151,7 +151,7 @@ Works with no API key: ListenBrainz is always a source, and a Last.fm key adds a
 7. **Variety.** Each score is multiplied by a random factor within 10 percent, seeded per refresh.
 8. **Explanations.** The seed behind the strongest match: "Because you like X", or for Deeper's second hop, "Y, which is like X". No seed explains more than 3 of the top 10: a pick whose strongest seed is full is explained by another contributing seed with room, if that seed contributed at least half as much, and otherwise moves below the top 10. So every part of a library gets a voice.
 9. **Enrichment.** Names, disambiguation, and artwork from Lidarr's artist lookup (Last.fm has no real artist images). Genres from Last.fm's top tags when connected (filtered to real genres), otherwise from MusicBrainz's curated genres (for the top 30 per mode in a refresh, at one request per second), never free-form tags.
-10. **Feedback.** Thumbs up or down adjusts tag weights: each rating counts +1 or -1 for the artist's genres, and a pick's score is multiplied by 1 + 0.15 times the sum of tanh(weight / 2) over its genres, clamped to 0.4 to 1.6 (`taste.ts`). The per-seed cap is applied again after re-weighting. "Never show this" adds to the blocklist, managed in Settings, Discovery. A thumbs down or block hides the pick at once, since stored recommendations are filtered when read rather than rewritten, so undoing it brings the pick back in place; a refresh follows a minute after the last change.
+10. **Feedback.** Thumbs up or down adjusts tag weights: each rating counts +1 or -1 for the artist's genres, and a pick's score is multiplied by 1 + 0.15 times the sum of tanh(weight / 2) over its genres, clamped to 0.4 to 1.6 (`taste.ts`). The per-seed cap is applied again after re-weighting. "Never show this" adds to the blocklist. Settings, Discovery lists blocked artists and tags, and the artists hidden by a thumbs down, each with a way to undo it. A thumbs down or block hides the pick at once, since stored recommendations are filtered when read rather than rewritten, so undoing it brings the pick back in place; a refresh follows a minute after the last change.
 
 Every upstream answer is cached in `source_cache` (similar artists and popularity 7 days, lookups 30 days, listening stats 1 day) and served stale if a source is down. `server/scripts/discover-sample.ts` prints a sample per mode and source mix for reviewing quality.
 
@@ -169,7 +169,7 @@ Current tables (see `server/src/db/schema.ts`):
 - `requests` (user_id, artist and album MBIDs, Lidarr ids) to attribute adds to users
 - `source_cache` (key, body, fetched_at): discovery's upstream answers
 - `recommendations` (user_id, mode, payload, generated_at): each user's latest recommendations per mode
-- `feedback` (user_id, artist_mbid, value, genres, created_at): thumbs up (+1) or down (-1), with the artist's genres at the time
+- `feedback` (user_id, artist_mbid, name, value, genres, created_at): thumbs up (+1) or down (-1), with the artist's genres at the time
 - `blocklist` (id, user_id, kind, key, name, source, created_at): blocked artists (keyed by MBID) and tags (keyed lowercase)
 - `jobs` (name, last run, last success, error)
 
@@ -185,7 +185,7 @@ All routes live under `/api/v1`. Implemented:
 - `GET /settings/lidarr`, `PUT /settings/lidarr`
 - `GET /settings/lastfm`, `PUT /settings/lastfm` (checked with Last.fm), `DELETE /settings/lastfm` (admin)
 - `GET /discover?mode=safer|balanced|deeper` (Top Picks, Albums to Start With, Explore by Tag), `POST /discover/refresh`, `POST /discover/feedback`
-- `GET /blocklist`, `POST /blocklist`, `DELETE /blocklist/:id`
+- `GET /blocklist` (blocked artists and tags, and hidden artists), `POST /blocklist`, `DELETE /blocklist/:id`
 - `GET /tags/:tag` (a tag page)
 - `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service)
 - `GET /library`, `POST /library/refresh`

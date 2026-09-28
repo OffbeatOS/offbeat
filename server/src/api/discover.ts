@@ -8,6 +8,7 @@ import { HttpError, parse } from './errors.js';
 const modeQuery = z.object({ mode: z.enum(['safer', 'balanced', 'deeper']).default('balanced') });
 const feedbackBody = z.object({
   mbid: z.string().regex(MBID, 'not a MusicBrainz id'),
+  name: z.string().trim().max(200).optional(),
   value: z.enum(['up', 'down']).nullable(),
 });
 const source = z.enum(['discover', 'search', 'settings', 'tag']);
@@ -44,8 +45,8 @@ export const discoverRoutes: FastifyPluginAsync = async (app) => {
 
   /** Thumbs up, thumbs down, or clear. A thumbs down takes the artist out of the picks now. */
   app.post('/discover/feedback', async (request, reply) => {
-    const { mbid, value } = parse(feedbackBody, request.body);
-    app.discovery.rate(request.user!.id, mbid.toLowerCase(), value);
+    const { mbid, name, value } = parse(feedbackBody, request.body);
+    app.discovery.rate(request.user!.id, mbid.toLowerCase(), value, name);
     return reply.code(204).send();
   });
 

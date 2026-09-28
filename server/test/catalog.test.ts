@@ -1,6 +1,7 @@
 import type { AddResult, AlbumDetail, ArtistDetail, LibraryResponse, SearchResponse } from '@offbeat/shared';
 import { randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
+import { resumesMessage } from '../src/api/catalog.js';
 import { buildApp } from '../src/app.js';
 import { openDatabase } from '../src/db/index.js';
 import { requests } from '../src/db/schema.js';
@@ -65,6 +66,7 @@ async function addAlbum(
   call: Awaited<ReturnType<typeof setup>>['call'],
   mbid: string,
   artistMbid: string,
+  extra: Record<string, unknown> = {},
 ): Promise<AddResult> {
   const result = new Promise<AddResult>((resolve) => {
     const off = app.activity.subscribe((event) => {
@@ -74,7 +76,7 @@ async function addAlbum(
       }
     });
   });
-  const res = await call('POST', `/albums/${mbid}`, { artistMbid });
+  const res = await call('POST', `/albums/${mbid}`, { artistMbid, ...extra });
   expect(res.statusCode).toBe(202);
   expect(res.json()).toEqual({ status: { kind: 'adding' } });
   return result;
@@ -211,6 +213,30 @@ describe('adding a single album', () => {
     expect(artist.monitored).toBe(true);
     expect(artist.monitorNewItems).toBe('none');
     expect(artist.albums.filter((a) => a.monitored).map((a) => a.title)).toEqual(['Geogaddi']);
+  });
+
+  it('asks first when monitoring the artist again would resume other monitored albums', async () => {
+    const { app, call, fake } = await setup(safe);
+    await call('POST', `/artists/${BOC.mbid}`, {});
+    await new Promise((r) => setTimeout(r, 500));
+    const artist = [...fake.library.values()][0]!;
+    // Say the user unmonitored the artist in Lidarr but left one album monitored.
+    const other = artist.albums.find((a) => a.title !== 'Geogaddi')!;
+    other.monitored = true;
+
+    const refused = await call('POST', `/albums/${GEOGADDI.mbid}`, { artistMbid: BOC.mbid });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json().message).toBe(`This will also resume monitoring 1 other album by this artist in Lidarr: ${other.title}.`);
+    expect(artist.monitored).toBe(false); // nothing changed
+
+    await addAlbum(app, call, GEOGADDI.mbid, BOC.mbid, { resumeMonitoring: true });
+    expect(artist.monitored).toBe(true);
+    expect(artist.albums.filter((a) => a.monitored).map((a) => a.title).sort()).toEqual(['Geogaddi', other.title].sort());
+  });
+
+  it('names at most three resumed albums', () => {
+    expect(resumesMessage(['A', 'B'])).toBe('This will also resume monitoring 2 other albums by this artist in Lidarr: A and B.');
+    expect(resumesMessage(['A', 'B', 'C', 'D', 'E'])).toContain('5 other albums by this artist in Lidarr: A, B, C and 2 more.');
   });
 
   it('leaves an artist the user already monitors exactly as it was', async () => {
