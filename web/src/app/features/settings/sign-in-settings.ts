@@ -147,6 +147,50 @@ const lines = (text: string) =>
       }
     }
 
+    .secret {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-label);
+    }
+
+    .tag {
+      margin-left: 6px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--surface-3);
+      color: var(--text-2);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .secret-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+
+      code {
+        flex: 1 1 220px;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        padding: 9px 12px;
+        border-radius: var(--radius-input);
+        background: var(--surface-input);
+        border: 1px solid var(--border-input);
+        font-size: 13px;
+        font-weight: 400;
+        color: var(--text);
+        user-select: all;
+      }
+
+      .btn {
+        height: 36px;
+      }
+    }
+
     .warning {
       display: flex;
       gap: 10px;
@@ -229,6 +273,37 @@ const lines = (text: string) =>
                   people in. A route that passes on a header the visitor made up would let anyone sign in as anyone.
                 </span>
               </label>
+              <div class="field secret">
+                <span>Shared secret <span class="tag">Recommended</span></span>
+                <span class="hint">
+                  Have your proxy also send this header with this value on every request. Then a proxy route that passes on a
+                  made-up username still cannot sign anyone in.
+                </span>
+                <input
+                  class="input"
+                  spellcheck="false"
+                  aria-label="Secret header name"
+                  [value]="d.proxy.secretHeader"
+                  (input)="patchProxy({ secretHeader: $any($event.target).value })"
+                />
+                @if (d.proxy.secret) {
+                  <div class="secret-row">
+                    <code>{{ d.proxy.secret }}</code>
+                    <button class="btn btn-outline btn-sm" type="button" (click)="copy(d.proxy.secret)">{{ copied() ? 'Copied' : 'Copy' }}</button>
+                  </div>
+                  <span class="hint">Put this in your proxy's configuration, then Save. It is not shown again.</span>
+                } @else {
+                  <div class="secret-row">
+                    <span class="hint">{{ view()?.proxySecretSet && d.proxy.secret !== '' ? 'A secret is saved.' : 'No secret yet.' }}</span>
+                    <button class="btn btn-outline btn-sm" type="button" (click)="generate()">
+                      {{ view()?.proxySecretSet ? 'Replace' : 'Generate' }}
+                    </button>
+                    @if (view()?.proxySecretSet && d.proxy.secret !== '') {
+                      <button class="btn btn-ghost btn-sm" type="button" (click)="patchProxy({ secret: '' })">Remove</button>
+                    }
+                  </div>
+                }
+              </div>
               <label class="check">
                 <input type="checkbox" [checked]="d.proxy.autoCreate" (change)="patchProxy({ autoCreate: !d.proxy.autoCreate })" />
                 <span>
@@ -317,6 +392,7 @@ export class SignInSettingsPanel implements OnInit {
   protected readonly busy = signal(false);
   protected readonly error = signal('');
   protected readonly saved = signal(false);
+  protected readonly copied = signal(false);
   protected readonly members = computed(() => this.users().filter((u) => u.role === 'user'));
   protected readonly autoUserName = computed(() => this.users().find((u) => u.id === this.draft()?.autoLogin.userId)?.username ?? '');
   protected readonly dirty = computed(() => {
@@ -348,6 +424,23 @@ export class SignInSettingsPanel implements OnInit {
   protected patchAuto(change: Partial<SignInSettings['autoLogin']>) {
     this.draft.update((d) => (d ? { ...d, autoLogin: { ...d.autoLogin, ...change } } : d));
     this.saved.set(false);
+  }
+
+  /** A strong random secret (32 bytes), shown until saved. */
+  protected generate() {
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    const secret = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    this.copied.set(false);
+    this.patchProxy({ secret });
+  }
+
+  protected async copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      this.copied.set(true);
+    } catch {
+      this.error.set('Could not copy. Select the secret and copy it yourself.');
+    }
   }
 
   protected async save() {

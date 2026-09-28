@@ -151,6 +151,31 @@ describe('reverse proxy header', () => {
     expect((await me(as({ from: PROXY, headers: { 'remote-user': 'no spaces allowed' } })('GET', '/auth/me'))).user).toBeNull();
   });
 
+  it('with a shared secret, the username only counts when the proxy also sends the secret', async () => {
+    const { as, configure, adminCall } = await setup();
+    const secret = randomBytes(24).toString('base64url');
+    expect((await configure((st) => Object.assign(st.proxy, { enabled: true, trustedProxies: [PROXY], secret: 'short' }))).statusCode).toBe(400);
+    const saved = await configure((st) => Object.assign(st.proxy, { enabled: true, trustedProxies: [PROXY], secret }));
+    expect(saved.statusCode).toBe(200);
+    // The secret never comes back to the browser, only that one is set.
+    expect(saved.json().proxy.secret).toBeNull();
+    expect(saved.json().proxySecretSet).toBe(true);
+    expect(JSON.stringify((await adminCall('GET', '/settings/sign-in')).json())).not.toContain(secret);
+
+    const from = (headers: Record<string, string>) => as({ from: PROXY, headers: { 'remote-user': 'boss', ...headers } })('GET', '/auth/me');
+    // A proxy route that passes on a made-up Remote-User, without the secret: nobody.
+    expect((await me(from({}))).user).toBeNull();
+    expect((await me(from({ 'x-offbeat-proxy-secret': 'not-the-secret-at-all-no' }))).user).toBeNull();
+    expect((await me(from({ 'x-offbeat-proxy-secret': secret }))).user?.username).toBe('boss');
+
+    // Saving other changes (secret null) keeps it; "" clears it.
+    await configure((st) => (st.proxy.autoCreate = true));
+    expect((await me(from({}))).user).toBeNull();
+    await configure((st) => (st.proxy.secret = ''));
+    expect((await adminCall('GET', '/settings/sign-in')).json().proxySecretSet).toBe(false);
+    expect((await me(from({}))).user?.username).toBe('boss');
+  });
+
   it('local accounts off: Members must come through the proxy; admins can still use a password', async () => {
     const { configure, addMember, app, adminPassword } = await setup();
     const sam = await addMember('sam');

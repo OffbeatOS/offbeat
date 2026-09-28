@@ -118,6 +118,14 @@ export interface SignInSettings {
     autoCreate: boolean;
     /** The proxy's sign-out page, so Sign out does not sign you straight back in. */
     logoutUrl: string | null;
+    /** Header carrying the shared secret the proxy adds to every request. */
+    secretHeader: string;
+    /**
+     * The shared secret (recommended): when set, the username only counts if
+     * the proxy also sent this value. Never sent to the browser. On save: a
+     * string sets it, "" clears it, and null keeps the saved one.
+     */
+    secret: string | null;
   };
   autoLogin: {
     enabled: boolean;
@@ -134,10 +142,20 @@ export interface SignInSettingsView extends SignInSettings {
   yourAddress: string | null;
   /** In Docker, addresses that can stand for anyone (the bridge gateway, Docker Desktop's gateway), so never count as local. */
   dockerAddresses: string[];
+  /** A proxy shared secret is saved (its value is never sent back). */
+  proxySecretSet: boolean;
 }
 
 export const DEFAULT_SIGN_IN: SignInSettings = {
   localAccounts: true,
-  proxy: { enabled: false, header: 'Remote-User', trustedProxies: [], autoCreate: false, logoutUrl: null },
+  proxy: {
+    enabled: false,
+    header: 'Remote-User',
+    trustedProxies: [],
+    autoCreate: false,
+    logoutUrl: null,
+    secretHeader: 'X-Offbeat-Proxy-Secret',
+    secret: null,
+  },
   autoLogin: { enabled: false, userId: null, networks: [] },
 };

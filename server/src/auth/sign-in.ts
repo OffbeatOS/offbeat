@@ -8,7 +8,7 @@ import {
 } from '@offbeat/shared';
 import { eq, sql } from 'drizzle-orm';
 import type { BlockList } from 'node:net';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { users } from '../db/schema.js';
@@ -37,6 +37,18 @@ export const signInSchema = z.object({
       .url('use a full address, like https://auth.example.com/logout')
       .refine((u) => /^https?:\/\//i.test(u), 'use an http or https address')
       .nullable(),
+    secretHeader: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9-]{1,64}$/, 'use a header name like X-Offbeat-Proxy-Secret')
+      .default('X-Offbeat-Proxy-Secret'),
+    secret: z
+      .string()
+      .trim()
+      .refine((s) => s === '' || s.length >= 16, 'use at least 16 characters (Generate makes a strong one)')
+      .max(256)
+      .nullable()
+      .default(null),
   }),
   autoLogin: z.object({
     enabled: z.boolean(),
@@ -77,9 +89,29 @@ export function loadSignIn(store: SettingsStore): SignInSettings {
   return compiled(store).settings;
 }
 
+/** Saves the settings; a null secret keeps the saved one, "" clears it. Stored encrypted (the secret is in it). */
 export function saveSignIn(store: SettingsStore, settings: SignInSettings) {
-  store.set(KEY, settings, { encrypted: false });
+  const secret = settings.proxy.secret === null ? loadSignIn(store).proxy.secret : settings.proxy.secret || null;
+  store.set(KEY, { ...settings, proxy: { ...settings.proxy, secret } }, { encrypted: true });
   cache.delete(store);
+}
+
+/** The settings as the browser may see them: never the secret itself. */
+export function signInForBrowser(store: SettingsStore): SignInSettings & { proxySecretSet: boolean } {
+  const settings = loadSignIn(store);
+  return { ...settings, proxy: { ...settings.proxy, secret: null }, proxySecretSet: !!settings.proxy.secret };
+}
+
+/** Whether a request carries the proxy's shared secret, when one is set (constant-time compare). */
+function hasProxySecret(settings: SignInSettings, headers: Record<string, string | string[] | undefined>): boolean {
+  const expected = settings.proxy.secret;
+  if (!expected) return true;
+  const raw = headers[settings.proxy.secretHeader.toLowerCase()];
+  const sent = Array.isArray(raw) ? raw[0] : raw;
+  if (!sent) return false;
+  const a = Buffer.from(sent);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 export function addressOf(store: SettingsStore, socket: string | undefined, headers: Record<string, string | string[] | undefined>) {
@@ -118,6 +150,8 @@ export async function identityFromNetwork(
   const address = clientAddress(socket, headers, trusted);
 
   if (settings.proxy.enabled && address.viaTrustedProxy) {
+    // Without the shared secret (when one is set), the username is not the proxy's word: ignore it.
+    if (!hasProxySecret(settings, headers)) return 'proxy-silent';
     const raw = headers[settings.proxy.header.toLowerCase()];
     const name = (Array.isArray(raw) ? raw[0] : raw)?.trim();
     // A trusted proxy that sent no username (a path it does not protect): fall back to the session.

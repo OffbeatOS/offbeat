@@ -2,7 +2,7 @@ import type { SignInSettings, SignInSettingsView } from '@offbeat/shared';
 import { eq } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { blockListOf, contains, parseRange } from '../auth/network.js';
-import { addressOf, dockerStandInAddresses, loadSignIn, saveSignIn, signInSchema } from '../auth/sign-in.js';
+import { addressOf, dockerStandInAddresses, saveSignIn, signInForBrowser, signInSchema } from '../auth/sign-in.js';
 import { users } from '../db/schema.js';
 import { HttpError, parse } from './errors.js';
 
@@ -11,7 +11,7 @@ export const signInSettingsRoutes: FastifyPluginAsync = async (app) => {
   const admin = { config: { role: 'admin' as const } };
 
   app.get('/settings/sign-in', admin, async (request): Promise<SignInSettingsView> => ({
-    ...loadSignIn(app.settings),
+    ...signInForBrowser(app.settings),
     yourAddress: addressOf(app.settings, request.socket.remoteAddress, request.headers).client,
     dockerAddresses: dockerStandInAddresses(),
   }));
@@ -21,7 +21,7 @@ export const signInSettingsRoutes: FastifyPluginAsync = async (app) => {
     check(settings);
     saveSignIn(app.settings, settings);
     return {
-      ...settings,
+      ...signInForBrowser(app.settings),
       yourAddress: addressOf(app.settings, request.socket.remoteAddress, request.headers).client,
       dockerAddresses: dockerStandInAddresses(),
     };
