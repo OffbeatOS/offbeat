@@ -4,6 +4,6 @@ export const SETTINGS_SECTIONS = [
   { path: 'discovery', label: 'Discovery', admin: false },
   { path: 'users', label: 'Users', admin: true },
   { path: 'account', label: 'Account', admin: false },
-  { path: 'notifications', label: 'Notifications', admin: false },
+  { path: 'notifications', label: 'Notifications', admin: true },
   { path: 'about', label: 'About', admin: false },
 ] as const;

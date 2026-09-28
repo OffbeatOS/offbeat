@@ -139,6 +139,7 @@ One server-side poller reads Lidarr's queue, commands, and history, and pushes a
 - **Attribution.** Items added through Offbeat say who asked for them (from `requests`); everything else says "Added in Lidarr".
 - When an item leaves the queue, album statuses and the library cache refresh.
 - **Lidarr webhook** (`server/src/api/webhook.ts`). Lidarr calls `POST /api/v1/webhooks/lidarr` on grab, import, upgrade, and download or import failure. It is a public route that checks only Basic auth (user `offbeat`, a random token as password, compared in constant time), never a token in the URL. The body is not trusted: any event just makes Activity poll Lidarr now, then quickly for a few minutes. Polling on a timer (30 seconds with a browser watching and nothing moving) stays as the fallback. Set Up Automatically asks Lidarr to send its Test event to the callback address first and saves only if Lidarr succeeded and the event reached this Offbeat; it then updates Offbeat's existing webhook in Lidarr (found by id, name, or receiver path) rather than adding another. Lidarr requires unique names even when testing, so a test of the existing webhook carries its id.
+- **Notifications** (`server/src/notifications`). Discord and generic webhook channels, configured by admins, each with its own events. Sources: Lidarr's history, read during Activity polls (album imported and download failed, one message per album download however many history entries it has); Activity's Needs Attention (an import newly blocked or stuck); and Lidarr's calendar every 15 minutes (an album appearing for a monitored artist, skipping artists in their first day). The first look at each source only records where things stand. Sending runs in the background, one message at a time per channel: a 429 from Discord waits as long as Discord says, other failures retry after 30 seconds, 2 minutes, and 10 minutes, and every attempt is logged in `deliveries` (the latest 200). Discord messages disable all mentions. URLs are checked when saved and again before each send: http or https only, never a link-local address (cloud metadata), and redirects are not followed. The Discord token and the webhook secret are stored encrypted and never sent to the browser.
 - **Stuck imports.** Lidarr can leave a finished download in "importing" for good when it will not import it on its own (for example a match below 80%), without saying why on the queue item. After an hour in that state (counted from when Offbeat first saw it, since the queue has no completion time), the item moves to Needs Attention as Import stuck. Offbeat asks Lidarr's Manual Import preview for the rejections once, in the background, and explains them in plain words, with a link to Lidarr's queue, where Manual Import is.
 
 ## Discovery engine
@@ -172,6 +173,7 @@ Current tables (see `server/src/db/schema.ts`):
 - `settings` (key, value json or ciphertext, encrypted flag)
 - `library_artists` (cached Lidarr artists: ids, names, sort name, monitoring, stats, missing albums, artwork paths)
 - `musicbrainz_cache` (request path, body, fetched_at)
+- `deliveries` (channel, event, title, message, status, attempts, error, created_at, updated_at): recent notification sends
 - `requests` (user_id, requested_by, artist and album MBIDs, Lidarr ids) to attribute adds to users; `requested_by` keeps the username after the user is removed
 - `source_cache` (key, body, fetched_at): discovery's upstream answers
 - `recommendations` (user_id, mode, payload, generated_at): each user's latest recommendations per mode
@@ -195,6 +197,7 @@ All routes live under `/api/v1`. Implemented:
 - `GET /tags/:tag` (a tag page)
 - `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service), `PUT /account/password`
 - `GET`, `PUT`, and `DELETE /settings/lidarr/webhook`, `POST /settings/lidarr/webhook/test`, `POST /settings/lidarr/webhook/token` (admins only); `POST /webhooks/lidarr` (Lidarr, Basic auth)
+- `GET` and `PUT /settings/notifications` (the link address), `PUT` and `DELETE /settings/notifications/:channel`, `POST /settings/notifications/:channel/test` (admins only)
 - `GET /users`, `POST /users` (answers with a temporary password), `PATCH /users/:id` (role and permissions), `POST /users/:id/password` (a new temporary password), `DELETE /users/:id`: admins only
 - `GET /library`, `POST /library/refresh`
 - `GET /search?q=`

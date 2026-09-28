@@ -103,6 +103,33 @@ Settings, Users, Sign-in has three ways in. Local accounts (username and passwor
 
 Auto-login does not work on Docker Desktop (Windows and macOS): it hands every visitor to the container from the same address, so Offbeat cannot tell your devices apart and never treats them as local. Use it with Docker on Linux (including Unraid), where each device's own address comes through, or on bare metal.
 
+## Notifications
+
+Settings, Notifications sends alerts to Discord or to any URL (a generic webhook) when an album is imported, a download fails, an import is blocked, or a monitored artist has a new release. Each channel chooses its events and has a Send Test button. Set "Link back to Offbeat" to the address you open Offbeat at, and messages link to the album or artist. Failed sends are retried a few times and logged under Recent deliveries; they never hold anything else up.
+
+New releases come from Lidarr's calendar: every 15 minutes Offbeat looks at albums released in the last week or due in the next 90 days, and tells you about one that has appeared for a monitored artist since the last look. An artist's albums do not count during its first day in Lidarr, so adding an artist does not flood your channel.
+
+The generic webhook POSTs this JSON (`version` changes only when a field is removed or changes meaning; new fields may appear without it):
+
+```json
+{
+  "version": 1,
+  "event": "album-imported",
+  "title": "Album imported",
+  "message": "Untrue by Burial",
+  "url": "https://offbeat.example.com/album/<release group MBID>",
+  "artist": { "mbid": "<artist MBID>", "name": "Burial" },
+  "album": { "mbid": "<release group MBID>", "title": "Untrue" },
+  "reason": null,
+  "occurredAt": "2026-09-28T18:27:03.000Z"
+}
+```
+
+- `event` is `album-imported`, `download-failed`, `import-blocked`, `new-release`, or `test` (Send Test).
+- `url` is null until "Link back to Offbeat" is set; `artist`, `album`, and `reason` can be null, and `reason` says why for failures and blocked imports.
+- With a signing secret, each request has an `X-Offbeat-Signature: sha256=<hex>` header: the HMAC-SHA256 of the raw request body, keyed with the secret. Compare it in constant time before trusting the body.
+- Answer with any 2xx. A 4xx (other than 408 or 429) is not retried; anything else is, a few times.
+
 ## Locked out?
 
 Offbeat has a small admin command for when nobody can sign in. It works while Offbeat is running.

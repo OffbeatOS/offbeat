@@ -18,6 +18,11 @@ import type { Library } from '../library/library.js';
 import type { SettingsStore } from '../settings/store.js';
 import { ACTIVE_STATES, ATTENTION_STATES, describeQueueItem, importStuckReason } from './mapping.js';
 
+export interface ActivityObserver {
+  history?: (records: LidarrHistoryItem[]) => void;
+  attention?: (items: ActivityItem[]) => void;
+}
+
 export type ActivityEvent = { type: 'activity'; data: ActivitySnapshot } | { type: 'add-result'; data: AddResult };
 type Listener = (event: ActivityEvent) => void;
 
@@ -72,6 +77,8 @@ export class Activity {
   private history: LidarrHistoryItem[] = [];
   private historyAt = 0;
   private queueIds = new Set<number>();
+  /** Told about new history and Needs Attention after each poll (notifications). */
+  private observer: ActivityObserver | null = null;
   /**
    * When each queue item was first seen importing. Lidarr's queue has no
    * completion time, so after a restart the hour starts again.
@@ -137,6 +144,10 @@ export class Activity {
   expectMovement(): Promise<void> {
     this.burstUntil = Date.now() + (this.options.burstMs ?? 180_000);
     return this.wake();
+  }
+
+  observe(observer: ActivityObserver) {
+    this.observer = observer;
   }
 
   /** Polls now instead of waiting (after an add, a retry, or a cancel). */
@@ -274,6 +285,7 @@ export class Activity {
       if (finished || Date.now() - this.historyAt > (this.options.historyEveryMs ?? 30_000)) {
         this.stage = 'history';
         this.history = await client.history(60);
+        this.observer?.history?.(this.history);
         this.historyAt = Date.now();
         this.noticeGrabs();
       }
@@ -286,7 +298,9 @@ export class Activity {
       this.stage = 'searching albums';
       const searching = await this.searchingAlbums(client, commands, queue);
       this.stage = 'building the snapshot';
-      this.publish(this.build(settings.url, queue, searching), null);
+      const snapshot = this.build(settings.url, queue, searching);
+      this.publish(snapshot, null);
+      this.observer?.attention?.(snapshot.attention);
       this.stage = 'idle';
       this.log.debug({ queue: queue.length, searching: searching.length }, 'Polled Lidarr activity');
     } catch (error) {

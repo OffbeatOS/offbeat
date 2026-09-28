@@ -17,6 +17,8 @@ export interface FakeCatalog {
   /** Lidarr's download queue; tests push items in the shape Lidarr returns. */
   queue: Record<string, unknown>[];
   history: Record<string, unknown>[];
+  /** Lidarr's calendar (albums with their artist), served as is. */
+  calendar: Record<string, unknown>[];
   /** Settings, Connect: notifications (webhooks) as Lidarr stores them. */
   notifications: { id: number; name: string; implementation: string; fields: { name: string; value: unknown }[] }[];
   /** Manual Import preview per download id: the files and why each would be rejected. */
@@ -98,6 +100,7 @@ export async function startFakeCatalog(
   const removals: FakeCatalog['removals'] = [];
   const manualImport: FakeCatalog['manualImport'] = new Map();
   const notifications: FakeCatalog['notifications'] = [];
+  const calendar: FakeCatalog['calendar'] = [];
   const hits: string[] = [];
   const control = { stallQueue: false, failAlbumLookup: false };
   const apiKey = randomBytes(16).toString('hex');
@@ -265,6 +268,7 @@ export async function startFakeCatalog(
       return json(res, 200, { totalRecords: downloads.length, records: downloads });
     }
     if (path === 'history') return json(res, 200, { totalRecords: history.length, records: history });
+    if (path === 'calendar') return json(res, 200, calendar);
     if (path === 'notification' && req.method === 'GET') return json(res, 200, notifications);
     // Like Lidarr: names must be unique, on test and create, unless it is that notification itself.
     const nameTaken = (candidate: { name?: string; id?: number }) =>
@@ -403,6 +407,7 @@ export async function startFakeCatalog(
     history,
     manualImport,
     notifications,
+    calendar,
     removals,
     hits,
     get stallQueue() {

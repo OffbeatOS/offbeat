@@ -89,7 +89,6 @@ describe('routing', () => {
     expect([...el.querySelectorAll('ob-settings-layout nav a')].map((a) => a.textContent?.trim())).toEqual([
       'Discovery',
       'Account',
-      'Notifications',
       'About',
     ]);
   });

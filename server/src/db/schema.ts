@@ -187,3 +187,25 @@ export const blocklist = sqliteTable(
   },
   (table) => [uniqueIndex('blocklist_user_kind_key').on(table.userId, table.kind, table.key)],
 );
+
+/** Recent notification deliveries (Settings, Notifications). Only the latest few hundred are kept. */
+export const deliveries = sqliteTable(
+  'deliveries',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    channel: text('channel', { enum: ['discord', 'webhook'] }).notNull(),
+    event: text('event').notNull(),
+    title: text('title').notNull(),
+    message: text('message').notNull(),
+    status: text('status', { enum: ['delivered', 'retrying', 'failed'] }).notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    error: text('error'),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [index('deliveries_created_idx').on(table.createdAt)],
+);

@@ -147,6 +147,17 @@ const albumRefSchema = z.object({
 });
 export type LidarrAlbumRef = z.infer<typeof albumRefSchema>;
 
+const calendarAlbumSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  foreignAlbumId: z.string(),
+  releaseDate: z.string().nullish(),
+  artist: z
+    .object({ artistName: z.string(), foreignArtistId: z.string(), monitored: z.boolean(), added: z.string().nullish() })
+    .nullish(),
+});
+export type LidarrCalendarAlbum = z.infer<typeof calendarAlbumSchema>;
+
 const queueItemSchema = z.object({
   id: z.number(),
   albumId: z.number().nullish(),
@@ -193,6 +204,7 @@ const historyItemSchema = z.object({
   album: albumRefSchema.partial({ id: true }).nullish(),
   artist: z.object({ artistName: z.string(), foreignArtistId: z.string() }).nullish(),
   sourceTitle: z.string().nullish(),
+  downloadId: z.string().nullish(),
   data: z.record(z.string(), z.unknown()).nullish(),
 });
 export type LidarrHistoryItem = z.infer<typeof historyItemSchema>;
@@ -415,6 +427,14 @@ export class LidarrClient {
       z.array(z.object({ rejections: z.array(z.object({ reason: z.string().nullish() })).nullish() })),
     );
     return [...new Set(files.flatMap((f) => (f.rejections ?? []).map((r) => r.reason?.trim() ?? '')).filter(Boolean))];
+  }
+
+  /** Albums releasing between two dates (Lidarr's calendar), with their artist. */
+  async calendar(start: Date, end: Date): Promise<LidarrCalendarAlbum[]> {
+    return this.get(
+      `calendar?start=${start.toISOString()}&end=${end.toISOString()}&unmonitored=true&includeArtist=true`,
+      z.array(calendarAlbumSchema),
+    );
   }
 
   /** Settings, Connect in Lidarr: every notification (webhooks and the like). */

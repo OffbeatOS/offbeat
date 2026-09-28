@@ -64,6 +64,13 @@
       "when": 1790605126453,
       "tag": "0008_temporary_password_expiry",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790620643216,
+      "tag": "0009_notifications",
+      "breakpoints": true
     }
   ]
 }

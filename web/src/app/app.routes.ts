@@ -145,7 +145,13 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/settings/account-settings').then((m) => m.AccountSettings),
           },
-          settingsPlaceholder('notifications', 'Notifications', 'Where Offbeat sends alerts.'),
+          {
+            path: 'notifications',
+            title: 'Notifications',
+            canActivate: [adminGuard],
+            loadComponent: () =>
+              import('./features/settings/notifications-settings').then((m) => m.NotificationsSettings),
+          },
           settingsPlaceholder('about', 'About', 'Version and project information.'),
         ],
       },

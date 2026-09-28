@@ -7,3 +7,4 @@ export * from './library.js';
 export * from './lidarr.js';
 export * from './listening.js';
 export * from './status.js';
+export * from './notifications.js';

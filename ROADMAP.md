@@ -45,8 +45,8 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 
 - [x] Users and permissions (add artists, add albums, change monitoring, delete, access flows), with temporary passwords for new users and resets
 - [x] Reverse-proxy header auth, optional local-network auto-login
-- [ ] Notifications
-  - Channels: ntfy, Discord, Gotify, and generic webhooks
+- [x] Notifications
+  - Channels: Discord and generic webhooks (ntfy and Gotify later)
   - Events: album imported, download failed, import blocked, and new release from a monitored artist
   - Each channel chooses which events it receives, with a Send Test button
   - Admin-configured channels at first; per-user preferences follow the users and permissions work
@@ -98,6 +98,7 @@ Ideas for after Phase 5, roughly grouped. Not scheduled or committed.
 - **More listening history sources:** Koito, plus scrobbling from Offbeat's own player
 - **Authentication:** native OpenID Connect login; group-based roles, trusted proxy IPs and a logout URL for proxy auth
 - **Public API:** API keys and published endpoint documentation
+- **More notification channels:** ntfy and Gotify
 - **Docs site:** GitHub Pages documentation once the README outgrows itself
 
 ## Non-goals
