@@ -18,6 +18,8 @@ const MODES: { id: DiscoveryMode; label: string }[] = [
 const UNDO_MS = 8000;
 /** While the server is refreshing, ask again this often. */
 const POLL_MS = 3000;
+/** A failed check during a refresh is retried, backing off to at most this. */
+const MAX_RETRY_MS = 30_000;
 
 /**
  * Discover (Main and Mobile mockups): Top Picks with quick add, Albums to
@@ -182,19 +184,31 @@ export class DiscoverPage {
     this.data.update((d) => (d ? { ...d, items: d.items.map((i) => (i.mbid === pick.mbid ? { ...i, inLibrary: true } : i)) } : d));
   }
 
-  /** Loads one mode, or with none, the user's default. */
-  private async load(mode: DiscoveryMode | null) {
+  /**
+   * Loads one mode, or with none, the user's default. While a refresh runs or
+   * albums are still being found, asks again every few seconds. A failed
+   * check while something is on screen is retried, more slowly each time,
+   * rather than ending the updates, so a moment of network trouble never
+   * leaves the page waiting until a reload.
+   */
+  private async load(mode: DiscoveryMode | null, failures = 0) {
     clearTimeout(this.poll);
-    this.error.set('');
     // Keep what is on screen while polling, unless it was another mode's.
     const shown = this.data();
     if (shown && shown.mode !== (mode ?? shown.preferences.defaultMode)) this.data.set(null);
     try {
       const response = await this.api.get<DiscoverResponse>(mode ? `discover?mode=${mode}` : 'discover');
       if (mode !== this.requested()) return; // switched again meanwhile
+      this.error.set('');
       this.data.set(response);
-      if (response.refreshing) this.poll = setTimeout(() => void this.load(mode), POLL_MS);
+      if (response.refreshing || response.albumsPending) this.poll = setTimeout(() => void this.load(mode), POLL_MS);
     } catch (error) {
+      if (mode !== this.requested()) return;
+      const current = this.data();
+      if (current && (current.refreshing || current.albumsPending)) {
+        this.poll = setTimeout(() => void this.load(mode, failures + 1), Math.min(POLL_MS * 2 ** (failures + 1), MAX_RETRY_MS));
+        return;
+      }
       this.error.set(error instanceof ApiError ? error.message : 'Could not load recommendations');
     }
   }
