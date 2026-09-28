@@ -45,7 +45,9 @@ COPY --from=build /src/web/dist/web/browser ./web/dist/web/browser
 # Fail the build (per architecture) if the SQLite binary cannot load.
 RUN node -e "new (require('better-sqlite3'))(':memory:').prepare('select 1').get()"
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+# `docker exec -it offbeat offbeat reset-password <user>` (see the README).
+COPY docker/offbeat.sh /usr/local/bin/offbeat
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/offbeat
 
 EXPOSE 3001
 VOLUME ["/app/config"]

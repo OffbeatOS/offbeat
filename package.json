@@ -23,7 +23,8 @@
     "lint": "eslint . && node scripts/check-dashes.mjs",
     "typecheck": "npm run build -w shared && npm run typecheck --workspaces --if-present",
     "test": "npm run build -w shared && npm run test --workspaces --if-present",
-    "db:generate": "npm run db:generate -w server"
+    "db:generate": "npm run db:generate -w server",
+    "offbeat": "node server/dist/cli.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

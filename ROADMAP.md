@@ -54,7 +54,7 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
   - Failed deliveries are retried and logged, and never block the rest of Offbeat
 - [ ] Lidarr webhook receiver (Settings, Connect, Webhook in Lidarr) for instant Activity updates on grab and import; polling stays as the fallback
 - [ ] Shows via Ticketmaster
-- [ ] Admin password reset CLI
+- [x] Admin password reset CLI (`offbeat reset-password`, `list-users`, `make-admin`)
 
 ## Phase 4: Flows and playlists
 

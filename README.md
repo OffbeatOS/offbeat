@@ -87,6 +87,28 @@ Integrations and add behavior are configured in the web UI. Environment variable
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, or `error` |
 | `SESSION_COOKIE` | `offbeat_session` | Session cookie name. Give each instance its own when several share a host, since browsers share cookies across ports |
 
+## Locked out?
+
+Offbeat has a small admin command for when nobody can sign in. It works while Offbeat is running.
+
+In Docker (`offbeat` is the container name from the examples above):
+
+```sh
+docker exec -it offbeat offbeat reset-password <username>
+docker exec -it offbeat offbeat list-users
+docker exec -it offbeat offbeat make-admin <username>
+```
+
+On bare metal, from the Offbeat folder, as the user that runs Offbeat and with the same `CONFIG_DIR`:
+
+```sh
+CONFIG_DIR=/path/to/config npm run --silent offbeat -- reset-password <username>
+```
+
+- `reset-password` prints a temporary password once. It works for 7 days, signs that user out everywhere, and they choose their own at next sign-in. Admins can do the same for other users in Settings, Users.
+- `list-users` shows everyone who can sign in, with their role.
+- `make-admin` makes a user an admin, for when the only admin account is lost.
+
 ## Contributing
 
 Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md): it covers setup, running without a real Lidarr, the checks CI runs, and the project's working agreements. Questions and ideas go to [Discussions](https://github.com/OffbeatOS/offbeat/discussions); security problems go through [SECURITY.md](SECURITY.md).
