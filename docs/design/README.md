@@ -18,7 +18,7 @@ These are standalone HTML files exported from a design tool. They use its small 
 | `Album.dc.html` | Album page (partial state shown) | Done |
 | `Activity.dc.html` | Activity (requests, downloads, failures) | Phase 1 |
 | `Flows.dc.html` | Flow list and editor | Phase 4 |
-| `Shows.dc.html` | Shows (concert listings) | Phase 3 |
+| `Shows.dc.html` | Shows (concert listings) | Later |
 | `Tag.dc.html` | Tag page (Explore by Tag) | Phase 2 |
 | `SettingsDiscovery.dc.html` | Settings, Discovery and blocklist | Phase 2 |
 | `SettingsUsers.dc.html` | Settings, Users and sign-in methods |

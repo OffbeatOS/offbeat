@@ -53,7 +53,6 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
   - Messages link back to the album or artist in Offbeat when a base URL is set
   - Failed deliveries are retried and logged, and never block the rest of Offbeat
 - [x] Lidarr webhook receiver (Settings, Connect, Webhook in Lidarr) for instant Activity updates on grab and import; polling stays as the fallback. Set Up Automatically creates or updates it after a test
-- [ ] Shows via Ticketmaster
 - [x] Admin password reset CLI (`offbeat reset-password`, `list-users`, `make-admin`)
 
 ## Phase 4: Flows and playlists
@@ -98,6 +97,7 @@ Ideas for after Phase 5, roughly grouped. Not scheduled or committed.
 - **More listening history sources:** Koito, plus scrobbling from Offbeat's own player
 - **Authentication:** native OpenID Connect login; group-based roles, trusted proxy IPs and a logout URL for proxy auth
 - **Public API:** API keys and published endpoint documentation
+- **Shows:** nearby concerts for library and recommended artists via Ticketmaster, with location and radius, and a Local Shows section on Discover
 - **More notification channels:** ntfy and Gotify
 - **Docs site:** GitHub Pages documentation once the README outgrows itself
 

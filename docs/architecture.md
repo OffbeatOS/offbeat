@@ -127,7 +127,7 @@ The MusicBrainz ID (MBID) is the join key across every service. Pages are routed
 
 **slskd (phase 4).** External Soulseek client, used through its REST API. Offbeat does not embed a Soulseek client.
 
-**Ticketmaster (phase 3, optional).** Nearby shows.
+**Ticketmaster (later, optional).** Nearby shows.
 
 ## Activity
 
@@ -162,7 +162,7 @@ Works with no API key: ListenBrainz is always a source, and a Last.fm key adds a
 
 Every upstream answer is cached in `source_cache` (similar artists and popularity 7 days, lookups 30 days, listening stats 1 day) and served stale if a source is down. `server/scripts/discover-sample.ts` prints a sample per mode and source mix for reviewing quality.
 
-Discover sections: Top Picks for You (with quick add), Albums to Start With (each top pick's most played studio album: MusicBrainz release groups ranked by ListenBrainz listeners), Explore by Tag (genres across the recommendations, weighted by score), and (phase 3) Local Shows. In Settings, Discovery each user can reorder sections (by dragging, or with Move up and Move down for keyboard and touch) and hide them, and choose the default mode: Discover opens with it when the URL names no mode, and a mode in the URL always wins. Refresh Now there shows the running refresh step by step (library and listening, similar artists, artist details, albums). A tag page lists the best-known artists MusicBrainz tags with that genre (ranked by ListenBrainz listeners), their starting albums, and the genres that go with it in the user's recommendations.
+Discover sections: Top Picks for You (with quick add), Albums to Start With (each top pick's most played studio album: MusicBrainz release groups ranked by ListenBrainz listeners), Explore by Tag (genres across the recommendations, weighted by score), and later Local Shows. In Settings, Discovery each user can reorder sections (by dragging, or with Move up and Move down for keyboard and touch) and hide them, and choose the default mode: Discover opens with it when the URL names no mode, and a mode in the URL always wins. Refresh Now there shows the running refresh step by step (library and listening, similar artists, artist details, albums). A tag page lists the best-known artists MusicBrainz tags with that genre (ranked by ListenBrainz listeners), their starting albums, and the genres that go with it in the user's recommendations.
 
 ## Data model
 

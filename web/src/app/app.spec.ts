@@ -130,7 +130,7 @@ describe('app shell', () => {
   it('renders the sidebar, content region, and bottom bar', async () => {
     const { el } = await boot(fakeSession({ user: admin }), '/discover');
     const labels = [...el.querySelectorAll('ob-sidebar ob-nav-item')].map((n) => n.textContent?.trim());
-    expect(labels).toEqual(['Discover', 'Search', 'Library', 'Activity', 'Flows', 'Shows', 'Settings']);
+    expect(labels).toEqual(['Discover', 'Search', 'Library', 'Activity', 'Flows', 'Settings']);
     expect(el.querySelector('ob-shell-layout main router-outlet')).toBeTruthy();
     expect(el.querySelector('ob-bottom-bar')).toBeTruthy();
     expect(el.querySelector('main ob-bottom-bar')).toBeNull();
