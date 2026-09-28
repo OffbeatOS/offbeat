@@ -57,3 +57,24 @@ export interface LidarrSettingsRequest extends LidarrDefaults {
 export interface LidarrSettingsView extends Required<LidarrDefaults> {
   url: string;
 }
+
+/** `GET /settings/lidarr/webhook`: instant Activity updates from Lidarr (admins only). */
+export interface LidarrWebhookView {
+  /** Where Lidarr sends events, once set up; null before. */
+  callbackUrl: string | null;
+  /** Offbeat's guess at its own address, from how the admin reached it. Lidarr must be able to reach it. */
+  suggestedUrl: string;
+  /** For the webhook's Basic auth in Lidarr (Username and Password fields). */
+  username: string;
+  password: string;
+  /** Offbeat's webhook currently exists in Lidarr. */
+  installed: boolean;
+  lastEventAt: string | null;
+  /** "album imported", "album grabbed", "test", and so on. */
+  lastEvent: string | null;
+}
+
+/** `PUT /settings/lidarr/webhook`: set up (or update) the webhook in Lidarr at this address, after a test. */
+export interface LidarrWebhookSetupRequest {
+  callbackUrl: string;
+}

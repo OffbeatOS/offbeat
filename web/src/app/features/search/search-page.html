@@ -55,9 +55,11 @@
                       <span class="count">{{ top.albumsInLibrary }} of {{ top.albumCount }} albums</span>
                     }
                   } @else {
-                    <button class="pill" type="button" [disabled]="addingArtist()" (click)="addTopArtist()">
-                      <ob-icon name="plus" [size]="15" [strokeWidth]="2.4" />{{ addingArtist() ? 'Adding' : 'Add Artist' }}
-                    </button>
+                    @if (can('add-artists')) {
+                      <button class="pill" type="button" [disabled]="addingArtist()" (click)="addTopArtist()">
+                        <ob-icon name="plus" [size]="15" [strokeWidth]="2.4" />{{ addingArtist() ? 'Adding' : 'Add Artist' }}
+                      </button>
+                    }
                     <a class="ghost" [routerLink]="['/artist', top.artist.mbid]">View</a>
                   }
                 </div>

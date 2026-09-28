@@ -17,11 +17,38 @@ export const signedInGuard: CanActivateFn = async (_route, state) => {
   await session.ensureLoaded();
 
   if (session.needsAdmin()) return router.parseUrl('/onboarding');
+  if (!session.user() && session.unknownProxyUser()) return router.parseUrl('/no-account');
   if (!session.user()) {
     return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
   }
+  if (session.user()!.mustChangePassword && session.via() === 'password') return router.parseUrl('/change-password');
   if (adminNeedsSetup(session)) return router.parseUrl('/onboarding');
   return true;
+};
+
+/** Choosing a password: only for someone signed in with a temporary one. */
+export const passwordChangeGuard: CanActivateFn = async () => {
+  const session = inject(Session);
+  const router = inject(Router);
+  await session.ensureLoaded();
+  if (!session.user()) return router.parseUrl('/login');
+  return session.user()!.mustChangePassword && session.via() === 'password' ? true : router.parseUrl('/discover');
+};
+
+/** The reverse proxy vouched for someone with no Offbeat account. */
+export const noAccountGuard: CanActivateFn = async () => {
+  const session = inject(Session);
+  const router = inject(Router);
+  await session.ensureLoaded();
+  return session.unknownProxyUser() && !session.user() ? true : router.parseUrl('/discover');
+};
+
+/** Admin-only settings sections; Members land on the sections that are theirs. */
+export const adminGuard: CanActivateFn = async () => {
+  const session = inject(Session);
+  const router = inject(Router); // before the await: inject only works synchronously
+  await session.ensureLoaded();
+  return session.user()?.role === 'admin' ? true : router.parseUrl('/settings/discovery');
 };
 
 /** Onboarding covers the first run and any setup steps an admin has not finished. */

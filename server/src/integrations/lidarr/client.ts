@@ -147,6 +147,17 @@ const albumRefSchema = z.object({
 });
 export type LidarrAlbumRef = z.infer<typeof albumRefSchema>;
 
+const calendarAlbumSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  foreignAlbumId: z.string(),
+  releaseDate: z.string().nullish(),
+  artist: z
+    .object({ artistName: z.string(), foreignArtistId: z.string(), monitored: z.boolean(), added: z.string().nullish() })
+    .nullish(),
+});
+export type LidarrCalendarAlbum = z.infer<typeof calendarAlbumSchema>;
+
 const queueItemSchema = z.object({
   id: z.number(),
   albumId: z.number().nullish(),
@@ -167,6 +178,24 @@ const queueItemSchema = z.object({
 });
 export type LidarrQueueItem = z.infer<typeof queueItemSchema>;
 
+const notificationSchema = z.object({
+  id: z.number(),
+  name: z.string().nullish(),
+  implementation: z.string(),
+  fields: z.array(z.object({ name: z.string(), value: z.unknown().optional() })).default([]),
+});
+export type LidarrNotification = z.infer<typeof notificationSchema>;
+
+/** A notification to create, update, or test (Lidarr's shape for Settings, Connect). */
+export interface LidarrNotificationInput {
+  name: string;
+  implementation: string;
+  configContract: string;
+  fields: { name: string; value: unknown }[];
+  tags: number[];
+  [event: `on${string}`]: boolean;
+}
+
 const historyItemSchema = z.object({
   id: z.number(),
   eventType: z.string(),
@@ -175,6 +204,7 @@ const historyItemSchema = z.object({
   album: albumRefSchema.partial({ id: true }).nullish(),
   artist: z.object({ artistName: z.string(), foreignArtistId: z.string() }).nullish(),
   sourceTitle: z.string().nullish(),
+  downloadId: z.string().nullish(),
   data: z.record(z.string(), z.unknown()).nullish(),
 });
 export type LidarrHistoryItem = z.infer<typeof historyItemSchema>;
@@ -397,6 +427,41 @@ export class LidarrClient {
       z.array(z.object({ rejections: z.array(z.object({ reason: z.string().nullish() })).nullish() })),
     );
     return [...new Set(files.flatMap((f) => (f.rejections ?? []).map((r) => r.reason?.trim() ?? '')).filter(Boolean))];
+  }
+
+  /** Albums releasing between two dates (Lidarr's calendar), with their artist. */
+  async calendar(start: Date, end: Date): Promise<LidarrCalendarAlbum[]> {
+    return this.get(
+      `calendar?start=${start.toISOString()}&end=${end.toISOString()}&unmonitored=true&includeArtist=true`,
+      z.array(calendarAlbumSchema),
+    );
+  }
+
+  /** Settings, Connect in Lidarr: every notification (webhooks and the like). */
+  async notifications(): Promise<LidarrNotification[]> {
+    return this.get('notification', z.array(notificationSchema));
+  }
+
+  /**
+   * Asks Lidarr to send its Test event with these settings. Lidarr answers
+   * with an error when the call failed (unreachable, or not a 2xx answer).
+   */
+  async testNotification(body: LidarrNotificationInput & { id?: number }): Promise<void> {
+    await this.write('POST', 'notification/test', body, z.unknown());
+  }
+
+  async createNotification(body: LidarrNotificationInput): Promise<LidarrNotification> {
+    return this.write('POST', 'notification', body, notificationSchema);
+  }
+
+  async updateNotification(id: number, body: LidarrNotificationInput): Promise<LidarrNotification> {
+    return this.write('PUT', `notification/${id}`, { ...body, id }, notificationSchema);
+  }
+
+  async deleteNotification(id: number): Promise<void> {
+    const response = await this.send(`${this.baseUrl}/api/v1/notification/${id}`, 'application/json', { method: 'DELETE' });
+    if (response.status === 404) return; // already gone
+    this.assertOk(response);
   }
 
   async searchAlbums(albumIds: number[]): Promise<void> {

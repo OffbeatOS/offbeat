@@ -3,16 +3,24 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
-import type { CurrentUser } from '@offbeat/shared';
+import { type CurrentUser, PERMISSIONS, type SignInVia } from '@offbeat/shared';
 import { App } from './app';
 import { routes } from './app.routes';
 import { safeReturnUrl } from './core/guards';
 import { Session } from './core/session';
 
 /** Session stand-in so routing can be tested without a server. */
-function fakeSession(state: { needsAdmin?: boolean; user?: CurrentUser | null; lidarrConfigured?: boolean }) {
+function fakeSession(state: {
+  needsAdmin?: boolean;
+  user?: CurrentUser | null;
+  lidarrConfigured?: boolean;
+  unknownProxyUser?: string | null;
+}) {
   return {
     user: signal(state.user ?? null),
+    via: signal<SignInVia | null>(state.user ? 'password' : null),
+    signOutUrl: signal<string | null>(null),
+    unknownProxyUser: signal<string | null>(state.unknownProxyUser ?? null),
     needsAdmin: signal(state.needsAdmin ?? false),
     lidarrConfigured: signal(state.lidarrConfigured ?? true),
     unreachable: signal(false),
@@ -20,7 +28,7 @@ function fakeSession(state: { needsAdmin?: boolean; user?: CurrentUser | null; l
   };
 }
 
-const admin: CurrentUser = { id: 1, username: 'admin', role: 'admin' };
+const admin: CurrentUser = { id: 1, username: 'admin', role: 'admin', permissions: [...PERMISSIONS], mustChangePassword: false };
 
 async function boot(session: ReturnType<typeof fakeSession>, url: string) {
   TestBed.configureTestingModule({
@@ -67,9 +75,47 @@ describe('routing', () => {
   });
 
   it('does not hold non-admins at onboarding when Lidarr is missing', async () => {
-    const member: CurrentUser = { id: 2, username: 'member', role: 'user' };
+    const member: CurrentUser = { id: 2, username: 'member', role: 'user', permissions: [], mustChangePassword: false };
     const { router } = await boot(fakeSession({ user: member, lidarrConfigured: false }), '/library');
     expect(router.url).toBe('/library');
+  });
+
+  it('keeps Members out of admin settings, landing them on their own', async () => {
+    const member: CurrentUser = { id: 2, username: 'member', role: 'user', permissions: [], mustChangePassword: false };
+    const { router, el } = await boot(fakeSession({ user: member }), '/settings/users');
+    expect(router.url).toBe('/settings/discovery');
+    await router.navigateByUrl('/settings');
+    expect(router.url).toBe('/settings/discovery');
+    expect([...el.querySelectorAll('ob-settings-layout nav a')].map((a) => a.textContent?.trim())).toEqual([
+      'Discovery',
+      'Account',
+      'About',
+    ]);
+  });
+
+  it('holds someone with a temporary password on the choose-a-password page', async () => {
+    const invited: CurrentUser = { id: 3, username: 'ada', role: 'user', permissions: [], mustChangePassword: true };
+    const { router, el } = await boot(fakeSession({ user: invited }), '/library');
+    expect(router.url).toBe('/change-password');
+    expect(el.querySelector('h1')?.textContent).toBe('Choose your password');
+    await router.navigateByUrl('/settings/account');
+    expect(router.url).toBe('/change-password');
+  });
+
+  it('moves someone off an admin page the moment they stop being an admin', async () => {
+    const session = fakeSession({ user: admin });
+    const { router } = await boot(session, '/settings/users');
+    expect(router.url).toBe('/settings/users');
+    session.user.set({ ...admin, role: 'user', permissions: [] });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(router.url).toBe('/settings/discovery');
+  });
+
+  it('sends someone the proxy vouched for, with no account here, to a page that says so', async () => {
+    const { router, el } = await boot(fakeSession({ unknownProxyUser: 'eve' }), '/library');
+    expect(router.url).toBe('/no-account');
+    expect(el.querySelector('h1')?.textContent).toBe('No Offbeat account');
+    expect(el.textContent).toContain('eve');
   });
 
   it('only follows in-app return URLs', () => {
@@ -84,7 +130,7 @@ describe('app shell', () => {
   it('renders the sidebar, content region, and bottom bar', async () => {
     const { el } = await boot(fakeSession({ user: admin }), '/discover');
     const labels = [...el.querySelectorAll('ob-sidebar ob-nav-item')].map((n) => n.textContent?.trim());
-    expect(labels).toEqual(['Discover', 'Search', 'Library', 'Activity', 'Flows', 'Shows', 'Settings']);
+    expect(labels).toEqual(['Discover', 'Search', 'Library', 'Activity', 'Flows', 'Settings']);
     expect(el.querySelector('ob-shell-layout main router-outlet')).toBeTruthy();
     expect(el.querySelector('ob-bottom-bar')).toBeTruthy();
     expect(el.querySelector('main ob-bottom-bar')).toBeNull();

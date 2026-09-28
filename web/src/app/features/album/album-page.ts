@@ -8,6 +8,7 @@ import { AlbumCard } from '../../shared/catalog/album-card';
 import { Cover } from '../../shared/catalog/cover';
 import { EmptyState } from '../../shared/empty-state/empty-state';
 import { Icon } from '../../shared/icon/icon';
+import { Session } from '../../core/session';
 
 /**
  * Album mockup. The layout is shared by every state:
@@ -26,6 +27,8 @@ import { Icon } from '../../shared/icon/icon';
 })
 export class AlbumPage {
   private readonly api = inject(Api);
+  /** Hides what the server would refuse this user (see Session.can). */
+  protected readonly can = inject(Session).can;
   readonly mbid = input.required<string>();
 
   protected readonly album = signal<AlbumDetail | null>(null);

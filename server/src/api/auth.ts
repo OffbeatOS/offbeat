@@ -1,5 +1,5 @@
-import type { CurrentUser } from '@offbeat/shared';
-import { sql } from 'drizzle-orm';
+import type { CurrentUser, MeResponse } from '@offbeat/shared';
+import { eq, sql } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { type SessionCookieOptions, clearSessionCookie, setSessionCookie } from '../auth/guard.js';
@@ -7,6 +7,8 @@ import { LoginLimiter } from '../auth/login-limiter.js';
 import { verifyPassword } from '../auth/password.js';
 import { createSession, deleteExpiredSessions, deleteSession } from '../auth/sessions.js';
 import { users } from '../db/schema.js';
+import { TEMPORARY_EXPIRED, temporaryExpired, toCurrentUser } from '../auth/permissions.js';
+import { loadSignIn } from '../auth/sign-in.js';
 import { HttpError, parse } from './errors.js';
 
 const loginBody = z.object({
@@ -40,11 +42,18 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { c
       throw new HttpError(401, 'Incorrect username or password');
     }
 
+    // Checked only after the password matched, so it reveals nothing about unknown accounts.
+    if (user.role !== 'admin' && !loadSignIn(app.settings).localAccounts) {
+      throw new HttpError(403, 'Sign in through your usual sign-in page. Passwords here are for admins only.');
+    }
+    if (temporaryExpired(user)) throw new HttpError(401, TEMPORARY_EXPIRED);
+
     limiter.succeed(request.ip);
     deleteExpiredSessions(app.db);
     const session = createSession(app.db, user.id);
+    app.db.update(users).set({ lastSeenAt: new Date() }).where(eq(users.id, user.id)).run();
     setSessionCookie(request, reply, session.token, session.expiresAt, cookie);
-    return { id: user.id, username: user.username, role: user.role };
+    return toCurrentUser(user);
   });
 
   // Public so a stale or expired cookie can always be cleared.
@@ -56,7 +65,13 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { c
   });
 
   // Public and never 401, so the app can ask "who am I" without a console error.
-  app.get('/auth/me', { config: { public: true } }, async (request): Promise<{ user: CurrentUser | null }> => {
-    return { user: request.user };
+  app.get('/auth/me', { config: { public: true } }, async (request): Promise<MeResponse> => {
+    const proxy = loadSignIn(app.settings).proxy;
+    return {
+      user: request.user,
+      via: request.authVia,
+      signOutUrl: request.authVia === 'proxy' ? proxy.logoutUrl : null,
+      unknownProxyUser: request.unknownProxyUser,
+    };
   });
 };

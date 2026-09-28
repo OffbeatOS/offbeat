@@ -1,9 +1,14 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
 import { ActivityStore } from '../../core/activity-store';
+import { Session } from '../../core/session';
+import { SETTINGS_SECTIONS } from '../../features/settings/sections';
 import { BottomBar } from './bottom-bar';
 import { Sidebar } from './sidebar';
 import { TabBar } from './tab-bar';
+
+/** Settings sections only admins may open. */
+const ADMIN_SETTINGS = SETTINGS_SECTIONS.filter((s) => s.admin).map((s) => `/settings/${s.path}`);
 
 /**
  * App shell for signed-in pages: sidebar, routed content, and the bottom bar.
@@ -70,5 +75,26 @@ export class ShellLayout {
   constructor() {
     // One live activity stream for as long as the signed-in shell is on screen.
     inject(DestroyRef).onDestroy(inject(ActivityStore).connect());
+
+    // Role, permissions, or password changed by an admin while this page is open:
+    // leave what is no longer allowed. Buttons follow on their own (Session.can).
+    const session = inject(Session);
+    const router = inject(Router);
+    effect(() => {
+      const user = session.user();
+      if (!user) return;
+      if (user.mustChangePassword && session.via() === 'password') {
+        void router.navigateByUrl('/change-password');
+      } else if (user.role !== 'admin' && ADMIN_SETTINGS.some((path) => router.url.startsWith(path))) {
+        void router.navigateByUrl('/settings/discovery');
+      }
+    });
+
+    // Coming back to the tab is a good moment to check (at most every 30 seconds).
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void session.refresh(30_000);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    inject(DestroyRef).onDestroy(() => document.removeEventListener('visibilitychange', onVisible));
   }
 }

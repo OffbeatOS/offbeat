@@ -1,5 +1,5 @@
 import type { Route, Routes } from '@angular/router';
-import { onboardingGuard, signedInGuard, signedOutGuard } from './core/guards';
+import { adminGuard, noAccountGuard, onboardingGuard, passwordChangeGuard, signedInGuard, signedOutGuard } from './core/guards';
 import type { IconName } from './shared/icon/icon';
 
 const placeholder = (
@@ -36,6 +36,19 @@ export const routes: Routes = [
     title: 'Sign in',
     canActivate: [signedOutGuard],
     loadComponent: () => import('./features/auth/login-page').then((m) => m.LoginPage),
+  },
+  {
+    path: 'no-account',
+    title: 'No account',
+    canActivate: [noAccountGuard],
+    loadComponent: () => import('./features/auth/no-account-page').then((m) => m.NoAccountPage),
+  },
+  {
+    path: 'change-password',
+    title: 'Choose your password',
+    canActivate: [passwordChangeGuard],
+    loadComponent: () =>
+      import('./features/auth/change-password-page').then((m) => m.ChangePasswordPage),
   },
   {
     // Everything signed in lives inside the shell, which stays mounted across pages.
@@ -80,13 +93,6 @@ export const routes: Routes = [
         loadComponent: () => import('./features/activity/activity-page').then((m) => m.ActivityPage),
       },
       placeholder('flows', 'Flows', 'flows', 'No flows yet', 'Scheduled discovery playlists will live here.'),
-      placeholder(
-        'shows',
-        'Shows',
-        'shows',
-        'No shows yet',
-        'Upcoming concerts for artists you follow will appear here.',
-      ),
       {
         path: 'settings',
         loadComponent: () =>
@@ -96,18 +102,21 @@ export const routes: Routes = [
           {
             path: 'integrations',
             title: 'Integrations settings',
+            canActivate: [adminGuard],
             loadComponent: () =>
               import('./features/settings/integrations-settings').then((m) => m.IntegrationsSettings),
           },
           {
             path: 'integrations/lidarr',
             title: 'Lidarr settings',
+            canActivate: [adminGuard],
             loadComponent: () =>
               import('./features/settings/lidarr-settings').then((m) => m.LidarrSettings),
           },
           {
             path: 'integrations/lastfm',
             title: 'Last.fm settings',
+            canActivate: [adminGuard],
             loadComponent: () =>
               import('./features/settings/lastfm-settings').then((m) => m.LastfmSettings),
           },
@@ -117,14 +126,25 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/settings/discovery-settings').then((m) => m.DiscoverySettings),
           },
-          settingsPlaceholder('users', 'Users', 'People who can use this Offbeat server.'),
+          {
+            path: 'users',
+            title: 'Users',
+            canActivate: [adminGuard],
+            loadComponent: () => import('./features/settings/users-settings').then((m) => m.UsersSettings),
+          },
           {
             path: 'account',
             title: 'Account settings',
             loadComponent: () =>
               import('./features/settings/account-settings').then((m) => m.AccountSettings),
           },
-          settingsPlaceholder('notifications', 'Notifications', 'Where Offbeat sends alerts.'),
+          {
+            path: 'notifications',
+            title: 'Notifications',
+            canActivate: [adminGuard],
+            loadComponent: () =>
+              import('./features/settings/notifications-settings').then((m) => m.NotificationsSettings),
+          },
           settingsPlaceholder('about', 'About', 'Version and project information.'),
         ],
       },

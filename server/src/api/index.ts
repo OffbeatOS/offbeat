@@ -1,11 +1,15 @@
 import fastifyCookie from '@fastify/cookie';
-import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import type { FastifyContextConfig, FastifyInstance, FastifyPluginAsync } from 'fastify';
 import type { LoginLimiter } from '../auth/login-limiter.js';
 import { DEFAULT_SESSION_COOKIE, registerAuthGuard } from '../auth/guard.js';
 import { activityRoutes } from './activity.js';
 import { authRoutes } from './auth.js';
 import { catalogRoutes } from './catalog.js';
 import { discoverRoutes } from './discover.js';
+import { signInSettingsRoutes } from './sign-in-settings.js';
+import { userRoutes } from './users.js';
+import { notificationRoutes } from './notifications.js';
+import { webhookRoutes } from './webhook.js';
 import { HttpError, apiErrorHandler, errorBody } from './errors.js';
 import { libraryRoutes } from './library.js';
 import { lidarrSettingsRoutes } from './lidarr-settings.js';
@@ -21,6 +25,14 @@ export interface ApiOptions {
   upstreamTimeoutMs?: number;
   /** Last.fm API base, overridden in tests. */
   lastfmUrl?: string;
+  /** Filled with every API route and its access config, so tests can check none is left unguarded. */
+  routeTable?: ApiRouteInfo[];
+}
+
+export interface ApiRouteInfo {
+  method: string;
+  url: string;
+  config: FastifyContextConfig;
 }
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -47,9 +59,16 @@ function requireJsonForWrites(app: FastifyInstance) {
  */
 export const api: FastifyPluginAsync<ApiOptions> = async (
   app,
-  { baseUrl, sessionCookie = DEFAULT_SESSION_COOKIE, loginLimiter, upstreamTimeoutMs, lastfmUrl },
+  { baseUrl, sessionCookie = DEFAULT_SESSION_COOKIE, loginLimiter, upstreamTimeoutMs, lastfmUrl, routeTable },
 ) => {
   const cookie = { baseUrl, name: sessionCookie };
+  if (routeTable) {
+    app.addHook('onRoute', (route) => {
+      for (const method of [route.method].flat()) {
+        if (method !== 'HEAD') routeTable.push({ method, url: route.url, config: (route.config ?? {}) as FastifyContextConfig });
+      }
+    });
+  }
 
   await app.register(fastifyCookie);
   requireJsonForWrites(app);
@@ -65,6 +84,10 @@ export const api: FastifyPluginAsync<ApiOptions> = async (
   await app.register(catalogRoutes);
   await app.register(activityRoutes);
   await app.register(discoverRoutes);
+  await app.register(userRoutes, { cookie });
+  await app.register(signInSettingsRoutes);
+  await app.register(webhookRoutes, { baseUrl });
+  await app.register(notificationRoutes);
 
   app.setNotFoundHandler((request, reply) => {
     reply.code(404).send(errorBody(404, `No route for ${request.method} ${request.url}`));

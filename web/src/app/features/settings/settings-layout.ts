@@ -1,14 +1,8 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Session } from '../../core/session';
+import { SETTINGS_SECTIONS } from './sections';
 
-export const SETTINGS_SECTIONS = [
-  { path: 'integrations', label: 'Integrations' },
-  { path: 'discovery', label: 'Discovery' },
-  { path: 'users', label: 'Users' },
-  { path: 'account', label: 'Account' },
-  { path: 'notifications', label: 'Notifications' },
-  { path: 'about', label: 'About' },
-] as const;
 
 /** Settings mockup: title and section list on the left, section on the right. */
 @Component({
@@ -90,7 +84,7 @@ export const SETTINGS_SECTIONS = [
     <aside>
       <h1>Settings</h1>
       <nav aria-label="Settings">
-        @for (section of sections; track section.path) {
+        @for (section of sections(); track section.path) {
           <a [routerLink]="section.path" routerLinkActive="active" ariaCurrentWhenActive="page">
             {{ section.label }}
           </a>
@@ -103,5 +97,8 @@ export const SETTINGS_SECTIONS = [
   `,
 })
 export class SettingsLayout {
-  protected readonly sections = SETTINGS_SECTIONS;
+  private readonly session = inject(Session);
+  protected readonly sections = computed(() =>
+    SETTINGS_SECTIONS.filter((s) => !s.admin || this.session.user()?.role === 'admin'),
+  );
 }

@@ -75,7 +75,7 @@
                   {{ linkLabel(item) }}
                 </a>
               }
-              @if (item.canRetry) {
+              @if (item.canRetry && can('add-albums')) {
                 <button class="solid" type="button" [disabled]="busy() === item.id" (click)="retry(item)">
                   {{ busy() === item.id ? 'Retrying' : 'Retry' }}
                 </button>
@@ -115,7 +115,7 @@
               }
             </div>
             <span class="spacer"></span>
-            @if (item.canCancel) {
+            @if (item.canCancel && can('delete')) {
               @if (confirmCancel() === item.id) {
                 <button class="confirm" type="button" [disabled]="busy() === item.id" (click)="cancel(item)">Remove download</button>
               } @else {

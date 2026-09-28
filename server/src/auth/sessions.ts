@@ -1,8 +1,9 @@
 import type { CurrentUser } from '@offbeat/shared';
-import { eq, lt } from 'drizzle-orm';
+import { and, eq, lt, ne } from 'drizzle-orm';
 import { createHash, randomBytes } from 'node:crypto';
 import type { Db } from '../db/index.js';
 import { sessions, users } from '../db/schema.js';
+import { toCurrentUser } from './permissions.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const SESSION_TTL_MS = 30 * DAY_MS;
@@ -18,6 +19,9 @@ export function createSession(db: Db, userId: number, now = new Date()) {
   return { token, expiresAt };
 }
 
+/** Settings, Users shows when each person was last active; this is precise enough and saves a write per request. */
+const LAST_SEEN_EVERY_MS = 5 * 60 * 1000;
+
 export interface ResolvedSession {
   user: CurrentUser;
   expiresAt: Date;
@@ -31,7 +35,14 @@ export function resolveSession(db: Db, token: string, now = new Date()): Resolve
   const row = db
     .select({
       expiresAt: sessions.expiresAt,
-      user: { id: users.id, username: users.username, role: users.role },
+      user: {
+        id: users.id,
+        username: users.username,
+        role: users.role,
+        permissions: users.permissions,
+        mustChangePassword: users.mustChangePassword,
+        lastSeenAt: users.lastSeenAt,
+      },
     })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
@@ -43,16 +54,32 @@ export function resolveSession(db: Db, token: string, now = new Date()): Resolve
     db.delete(sessions).where(eq(sessions.id, id)).run();
     return null;
   }
+  touchLastSeen(db, row.user, now);
   if (row.expiresAt.getTime() - now.getTime() < REFRESH_BELOW_MS) {
     const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
     db.update(sessions).set({ expiresAt }).where(eq(sessions.id, id)).run();
-    return { user: row.user, expiresAt, refreshed: true };
+    return { user: toCurrentUser(row.user), expiresAt, refreshed: true };
   }
-  return { user: row.user, expiresAt: row.expiresAt, refreshed: false };
+  return { user: toCurrentUser(row.user), expiresAt: row.expiresAt, refreshed: false };
+}
+
+/** Records that someone used Offbeat, at most every few minutes. */
+export function touchLastSeen(db: Db, user: { id: number; lastSeenAt: Date | null }, now = new Date()) {
+  if (!user.lastSeenAt || now.getTime() - user.lastSeenAt.getTime() > LAST_SEEN_EVERY_MS) {
+    db.update(users).set({ lastSeenAt: now }).where(eq(users.id, user.id)).run();
+  }
 }
 
 export function deleteSession(db: Db, token: string) {
   db.delete(sessions).where(eq(sessions.id, hashToken(token))).run();
+}
+
+/** Signs a user out everywhere, except the session behind `keepToken` (an admin resetting their own password). */
+export function deleteUserSessions(db: Db, userId: number, keepToken?: string) {
+  const mine = eq(sessions.userId, userId);
+  db.delete(sessions)
+    .where(keepToken ? and(mine, ne(sessions.id, hashToken(keepToken))) : mine)
+    .run();
 }
 
 export function deleteExpiredSessions(db: Db, now = new Date()) {

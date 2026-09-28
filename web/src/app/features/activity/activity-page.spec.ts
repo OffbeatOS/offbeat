@@ -7,6 +7,7 @@ import type { ActivityItem, ActivitySnapshot } from '@offbeat/shared';
 import { ActivityStore } from '../../core/activity-store';
 import { BottomBar } from '../../shared/shell/bottom-bar';
 import { ActivityPage } from './activity-page';
+import { ADMIN, MEMBER, signIn } from '../../testing/users';
 
 function item(extra: Partial<ActivityItem>): ActivityItem {
   return {
@@ -53,11 +54,12 @@ const SNAPSHOT: ActivitySnapshot = {
   error: null,
 };
 
-async function render<T>(component: Type<T>, snapshot: ActivitySnapshot = SNAPSHOT) {
+async function render<T>(component: Type<T>, snapshot: ActivitySnapshot = SNAPSHOT, user = ADMIN) {
   TestBed.configureTestingModule({
     imports: [component],
     providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
   });
+  signIn(user);
   TestBed.inject(ActivityStore).snapshot.set(snapshot);
   const fixture = TestBed.createComponent(component);
   await fixture.whenStable();
@@ -102,6 +104,13 @@ describe('ActivityPage', () => {
     const link = card.querySelector<HTMLAnchorElement>('.actions a')!;
     expect(link.textContent?.trim()).toBe('Manual Import in Lidarr');
     expect(link.getAttribute('href')).toBe('http://lidarr:8686/activity/queue');
+  });
+
+  it('offers a Member without permissions neither Retry nor Cancel', async () => {
+    const el = await render(ActivityPage, SNAPSHOT, MEMBER);
+    expect([...el.querySelectorAll('.card .actions button')].map((b) => b.textContent?.trim())).toEqual([]);
+    expect(el.querySelector('.card .actions a')?.textContent?.trim()).toBe('Open in Lidarr');
+    expect(el.querySelector('.row .cancel')).toBeNull();
   });
 
   it('asks before removing a download', async () => {

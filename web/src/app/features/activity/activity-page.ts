@@ -8,6 +8,7 @@ import { Cover } from '../../shared/catalog/cover';
 import { EmptyState } from '../../shared/empty-state/empty-state';
 import { timeAgo } from '../../shared/format';
 import { Icon } from '../../shared/icon/icon';
+import { Session } from '../../core/session';
 
 type Filter = 'all' | 'progress' | 'failed' | 'completed';
 
@@ -24,6 +25,8 @@ type Filter = 'all' | 'progress' | 'failed' | 'completed';
 })
 export class ActivityPage {
   protected readonly store = inject(ActivityStore);
+  /** Hides what the server would refuse this user (see Session.can). */
+  protected readonly can = inject(Session).can;
 
   protected readonly filters: { id: Filter; label: string }[] = [
     { id: 'all', label: 'All' },

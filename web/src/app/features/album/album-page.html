@@ -30,16 +30,19 @@
       }
       <div class="actions">
         @if (canAdd()) {
-          <button class="accent" type="button" [disabled]="!!busy() || adding()" (click)="add()">
-            <ob-icon name="plus" [size]="16" [strokeWidth]="2.4" />{{ adding() ? 'Adding' : 'Add Album' }}
-          </button>
+          @if (can('add-albums')) {
+            <button class="accent" type="button" [disabled]="!!busy() || adding()" (click)="add()">
+              <ob-icon name="plus" [size]="16" [strokeWidth]="2.4" />{{ adding() ? 'Adding' : 'Add Album' }}
+            </button>
+          }
         } @else {
           <button
             class="primary"
             type="button"
             [class.off]="!a.monitored"
             [attr.aria-pressed]="a.monitored"
-            [disabled]="!!busy()"
+            [disabled]="!!busy() || !can('change-monitoring')"
+            [title]="can('change-monitoring') ? '' : 'Your account cannot change monitoring'"
             (click)="toggleMonitored()"
           >
             @if (a.monitored) {
@@ -48,7 +51,7 @@
               Unmonitored
             }
           </button>
-          @if (missing() > 0) {
+          @if (missing() > 0 && can('add-albums')) {
             <button class="secondary" type="button" [disabled]="!!busy() || searchQueued()" (click)="searchMissing()">
               {{ searchQueued() ? 'Search started' : busy() === 'search' ? 'Starting search' : 'Search Missing' }}
             </button>

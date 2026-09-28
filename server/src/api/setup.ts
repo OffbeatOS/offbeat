@@ -8,6 +8,7 @@ import {
 import { count } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { toCurrentUser } from '../auth/permissions.js';
 import { type SessionCookieOptions, setSessionCookie } from '../auth/guard.js';
 import { hashPassword } from '../auth/password.js';
 import { isLidarrConfigured } from '../integrations/lidarr/settings.js';
@@ -43,14 +44,14 @@ export const setupRoutes: FastifyPluginAsync<{ cookie: SessionCookieOptions }> =
       if (hasUsers(tx as unknown as Db)) return null;
       return tx
         .insert(users)
-        .values({ username, passwordHash, role: 'admin' })
-        .returning({ id: users.id, username: users.username, role: users.role })
+        .values({ username, passwordHash, role: 'admin', lastSeenAt: new Date() })
+        .returning()
         .get();
     });
     if (!user) throw new HttpError(409, 'Setup is already complete. Sign in instead.');
 
     const session = createSession(app.db, user.id);
     setSessionCookie(request, reply, session.token, session.expiresAt, cookie);
-    return reply.code(201).send(user);
+    return reply.code(201).send(toCurrentUser(user));
   });
 };

@@ -20,10 +20,11 @@
     "build": "npm run build -w shared && npm run build -w web && npm run build -w server",
     "dev": "npm run build -w shared && concurrently -n server,web -c auto \"npm run dev -w server\" \"npm run start -w web\"",
     "start": "node server/dist/index.js",
-    "lint": "eslint . && node scripts/check-dashes.mjs",
+    "lint": "eslint . && node scripts/check-dashes.mjs && node scripts/check-migrations.mjs",
     "typecheck": "npm run build -w shared && npm run typecheck --workspaces --if-present",
     "test": "npm run build -w shared && npm run test --workspaces --if-present",
-    "db:generate": "npm run db:generate -w server"
+    "db:generate": "npm run db:generate -w server",
+    "offbeat": "node server/dist/cli.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

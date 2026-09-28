@@ -11,7 +11,8 @@ import type {
 import type { FastifyBaseLogger } from 'fastify';
 import { HttpError } from '../api/errors.js';
 import type { Db } from '../db/index.js';
-import { requests } from '../db/schema.js';
+import { requests, users } from '../db/schema.js';
+import { eq } from 'drizzle-orm';
 import {
   type LidarrAlbum,
   type LidarrClient,
@@ -616,7 +617,8 @@ export class Catalog {
   }
 
   private record(userId: number | null, artistMbid: string, albumMbid: string | null, lidarrArtistId: number | null, lidarrAlbumId: number | null) {
-    this.db.insert(requests).values({ userId, artistMbid, albumMbid, lidarrArtistId, lidarrAlbumId }).run();
+    const requestedBy = userId === null ? null : (this.db.select({ username: users.username }).from(users).where(eq(users.id, userId)).get()?.username ?? null);
+    this.db.insert(requests).values({ userId, requestedBy, artistMbid, albumMbid, lidarrArtistId, lidarrAlbumId }).run();
   }
 
   private requireSettings(): StoredLidarr {

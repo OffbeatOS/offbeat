@@ -1,6 +1,7 @@
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import { Activity, type ActivityOptions } from './activity/activity.js';
-import { api } from './api/index.js';
+import { type ApiRouteInfo, api } from './api/index.js';
+import { findDockerStandIns } from './auth/sign-in.js';
 import { Catalog, type CatalogOptions } from './catalog/catalog.js';
 import { Discovery, type DiscoveryOptions } from './discovery/discovery.js';
 import type { LoginLimiter } from './auth/login-limiter.js';
@@ -12,6 +13,7 @@ import { ImageUrls } from './library/image-urls.js';
 import type { LastfmClient } from './integrations/lastfm/client.js';
 import { lastfmClientFor } from './integrations/lastfm/settings.js';
 import { currentClient } from './integrations/lidarr/settings.js';
+import { Notifier, type NotifierOptions } from './notifications/notifier.js';
 import { ListenBrainzClient } from './integrations/listenbrainz/client.js';
 import { MUSICBRAINZ_URL, MusicBrainzClient } from './integrations/musicbrainz/client.js';
 import { Library } from './library/library.js';
@@ -28,6 +30,7 @@ declare module 'fastify' {
     catalog: Catalog;
     activity: Activity;
     discovery: Discovery;
+    notifier: Notifier;
     /** Listening and similarity sources. Last.fm is null until an admin connects it. */
     sources: { lastfm: () => LastfmClient | null; listenbrainz: ListenBrainzClient };
   }
@@ -56,6 +59,9 @@ export interface AppOptions {
   /** Override in tests to point at fake Last.fm and ListenBrainz servers. */
   sources?: { lastfmUrl?: string; listenbrainzUrl?: string; listenbrainzLabsUrl?: string };
   discovery?: DiscoveryOptions;
+  notifications?: NotifierOptions;
+  /** Filled with every API route and its access config (for tests). */
+  routeTable?: ApiRouteInfo[];
 }
 
 export async function buildApp({
@@ -73,6 +79,8 @@ export async function buildApp({
   activity = {},
   sources = {},
   discovery = {},
+  notifications = {},
+  routeTable,
 }: AppOptions) {
   const app = Fastify({
     logger: logger ?? { level: config.logLevel },
@@ -144,7 +152,19 @@ export async function buildApp({
   );
   // The daily refresh runs for the life of the app.
   app.addHook('onReady', async () => app.discovery.start());
+
+  // Discord and generic webhooks: fed by Activity (history, blocked imports) and Lidarr's calendar.
+  app.decorate('notifier', new Notifier(db, settings, app.log, currentClient(settings), notifications));
+  app.activity.observe({
+    history: (records) => app.notifier.noticeHistory(records),
+    attention: (items) => app.notifier.noticeAttention(items),
+  });
+  app.addHook('onReady', async () => app.notifier.start());
+  app.addHook('onClose', async () => app.notifier.stop());
   app.addHook('onClose', async () => app.discovery.stop());
+
+  // Docker addresses that stand for anyone never count as the local network (auth/network.ts).
+  await findDockerStandIns();
 
   await app.register(api, {
     prefix: `${config.baseUrl}/api/v1`,
@@ -153,6 +173,7 @@ export async function buildApp({
     loginLimiter,
     upstreamTimeoutMs,
     lastfmUrl: sources.lastfmUrl,
+    routeTable,
   });
 
   if (webRoot) {

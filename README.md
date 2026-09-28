@@ -87,6 +87,73 @@ Integrations and add behavior are configured in the web UI. Environment variable
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, or `error` |
 | `SESSION_COOKIE` | `offbeat_session` | Session cookie name. Give each instance its own when several share a host, since browsers share cookies across ports |
 
+## Sign-in options
+
+Settings, Users, Sign-in has three ways in. Local accounts (username and password) are on by default and always work for admins.
+
+**Reverse proxy header.** Behind Authelia, Authentik, or a similar proxy, Offbeat can trust the username the proxy sends (`Remote-User` by default).
+
+- List your proxy's address under Trusted proxies. The header is ignored from every other address. In Docker, if the address Offbeat sees for your proxy is one that stands for every visitor (the bridge gateway, or Docker Desktop's 192.168.65.x), Offbeat trusts it only together with the shared secret below.
+- Your proxy must set that header itself on every route to Offbeat, and remove it wherever it does not sign people in. A route that passes on a header the visitor made up would let anyone sign in as anyone.
+- Recommended: generate a shared secret in the same settings and have your proxy send it on every request (in `X-Offbeat-Proxy-Secret` by default). Offbeat then ignores the username unless the secret comes with it, so even a misconfigured route cannot be used to sign in.
+- Usernames Offbeat does not know are refused with a page asking them to see an admin. Turn on "Create accounts for new users" to add them automatically as Members who can add albums. They are never made admins.
+- Set Sign-out page to your proxy's sign-out address; otherwise signing out of Offbeat signs you straight back in.
+
+**Local network auto-login** signs everyone on the addresses you list in as one chosen Member, with no password. It is off by default and never signs in as an admin. Offbeat only trusts the address of the connection itself, or the forwarded address from a trusted proxy; a request with forwarding headers from anywhere else never counts as local. In Docker, the addresses that published ports hand out for every visitor (the bridge gateway, and Docker Desktop's 192.168.65.x) never count as local either, so list your devices' own addresses, or run Offbeat with host networking.
+
+Auto-login only answers requests addressed to Offbeat by a local name: an IP address, a name like `hoth`, a `.local`, `.lan`, or `.home.arpa` name, or the host of "Link back to Offbeat" in Settings, Notifications. That keeps a malicious web page from borrowing it through DNS rebinding.
+
+Auto-login does not work on Docker Desktop (Windows and macOS): it hands every visitor to the container from the same address, so Offbeat cannot tell your devices apart and never treats them as local. Use it with Docker on Linux (including Unraid), where each device's own address comes through, or on bare metal.
+
+## Notifications
+
+Settings, Notifications sends alerts to Discord or to any URL (a generic webhook) when an album is imported, a download fails, an import is blocked, or a monitored artist has a new release. Each channel chooses its events and has a Send Test button. Set "Link back to Offbeat" to the address you open Offbeat at, and messages link to the album or artist. Failed sends are retried a few times and logged under Recent deliveries; they never hold anything else up.
+
+New releases come from Lidarr's calendar: every 15 minutes Offbeat looks at albums released in the last week or due in the next 90 days, and tells you about one that has appeared for a monitored artist since the last look. An artist's albums do not count during its first day in Lidarr, so adding an artist does not flood your channel.
+
+The generic webhook POSTs this JSON (`version` changes only when a field is removed or changes meaning; new fields may appear without it):
+
+```json
+{
+  "version": 1,
+  "event": "album-imported",
+  "title": "Album imported",
+  "message": "Untrue by Burial",
+  "url": "https://offbeat.example.com/album/<release group MBID>",
+  "artist": { "mbid": "<artist MBID>", "name": "Burial" },
+  "album": { "mbid": "<release group MBID>", "title": "Untrue" },
+  "reason": null,
+  "occurredAt": "2026-09-28T18:27:03.000Z"
+}
+```
+
+- `event` is `album-imported`, `download-failed`, `import-blocked`, `new-release`, or `test` (Send Test).
+- `url` is null until "Link back to Offbeat" is set; `artist`, `album`, and `reason` can be null, and `reason` says why for failures and blocked imports.
+- With a signing secret, each request has an `X-Offbeat-Signature: sha256=<hex>` header: the HMAC-SHA256 of the raw request body, keyed with the secret. Compare it in constant time before trusting the body.
+- Answer with any 2xx. A 4xx (other than 408 or 429) is not retried; anything else is, a few times.
+
+## Locked out?
+
+Offbeat has a small admin command for when nobody can sign in. It works while Offbeat is running.
+
+In Docker (`offbeat` is the container name from the examples above):
+
+```sh
+docker exec -it offbeat offbeat reset-password <username>
+docker exec -it offbeat offbeat list-users
+docker exec -it offbeat offbeat make-admin <username>
+```
+
+On bare metal, from the Offbeat folder, as the user that runs Offbeat and with the same `CONFIG_DIR`:
+
+```sh
+CONFIG_DIR=/path/to/config npm run --silent offbeat -- reset-password <username>
+```
+
+- `reset-password` prints a temporary password once. It works for 7 days, signs that user out everywhere, and they choose their own at next sign-in. Admins can do the same for other users in Settings, Users.
+- `list-users` shows everyone who can sign in, with their role.
+- `make-admin` makes a user an admin, for when the only admin account is lost.
+
 ## Contributing
 
 Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md): it covers setup, running without a real Lidarr, the checks CI runs, and the project's working agreements. Questions and ideas go to [Discussions](https://github.com/OffbeatOS/offbeat/discussions); security problems go through [SECURITY.md](SECURITY.md).

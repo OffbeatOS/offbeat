@@ -1,0 +1,169 @@
+<div class="layout">
+  <div class="main">
+    <header class="head">
+      <div>
+        <h2>Users</h2>
+        <p>Who can use Offbeat and what they can do.</p>
+      </div>
+      <button class="btn btn-primary btn-sm" type="button" (click)="startAdd()">Add User</button>
+    </header>
+
+    @if (users(); as list) {
+      <ul class="list">
+        @for (user of list; track user.id) {
+          <li>
+            <button
+              type="button"
+              class="row"
+              [class.selected]="selected()?.id === user.id"
+              [attr.aria-current]="selected()?.id === user.id ? 'true' : null"
+              (click)="select(user)"
+            >
+              <span class="avatar" aria-hidden="true" [style.background]="color(user.id)">{{ user.username.charAt(0) }}</span>
+              <span class="who">
+                <span class="name">{{ user.username }}</span>
+                <span class="line">{{ line(user) }}</span>
+              </span>
+              <span class="badge">{{ user.role === 'admin' ? 'Admin' : 'Member' }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    } @else if (!error()) {
+      <p class="muted" aria-busy="true">Loading users</p>
+    }
+
+    <ob-sign-in-settings [users]="users() ?? []" />
+  </div>
+
+  @if (panel(); as p) {
+    <aside class="panel" aria-live="polite">
+      @switch (p.kind) {
+        @case ('password') {
+          <div class="panel-head">
+            <span class="avatar big" aria-hidden="true" [style.background]="color(p.then)">{{ p.username.charAt(0) }}</span>
+            <div class="who">
+              <span class="name">{{ p.username }}</span>
+              <span class="line">{{ p.created ? 'Added' : 'Password reset' }}</span>
+            </div>
+          </div>
+          <div class="temporary">
+            <span class="field-label" id="temp-label">Temporary password</span>
+            <div class="temp-row">
+              <code aria-labelledby="temp-label">{{ p.password }}</code>
+              <button class="btn btn-outline btn-sm" type="button" (click)="copy(p.password)">{{ copied() ? 'Copied' : 'Copy' }}</button>
+            </div>
+            <p>
+              Shown once, and works for {{ days }} days. Give it to {{ p.username }}; they choose their own password when they
+              sign in.
+              @if (!p.created) {
+                They were signed out everywhere.
+              }
+            </p>
+          </div>
+          <button class="btn btn-primary btn-sm done" type="button" (click)="closePassword(p.then)">Done</button>
+        }
+
+        @case ('add') {
+          <h3>Add User</h3>
+          <label class="field">
+            <span class="field-label">Username</span>
+            <input
+              class="input"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+              [value]="newName()"
+              (input)="newName.set($any($event.target).value)"
+              (keydown.enter)="add()"
+            />
+          </label>
+          <ng-container *ngTemplateOutlet="access" />
+          <div class="buttons">
+            <button class="btn btn-primary btn-sm" type="button" [disabled]="busy()" (click)="add()">
+              {{ busy() ? 'Adding' : 'Add User' }}
+            </button>
+            <button class="btn btn-outline btn-sm" type="button" (click)="panel.set(null)">Cancel</button>
+          </div>
+          <p class="note">Offbeat makes a temporary password to give them. They choose their own at first sign-in.</p>
+        }
+
+        @case ('user') {
+          @if (selected(); as user) {
+            <div class="panel-head">
+              <span class="avatar big" aria-hidden="true" [style.background]="color(user.id)">{{ user.username.charAt(0) }}</span>
+              <div class="who">
+                <span class="name">{{ user.username }}</span>
+                <span class="line">{{ joined(user) }}</span>
+              </div>
+            </div>
+            @if (temporaryNote(user); as note) {
+              <p class="note">{{ note }}</p>
+            }
+            <ng-container *ngTemplateOutlet="access" />
+            <div class="buttons">
+              @if (user.id !== me()) {
+                <button class="btn btn-soft btn-sm" type="button" [disabled]="busy()" (click)="resetPassword()">Reset Password</button>
+              }
+              <button class="btn btn-primary btn-sm" type="button" [disabled]="busy() || !dirty()" (click)="save()">
+                {{ busy() ? 'Saving' : 'Save' }}
+              </button>
+            </div>
+            @if (user.id !== me() && !lastAdmin()) {
+              <div class="rule"></div>
+              @if (confirmRemove()) {
+                <div class="confirm" role="alert">
+                  <p>Remove {{ user.username }}? Their past requests stay attributed to them.</p>
+                  <div class="buttons">
+                    <button class="btn btn-danger btn-sm" type="button" [disabled]="busy()" (click)="remove()">Remove</button>
+                    <button class="btn btn-outline btn-sm" type="button" (click)="confirmRemove.set(false)">Cancel</button>
+                  </div>
+                </div>
+              } @else {
+                <button class="remove" type="button" (click)="confirmRemove.set(true)">Remove user</button>
+              }
+            }
+          }
+        }
+      }
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+    </aside>
+  } @else if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+</div>
+
+<ng-template #access>
+  @if (draft(); as d) {
+    <div class="group">
+      <span class="field-label" id="role-label">Role</span>
+      <div class="segments" role="group" aria-labelledby="role-label">
+        <button type="button" [attr.aria-pressed]="d.role === 'admin'" (click)="setRole('admin')">Admin</button>
+        <button type="button" [attr.aria-pressed]="d.role === 'user'" [disabled]="lastAdmin()" (click)="setRole('user')">Member</button>
+      </div>
+      @if (lastAdmin()) {
+        <span class="note">The only admin stays an admin. Make someone else an admin first.</span>
+      }
+    </div>
+    <fieldset class="group">
+      <legend class="field-label">Permissions</legend>
+      @for (permission of permissions; track permission) {
+        <label class="check" [class.disabled]="d.role === 'admin'">
+          <input
+            type="checkbox"
+            [checked]="d.role === 'admin' || d.permissions.includes(permission)"
+            [disabled]="d.role === 'admin'"
+            (change)="togglePermission(permission)"
+          />
+          <span class="box" aria-hidden="true"><ob-icon name="check" [size]="14" [strokeWidth]="2.6" /></span>
+          {{ label[permission] }}
+        </label>
+      }
+      @if (d.role === 'admin') {
+        <span class="note">Admins can do everything.</span>
+      }
+    </fieldset>
+  }
+</ng-template>

@@ -60,12 +60,12 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
     return warmCovers(await upstream(request, () => app.catalog.artist(mbid.toLowerCase())));
   });
 
-  app.post('/artists/:mbid', async (request): Promise<ArtistDetail> => {
+  app.post('/artists/:mbid', { config: { permission: 'add-artists' } }, async (request): Promise<ArtistDetail> => {
     const { mbid } = parse(mbidParams, request.params);
     return upstream(request, () => app.catalog.addArtist(mbid.toLowerCase(), request.user?.id ?? null));
   });
 
-  app.patch('/artists/:mbid', async (request): Promise<ArtistDetail> => {
+  app.patch('/artists/:mbid', { config: { permission: 'change-monitoring' } }, async (request): Promise<ArtistDetail> => {
     const { mbid } = parse(mbidParams, request.params);
     const { monitored } = parse(updateArtistBody, request.body);
     return upstream(request, () => app.catalog.setMonitored(mbid.toLowerCase(), monitored));
@@ -76,13 +76,13 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
     return warmCovers(await upstream(request, () => app.catalog.album(mbid.toLowerCase())));
   });
 
-  app.patch('/albums/:mbid', async (request): Promise<AlbumDetail> => {
+  app.patch('/albums/:mbid', { config: { permission: 'change-monitoring' } }, async (request): Promise<AlbumDetail> => {
     const { mbid } = parse(mbidParams, request.params);
     const { monitored } = parse(updateArtistBody, request.body);
     return upstream(request, () => app.catalog.setAlbumMonitored(mbid.toLowerCase(), monitored));
   });
 
-  app.post('/albums/:mbid/search', async (request, reply) => {
+  app.post('/albums/:mbid/search', { config: { permission: 'add-albums' } }, async (request, reply) => {
     const { mbid } = parse(mbidParams, request.params);
     await upstream(request, () => app.catalog.searchAlbum(mbid.toLowerCase()));
     void app.activity.expectMovement();
@@ -96,7 +96,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
    * An album add can take a while (Lidarr has to load a new artist first). The result arrives as an
    * add-result event on /events and shows in Activity.
    */
-  app.post('/albums/:mbid', async (request, reply) => {
+  app.post('/albums/:mbid', { config: { permission: 'add-albums' } }, async (request, reply) => {
     const { mbid } = parse(mbidParams, request.params);
     const { artistMbid, resumeMonitoring } = parse(addAlbumBody, request.body);
     if (!resumeMonitoring) {

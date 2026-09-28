@@ -21,6 +21,12 @@ export const users = sqliteTable('users', {
   permissions: text('permissions').notNull().default('[]'),
   lastfmUsername: text('lastfm_username'),
   listenbrainzUsername: text('listenbrainz_username'),
+  /** Last request with a valid session (updated at most every few minutes); null until they first sign in. */
+  lastSeenAt: integer('last_seen_at', { mode: 'timestamp' }),
+  /** Set by an admin adding the user or resetting their password: they choose their own at next sign-in. */
+  mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
+  /** A temporary password stops working after this (an unused invite should not stay valid forever). */
+  temporaryPasswordExpiresAt: integer('temporary_password_expires_at', { mode: 'timestamp' }),
   /** JSON DiscoverPreferences (default mode, section order); `{}` means the defaults. */
   discoverPrefs: text('discover_prefs').notNull().default('{}'),
   createdAt: integer('created_at', { mode: 'timestamp' })
@@ -81,6 +87,8 @@ export const requests = sqliteTable(
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
     userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Who asked, as their username then, so the request stays attributed after the user is removed. */
+    requestedBy: text('requested_by'),
     artistMbid: text('artist_mbid').notNull(),
     albumMbid: text('album_mbid'),
     lidarrArtistId: integer('lidarr_artist_id'),
@@ -178,4 +186,26 @@ export const blocklist = sqliteTable(
       .default(sql`(unixepoch())`),
   },
   (table) => [uniqueIndex('blocklist_user_kind_key').on(table.userId, table.kind, table.key)],
+);
+
+/** Recent notification deliveries (Settings, Notifications). Only the latest few hundred are kept. */
+export const deliveries = sqliteTable(
+  'deliveries',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    channel: text('channel', { enum: ['discord', 'webhook'] }).notNull(),
+    event: text('event').notNull(),
+    title: text('title').notNull(),
+    message: text('message').notNull(),
+    status: text('status', { enum: ['delivered', 'retrying', 'failed'] }).notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    error: text('error'),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [index('deliveries_created_idx').on(table.createdAt)],
 );

@@ -13,7 +13,6 @@ export const PRIMARY_NAV: readonly NavItem[] = [
   { label: 'Library', path: '/library', icon: 'library' },
   { label: 'Activity', path: '/activity', icon: 'activity' },
   { label: 'Flows', path: '/flows', icon: 'flows' },
-  { label: 'Shows', path: '/shows', icon: 'shows' },
 ];
 
 /** Pinned to the bottom of the sidebar. */

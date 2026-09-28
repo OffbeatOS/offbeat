@@ -1,0 +1,153 @@
+<div class="layout">
+  <div class="main">
+    <header class="head">
+      <h2>Notifications</h2>
+      <p>Send alerts about downloads and releases to your other apps.</p>
+    </header>
+
+    @if (view(); as v) {
+      <ul class="channels">
+        @for (c of channels; track c.kind) {
+          <li>
+            <button type="button" class="row" [class.selected]="selected() === c.kind" (click)="select(c.kind)">
+              <span class="mark" [class.discord]="c.kind === 'discord'" aria-hidden="true">{{ c.mark }}</span>
+              <span class="who">
+                <span class="name">{{ c.name }}</span>
+                <span class="line">{{ summary(c.kind) }}</span>
+              </span>
+              @if (v[c.kind]; as saved) {
+                <span class="badge" [class.on]="saved.enabled">{{ saved.enabled ? 'On' : 'Off' }}</span>
+              } @else {
+                <span class="set-up">Set Up</span>
+              }
+            </button>
+          </li>
+        }
+      </ul>
+
+      <section class="link">
+        <label class="field">
+          <span>Link back to Offbeat</span>
+          <div class="inline">
+            <input
+              class="input"
+              spellcheck="false"
+              placeholder="https://offbeat.example.com"
+              [value]="publicUrl()"
+              (input)="publicUrl.set($any($event.target).value)"
+            />
+            <button class="btn btn-soft btn-sm" type="button" [disabled]="busy() === 'link' || publicUrl().trim() === (v.publicUrl ?? '')" (click)="saveLink()">
+              Save
+            </button>
+          </div>
+          <span class="hint">The address you open Offbeat at. Messages link to the album or artist there; without it they have no links.</span>
+        </label>
+      </section>
+
+      <section class="log">
+        <h3>Recent deliveries</h3>
+        <p class="hint">Failed sends are retried a few times, then logged here.</p>
+        <ul>
+          @for (d of v.deliveries; track d.id) {
+            <li class="delivery">
+              <span class="d-head">
+                <span class="d-title">{{ d.title }}</span>
+                <span class="d-status" [class.failed]="d.status !== 'delivered'">{{ deliveryStatus(d) }}</span>
+              </span>
+              <span class="d-line">{{ deliveryLine(d) }}</span>
+              <span class="d-when">{{ ago(d.createdAt) }}</span>
+            </li>
+          } @empty {
+            <li class="empty">Nothing sent yet.</li>
+          }
+        </ul>
+      </section>
+    } @else if (!error()) {
+      <p class="hint" aria-busy="true">Loading notifications</p>
+    }
+  </div>
+
+  @if (selectedInfo(); as info) {
+    @if (draft(); as d) {
+      <aside class="panel" aria-live="polite">
+        <div class="panel-head">
+          <span class="mark big" [class.discord]="info.kind === 'discord'" aria-hidden="true">{{ info.mark }}</span>
+          <h3>{{ info.name }}</h3>
+          <button type="button" role="switch" [attr.aria-checked]="d.enabled" aria-label="Send notifications to this channel" (click)="patch({ enabled: !d.enabled })"></button>
+        </div>
+
+        @if (info.kind === 'discord') {
+          <label class="field">
+            <span>Webhook URL</span>
+            <input
+              class="input"
+              spellcheck="false"
+              autocomplete="off"
+              [placeholder]="view()?.discord ? 'Saved. Paste a new one to replace it.' : 'https://discord.com/api/webhooks/...'"
+              [value]="d.url"
+              (input)="patch({ url: $any($event.target).value })"
+            />
+            <span class="hint">
+              @if (view()?.discord; as saved) {
+                Saved: {{ saved.urlHint }}.
+              }
+              In Discord, open the channel's settings, Integrations, Webhooks, and copy the URL.
+            </span>
+          </label>
+        } @else {
+          <label class="field">
+            <span>URL</span>
+            <input class="input" spellcheck="false" autocomplete="off" placeholder="https://example.com/hooks/offbeat" [value]="d.url" (input)="patch({ url: $any($event.target).value })" />
+            <span class="hint">Offbeat POSTs JSON here (the format is in the README).</span>
+          </label>
+          <div class="field">
+            <span>Signing secret <span class="optional">Optional</span></span>
+            @if (d.secret) {
+              <code class="secret">{{ d.secret }}</code>
+              <span class="hint">Each request carries X-Offbeat-Signature: sha256= and an HMAC of the body with this secret. Save to keep it; it is not shown again.</span>
+            } @else {
+              <span class="inline">
+                <span class="hint">{{ view()?.webhook?.secretSet && d.secret !== '' ? 'A secret is saved.' : 'No secret.' }}</span>
+                <button class="btn btn-soft btn-sm" type="button" (click)="generateSecret()">{{ view()?.webhook?.secretSet ? 'Replace' : 'Generate' }}</button>
+                @if (view()?.webhook?.secretSet && d.secret !== '') {
+                  <button class="btn btn-ghost btn-sm" type="button" (click)="patch({ secret: '' })">Remove</button>
+                }
+              </span>
+            }
+          </div>
+        }
+
+        <fieldset class="events">
+          <legend>Send when</legend>
+          @for (e of events; track e) {
+            <label class="check">
+              <input type="checkbox" [checked]="d.events.includes(e)" (change)="toggleEvent(e)" />
+              <span class="box" aria-hidden="true"></span>
+              {{ eventLabel[e] }}
+            </label>
+          }
+        </fieldset>
+
+        <div class="buttons">
+          @if (view()?.[info.kind]) {
+            <button class="btn btn-soft btn-sm" type="button" [disabled]="!!busy()" (click)="test()">{{ busy() === 'test' ? 'Sending' : 'Send Test' }}</button>
+          }
+          <button class="btn btn-primary btn-sm" type="button" [disabled]="!!busy()" (click)="save()">{{ busy() === 'save' ? 'Saving' : 'Save' }}</button>
+        </div>
+        @if (error()) {
+          <p class="error" role="alert">{{ error() }}</p>
+        } @else if (testLine(info.kind); as line) {
+          <p class="test" [class.failed]="!view()?.[info.kind]?.lastTest?.ok" role="status">{{ line }}</p>
+        } @else if (note()) {
+          <p class="test" role="status">{{ note() }}</p>
+        }
+        @if (view()?.[info.kind]) {
+          <div class="rule"></div>
+          <button class="remove" type="button" [disabled]="!!busy()" (click)="remove()">Remove channel</button>
+        }
+      </aside>
+    }
+  } @else if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+</div>

@@ -19,7 +19,8 @@
             type="button"
             [class.off]="!a.monitored"
             [attr.aria-pressed]="a.monitored"
-            [disabled]="busy()"
+            [disabled]="busy() || !can('change-monitoring')"
+            [title]="can('change-monitoring') ? '' : 'Your account cannot change monitoring'"
             (click)="toggleMonitored()"
           >
             @if (a.monitored) {
@@ -28,7 +29,7 @@
               Unmonitored
             }
           </button>
-        } @else {
+        } @else if (can('add-artists')) {
           <button class="primary" type="button" [disabled]="busy()" (click)="addArtist()">
             <ob-icon name="plus" [size]="16" [strokeWidth]="2.4" />{{ busy() ? 'Adding' : 'Add Artist' }}
           </button>
