@@ -21,8 +21,10 @@ const POLL_MS = 3000;
 
 /**
  * Discover (Main and Mobile mockups): Top Picks with quick add, Albums to
- * Start With, and Explore by Tag, for the chosen mode. The mode lives in the
- * URL, so it survives a reload and can be shared.
+ * Start With, and Explore by Tag, for the chosen mode, in the order and
+ * with the sections the user chose (Settings, Discovery). The mode lives in
+ * the URL, so it survives a reload and can be shared; without one, the
+ * server answers with the user's default mode.
  */
 @Component({
   selector: 'ob-discover-page',
@@ -40,7 +42,10 @@ export class DiscoverPage {
   readonly mode = input<string | undefined>();
 
   protected readonly modes = MODES;
-  protected readonly current = computed<DiscoveryMode>(() => MODES.find((m) => m.id === this.mode())?.id ?? 'balanced');
+  /** The mode named in the URL, which always wins over the default. */
+  protected readonly requested = computed<DiscoveryMode | null>(() => MODES.find((m) => m.id === this.mode())?.id ?? null);
+  /** The mode shown: the URL's, else the one the server answered with (the default). */
+  protected readonly current = computed<DiscoveryMode | null>(() => this.requested() ?? this.data()?.mode ?? null);
   protected readonly data = signal<DiscoverResponse | null>(null);
   protected readonly error = signal('');
   protected readonly addError = signal('');
@@ -54,12 +59,13 @@ export class DiscoverPage {
     return at ? refreshedLabel(at) : '';
   });
   protected readonly picks = computed(() => this.data()?.items.slice(0, 12) ?? []);
+  protected readonly sections = computed(() => this.data()?.preferences.sections.filter((s) => s.visible).map((s) => s.id) ?? []);
 
   constructor() {
     // Load when the mode changes, and only then: load() reads the current data,
     // which must not make every change to the list trigger a reload.
     effect(() => {
-      const mode = this.current();
+      const mode = this.requested();
       untracked(() => void this.load(mode));
     });
     inject(DestroyRef).onDestroy(() => {
@@ -69,7 +75,9 @@ export class DiscoverPage {
   }
 
   protected choose(mode: DiscoveryMode) {
-    void this.router.navigate([], { queryParams: { mode: mode === 'balanced' ? null : mode }, replaceUrl: true });
+    // The default mode needs no parameter; any other is kept in the URL.
+    const isDefault = mode === (this.data()?.preferences.defaultMode ?? 'balanced');
+    void this.router.navigate([], { queryParams: { mode: isDefault ? null : mode }, replaceUrl: true });
   }
 
   /** "Because you like NOFX", or for Deeper's second hop, "Lagwagon, like NOFX". */
@@ -174,14 +182,16 @@ export class DiscoverPage {
     this.data.update((d) => (d ? { ...d, items: d.items.map((i) => (i.mbid === pick.mbid ? { ...i, inLibrary: true } : i)) } : d));
   }
 
-  private async load(mode: DiscoveryMode) {
+  /** Loads one mode, or with none, the user's default. */
+  private async load(mode: DiscoveryMode | null) {
     clearTimeout(this.poll);
     this.error.set('');
-    // Keep what is on screen while switching modes, unless it was another mode's.
-    if (this.data()?.mode !== mode) this.data.set(null);
+    // Keep what is on screen while polling, unless it was another mode's.
+    const shown = this.data();
+    if (shown && shown.mode !== (mode ?? shown.preferences.defaultMode)) this.data.set(null);
     try {
-      const response = await this.api.get<DiscoverResponse>(`discover?mode=${mode}`);
-      if (mode !== this.current()) return; // switched again meanwhile
+      const response = await this.api.get<DiscoverResponse>(mode ? `discover?mode=${mode}` : 'discover');
+      if (mode !== this.requested()) return; // switched again meanwhile
       this.data.set(response);
       if (response.refreshing) this.poll = setTimeout(() => void this.load(mode), POLL_MS);
     } catch (error) {

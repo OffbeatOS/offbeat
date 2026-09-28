@@ -307,6 +307,16 @@ section {
   }
 }
 
+.to-settings {
+  text-align: center;
+  font-size: 13px;
+
+  a {
+    color: var(--text);
+    text-decoration: underline;
+  }
+}
+
 .undo {
   display: flex;
   align-items: center;

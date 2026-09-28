@@ -1,11 +1,20 @@
-import type { BlockedItem, BlocklistResponse, DiscoverResponse, TagPage } from '@offbeat/shared';
+import type { BlockedItem, BlocklistResponse, DiscoverPreferences, DiscoverResponse, DiscoverStatus, TagPage } from '@offbeat/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { MBID } from '../catalog/releases.js';
 import { currentClient } from '../integrations/lidarr/settings.js';
 import { HttpError, parse } from './errors.js';
 
-const modeQuery = z.object({ mode: z.enum(['safer', 'balanced', 'deeper']).default('balanced') });
+const mode = z.enum(['safer', 'balanced', 'deeper']);
+// No mode: the user's default (Settings, Discovery). A mode in the URL always wins.
+const modeQuery = z.object({ mode: mode.optional() });
+const preferencesBody = z.object({
+  defaultMode: mode,
+  sections: z
+    .array(z.object({ id: z.enum(['picks', 'albums', 'tags']), visible: z.boolean() }))
+    .max(10)
+    .refine((list) => new Set(list.map((s) => s.id)).size === list.length, 'each section once'),
+});
 const feedbackBody = z.object({
   mbid: z.string().regex(MBID, 'not a MusicBrainz id'),
   name: z.string().trim().max(200).optional(),
@@ -24,8 +33,8 @@ export const discoverRoutes: FastifyPluginAsync = async (app) => {
   const lidarrClient = currentClient(app.settings);
 
   app.get('/discover', async (request): Promise<DiscoverResponse> => {
-    const { mode } = parse(modeQuery, request.query);
     const userId = request.user!.id;
+    const mode = parse(modeQuery, request.query).mode ?? app.discovery.preferences(userId).defaultMode;
     const current = app.discovery.read(userId, mode);
     // Nothing yet: start the first refresh, and say so.
     if (!current.generatedAt && !current.refreshing && !current.error) {
@@ -42,6 +51,15 @@ export const discoverRoutes: FastifyPluginAsync = async (app) => {
     void app.discovery.refresh(request.user!.id).catch(() => undefined);
     return reply.code(202).send({ refreshing: true });
   });
+
+  /** How the refresh is going, without the recommendations themselves. */
+  app.get('/discover/status', async (request): Promise<DiscoverStatus> => app.discovery.status(request.user!.id));
+
+  app.get('/discover/preferences', async (request): Promise<DiscoverPreferences> => app.discovery.preferences(request.user!.id));
+
+  app.put('/discover/preferences', async (request): Promise<DiscoverPreferences> =>
+    app.discovery.savePreferences(request.user!.id, parse(preferencesBody, request.body)),
+  );
 
   /** Thumbs up, thumbs down, or clear. A thumbs down takes the artist out of the picks now. */
   app.post('/discover/feedback', async (request, reply) => {

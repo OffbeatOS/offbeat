@@ -2,7 +2,10 @@ import type {
   BlockRequest,
   BlockedItem,
   BlocklistResponse,
+  DiscoverPreferences,
   DiscoverResponse,
+  DiscoverSectionId,
+  DiscoverStatus,
   FeedbackValue,
   Recommendation,
   ReleaseSummary,
@@ -92,6 +95,8 @@ export class Discovery {
   private readonly cache: SourceCache;
   private readonly running = new Map<number, Promise<void>>();
   private readonly errors = new Map<number, string>();
+  /** Where each running refresh is, per user. */
+  private readonly progress = new Map<number, NonNullable<DiscoverStatus['progress']>>();
   /** Pending refreshes after feedback, per user. */
   private readonly feedbackTimers = new Map<number, ReturnType<typeof setTimeout>>();
   /** Candidate keys already checked by name in the current computation. */
@@ -125,11 +130,49 @@ export class Discovery {
     return this.running.has(userId);
   }
 
+  /** The refresh as Settings, Discovery shows it: whether one runs, how far along, and the next one. */
+  status(userId: number): DiscoverStatus {
+    const row = this.db
+      .select({ generatedAt: recommendations.generatedAt })
+      .from(recommendations)
+      .where(eq(recommendations.userId, userId))
+      .get();
+    const next = this.cron?.nextRun();
+    return {
+      refreshing: this.isRefreshing(userId),
+      progress: this.isRefreshing(userId) ? (this.progress.get(userId) ?? null) : null,
+      generatedAt: row ? row.generatedAt.toISOString() : null,
+      error: this.errors.get(userId) ?? null,
+      nextRefreshAt: next ? next.toISOString() : null,
+    };
+  }
+
+  /** The user's default mode and section layout, with anything missing filled in. */
+  preferences(userId: number): DiscoverPreferences {
+    const row = this.db.select({ prefs: users.discoverPrefs }).from(users).where(eq(users.id, userId)).get();
+    let saved: Partial<DiscoverPreferences> = {};
+    try {
+      saved = JSON.parse(row?.prefs ?? '{}') as Partial<DiscoverPreferences>;
+    } catch {
+      // unreadable: the defaults
+    }
+    return normalizePreferences(saved);
+  }
+
+  savePreferences(userId: number, prefs: DiscoverPreferences): DiscoverPreferences {
+    const clean = normalizePreferences(prefs);
+    this.db.update(users).set({ discoverPrefs: JSON.stringify(clean) }).where(eq(users.id, userId)).run();
+    return clean;
+  }
+
   /** Starts a refresh for one user (or joins the one already running). */
   refresh(userId: number): Promise<void> {
     let run = this.running.get(userId);
     if (!run) {
-      run = this.refreshNow(userId).finally(() => this.running.delete(userId));
+      run = this.refreshNow(userId).finally(() => {
+        this.running.delete(userId);
+        this.progress.delete(userId);
+      });
       this.running.set(userId, run);
     }
     return run;
@@ -183,6 +226,7 @@ export class Discovery {
       albums: (stored?.albums ?? []).filter((a) => !gone.has(a.artistMbid)),
       albumsPending: stored?.albumsPending ?? false,
       tags: gone.size ? topTags(kept) : (stored?.tags ?? []),
+      preferences: this.preferences(userId),
     };
   }
 
@@ -363,10 +407,14 @@ export class Discovery {
 
   private async refreshNow(userId: number) {
     const started = Date.now();
+    const step = (n: number, label: string) => this.progress.set(userId, { step: n, steps: REFRESH_STEPS, label });
     try {
+      step(1, 'Reading your library and listening');
       const seeds = await this.seedsFor(userId);
       const taste = this.taste(userId);
+      step(2, 'Finding similar artists');
       const computed = await this.compute(seeds, { random: seededRandom(started ^ userId), exclude: taste.excluded });
+      step(3, 'Getting artist details');
       const enriched = await this.enrich(computed);
       const items = {} as Record<DiscoveryMode, Recommendation[]>;
       for (const mode of MODES) items[mode] = applyTaste(enriched[mode], taste.weights, taste.blockedTags);
@@ -389,6 +437,7 @@ export class Discovery {
           return { ...base(mode), albums: previous, albumsPending: previous.length === 0 };
         },
       );
+      step(4, 'Finding albums to start with');
       const albums = {} as Record<DiscoveryMode, ReleaseSummary[]>;
       for (const mode of MODES) albums[mode] = await this.starterAlbums(items[mode].slice(0, STARTER_ALBUMS));
       this.store(userId, generatedAt, (mode) => ({ ...base(mode), albums: albums[mode], albumsPending: false }));
@@ -698,6 +747,24 @@ function artistImage(artist: LidarrLookupArtist | null | undefined): string | nu
 }
 
 /** Explore by Tag: genres across the recommendations, weighted by each pick's score. */
+/** Steps a refresh reports (see refreshNow). */
+const REFRESH_STEPS = 4;
+const SECTION_IDS: DiscoverSectionId[] = ['picks', 'albums', 'tags'];
+
+/** Every known section exactly once, in the saved order, new ones added (visible) at the end. */
+export function normalizePreferences(saved: Partial<DiscoverPreferences>): DiscoverPreferences {
+  const defaultMode = MODES.includes(saved.defaultMode as DiscoveryMode) ? (saved.defaultMode as DiscoveryMode) : 'balanced';
+  const seen = new Set<DiscoverSectionId>();
+  const sections: DiscoverPreferences['sections'] = [];
+  for (const section of Array.isArray(saved.sections) ? saved.sections : []) {
+    if (!SECTION_IDS.includes(section?.id) || seen.has(section.id)) continue;
+    seen.add(section.id);
+    sections.push({ id: section.id, visible: section.visible !== false });
+  }
+  for (const id of SECTION_IDS) if (!seen.has(id)) sections.push({ id, visible: true });
+  return { defaultMode, sections };
+}
+
 function topTags(items: Recommendation[]): string[] {
   const weights = new Map<string, number>();
   for (const item of items) for (const genre of item.genres) weights.set(genre, (weights.get(genre) ?? 0) + item.score);

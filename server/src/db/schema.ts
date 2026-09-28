@@ -21,6 +21,8 @@ export const users = sqliteTable('users', {
   permissions: text('permissions').notNull().default('[]'),
   lastfmUsername: text('lastfm_username'),
   listenbrainzUsername: text('listenbrainz_username'),
+  /** JSON DiscoverPreferences (default mode, section order); `{}` means the defaults. */
+  discoverPrefs: text('discover_prefs').notNull().default('{}'),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),

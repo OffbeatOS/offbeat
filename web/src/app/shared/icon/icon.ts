@@ -13,6 +13,9 @@ export type IconName =
   | 'alert'
   | 'chevron-right'
   | 'chevron-left'
+  | 'chevron-up'
+  | 'chevron-down'
+  | 'grip'
   | 'check'
   | 'close'
   | 'thumbs-up'
@@ -83,6 +86,22 @@ export type IconName =
         }
         @case ('chevron-left') {
           <path d="M15 6l-6 6 6 6" />
+        }
+        @case ('chevron-up') {
+          <path d="M6 15l6-6 6 6" />
+        }
+        @case ('chevron-down') {
+          <path d="M6 9l6 6 6-6" />
+        }
+        @case ('grip') {
+          <g fill="currentColor" stroke="none">
+            <circle cx="9" cy="6" r="1.6" />
+            <circle cx="15" cy="6" r="1.6" />
+            <circle cx="9" cy="12" r="1.6" />
+            <circle cx="15" cy="12" r="1.6" />
+            <circle cx="9" cy="18" r="1.6" />
+            <circle cx="15" cy="18" r="1.6" />
+          </g>
         }
         @case ('close') {
           <path d="M6 6l12 12M18 6L6 18" />

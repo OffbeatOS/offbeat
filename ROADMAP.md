@@ -33,12 +33,12 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 - [x] Tag pages
 - [x] Feedback: thumbs up and down, and "never show this", with Undo
 - [x] Blocklist (artists and tags) and hidden artists, managed in Settings, Discovery
-- [ ] Section controls: reorder and hide Discover sections per user
-- [ ] Settings, Discovery: default mode
+- [x] Section controls: reorder and hide Discover sections per user
+- [x] Settings, Discovery: default mode
 - [x] Last.fm connection (optional step in onboarding, and in Settings), moved from phase 1 since discovery is its first use
 - [x] Per-user Last.fm and ListenBrainz usernames
 - [x] Scheduled daily refresh
-- [ ] Refresh Now in Settings, with progress
+- [x] Refresh Now in Settings, with progress
 
 ## Phase 3: Multi-user and extras
 

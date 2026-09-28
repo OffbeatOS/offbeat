@@ -307,6 +307,41 @@ describe('feedback and blocklist', () => {
   });
 });
 
+describe('preferences and status', () => {
+  it('fills in defaults and keeps every section exactly once', () => {
+    const { discovery, userId } = setup();
+    expect(discovery.preferences(userId)).toEqual({
+      defaultMode: 'balanced',
+      sections: [
+        { id: 'picks', visible: true },
+        { id: 'albums', visible: true },
+        { id: 'tags', visible: true },
+      ],
+    });
+    discovery.savePreferences(userId, { defaultMode: 'deeper', sections: [{ id: 'tags', visible: false }, { id: 'picks', visible: true }] });
+    expect(discovery.preferences(userId)).toEqual({
+      defaultMode: 'deeper',
+      sections: [
+        { id: 'tags', visible: false },
+        { id: 'picks', visible: true },
+        { id: 'albums', visible: true },
+      ],
+    });
+    expect(discovery.read(userId, 'safer').preferences.defaultMode).toBe('deeper');
+  });
+
+  it('reports where a running refresh is, and clears it when done', async () => {
+    const { discovery, userId } = setup();
+    expect(discovery.status(userId)).toMatchObject({ refreshing: false, progress: null, generatedAt: null });
+    const run = discovery.refresh(userId);
+    expect(discovery.status(userId)).toMatchObject({ refreshing: true, progress: { step: 1, steps: 4 } });
+    await run;
+    const done = discovery.status(userId);
+    expect(done).toMatchObject({ refreshing: false, progress: null, error: null });
+    expect(done.generatedAt).not.toBeNull();
+  });
+});
+
 describe('feedback and blocklist routes', () => {
   it('accept ratings and blocks, validate them, and 404 what is not there', async () => {
     const { buildApp } = await import('../src/app.js');
@@ -324,7 +359,7 @@ describe('feedback and blocklist routes', () => {
     try {
       const setup = await app.inject({ method: 'POST', url: '/api/v1/setup/admin', payload: { username: 'sam', password: randomBytes(12).toString('base64url') } });
       const headers = { cookie: `offbeat_session=${setup.cookies.find((c) => c.name === 'offbeat_session')?.value}` };
-      const call = (method: 'GET' | 'POST' | 'DELETE', url: string, payload?: object) =>
+      const call = (method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, payload?: object) =>
         app.inject({ method, url: `/api/v1${url}`, headers, ...(payload ? { payload } : {}) });
       const mbid = id('Lagwagon');
 
@@ -344,6 +379,14 @@ describe('feedback and blocklist routes', () => {
       expect((await call('DELETE', `/blocklist/${itemId}`, {})).statusCode).toBe(404);
       expect((await call('DELETE', '/blocklist/abc', {})).statusCode).toBe(400);
       expect((await app.inject({ method: 'GET', url: '/api/v1/blocklist' })).statusCode).toBe(401);
+
+      const prefs = { defaultMode: 'safer', sections: [{ id: 'albums', visible: false }, { id: 'picks', visible: true }, { id: 'tags', visible: true }] };
+      expect((await call('PUT', '/discover/preferences', prefs)).json()).toEqual(prefs);
+      expect((await call('GET', '/discover/preferences')).json()).toEqual(prefs);
+      expect((await call('PUT', '/discover/preferences', { ...prefs, defaultMode: 'wild' })).statusCode).toBe(400);
+      const twice = { ...prefs, sections: [{ id: 'tags', visible: true }, { id: 'tags', visible: false }] };
+      expect((await call('PUT', '/discover/preferences', twice)).statusCode).toBe(400);
+      expect((await call('GET', '/discover/status')).json()).toMatchObject({ refreshing: false, nextRefreshAt: null });
     } finally {
       await app.close();
     }

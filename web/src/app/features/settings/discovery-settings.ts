@@ -19,6 +19,7 @@ import type {
 } from '@offbeat/shared';
 import { Api, ApiError } from '../../core/api';
 import { Icon } from '../../shared/icon/icon';
+import { DiscoveryPreferences } from './discovery-preferences';
 import { SettingsSection } from './settings-section';
 
 type Kind = 'artists' | 'tags' | 'hidden';
@@ -43,13 +44,14 @@ export function whenLabel(iso: string, now = new Date()): string {
 }
 
 /**
- * Settings, Discovery (Settings Discovery mockup): the blocklist (artists
+ * Settings, Discovery (Settings Discovery mockup): recommendations and
+ * sections (DiscoveryPreferences), then the blocklist (artists
  * and tags that never appear in recommendations), and the artists hidden by
  * a thumbs down, so either can be undone later.
  */
 @Component({
   selector: 'ob-discovery-settings',
-  imports: [SettingsSection, Icon],
+  imports: [SettingsSection, DiscoveryPreferences, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .block {
@@ -248,6 +250,7 @@ export function whenLabel(iso: string, now = new Date()): string {
       heading="Discovery"
       description="These settings apply to your account only."
     >
+      <ob-discovery-preferences />
       <section class="block">
         <div class="block-head">
           <div>

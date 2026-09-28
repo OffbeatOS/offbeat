@@ -40,6 +40,36 @@ export interface DiscoverResponse {
   albumsPending: boolean;
   /** Explore by Tag: genres across the recommendations, strongest first. */
   tags: string[];
+  /** The user's default mode and section layout (Settings, Discovery). */
+  preferences: DiscoverPreferences;
+}
+
+/** The sections of the Discover page a user can reorder and hide. */
+export type DiscoverSectionId = 'picks' | 'albums' | 'tags';
+
+export interface DiscoverSectionSetting {
+  id: DiscoverSectionId;
+  visible: boolean;
+}
+
+/** `GET` and `PUT /discover/preferences`: per user. */
+export interface DiscoverPreferences {
+  /** What Discover opens with when the URL names no mode. */
+  defaultMode: DiscoveryMode;
+  /** Every section once, in the order shown. */
+  sections: DiscoverSectionSetting[];
+}
+
+/** `GET /discover/status`: the refresh, for Settings, Discovery. */
+export interface DiscoverStatus {
+  refreshing: boolean;
+  /** Where a running refresh is: step 1 to `steps`, and what it is doing. */
+  progress: { step: number; steps: number; label: string } | null;
+  generatedAt: string | null;
+  /** Why the last refresh failed, if it did. */
+  error: string | null;
+  /** The next scheduled refresh, or null when none is scheduled. */
+  nextRefreshAt: string | null;
 }
 
 /** A recommended artist as Discover shows it, including whether it is in the library now (after a quick add). */

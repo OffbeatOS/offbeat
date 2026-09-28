@@ -44,17 +44,27 @@ const response = (extra: Partial<DiscoverResponse> = {}): DiscoverResponse => ({
   ],
   albumsPending: false,
   tags: ['Punk Rock', 'Skate Punk'],
+  preferences: {
+    defaultMode: 'balanced',
+    sections: [
+      { id: 'picks', visible: true },
+      { id: 'albums', visible: true },
+      { id: 'tags', visible: true },
+    ],
+  },
   ...extra,
 });
 
-async function render(body: DiscoverResponse) {
+async function render(body: DiscoverResponse, urlMode?: string) {
   TestBed.configureTestingModule({
     imports: [DiscoverPage],
     providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
   });
   const fixture = TestBed.createComponent(DiscoverPage);
+  if (urlMode) fixture.componentRef.setInput('mode', urlMode);
   fixture.detectChanges();
-  TestBed.inject(HttpTestingController).expectOne('api/v1/discover?mode=balanced').flush(body);
+  // No mode in the URL: the server answers with the user's default.
+  TestBed.inject(HttpTestingController).expectOne(urlMode ? `api/v1/discover?mode=${urlMode}` : 'api/v1/discover').flush(body);
   await new Promise((resolve) => setTimeout(resolve));
   await fixture.whenStable();
   fixture.detectChanges();
@@ -91,6 +101,31 @@ describe('DiscoverPage', () => {
     expect(el.querySelector('.first-run')?.textContent).toContain('Finding artists for you');
   });
 
+  it('opens with the default mode from Settings, but a mode in the URL wins', async () => {
+    const deeper = await render(response({ mode: 'deeper', preferences: { ...response().preferences, defaultMode: 'deeper' } }));
+    expect(deeper.el.querySelector('.modes [aria-pressed="true"]')?.textContent?.trim()).toBe('Deeper');
+    TestBed.resetTestingModule();
+    const safer = await render(response({ mode: 'safer', preferences: { ...response().preferences, defaultMode: 'deeper' } }), 'safer');
+    expect(safer.el.querySelector('.modes [aria-pressed="true"]')?.textContent?.trim()).toBe('Safer');
+  });
+
+  it('shows sections in the chosen order, leaving hidden ones out', async () => {
+    const sections = [
+      { id: 'tags', visible: true },
+      { id: 'albums', visible: false },
+      { id: 'picks', visible: true },
+    ] as const;
+    const { text } = await render(response({ preferences: { defaultMode: 'balanced', sections: [...sections] } }));
+    expect(text('h2')).toEqual(['Explore by Tag', 'Top Picks for You']);
+  });
+
+  it('says so when every section is hidden', async () => {
+    const sections = (['picks', 'albums', 'tags'] as const).map((id) => ({ id, visible: false }));
+    const { el } = await render(response({ preferences: { defaultMode: 'balanced', sections } }));
+    expect(el.querySelector('ob-empty-state')?.textContent).toContain('Every section is hidden');
+    expect(el.querySelector('.to-settings a')?.getAttribute('href')).toBe('/settings/discovery');
+  });
+
   it('asks for library artists when there is nothing to go on', async () => {
     const { el } = await render(response({ seedCount: 0, items: [], albums: [], tags: [] }));
     expect(el.querySelector('ob-empty-state')?.textContent).toContain('Nothing to go on yet');
@@ -124,7 +159,7 @@ describe('DiscoverPage feedback', () => {
     fixture.detectChanges();
     expect(text('.pick .name')).toEqual(['Lagwagon', 'Pennywise', 'Strung Out']);
     // Changing the list never reloads it from the server.
-    http.expectNone('api/v1/discover?mode=balanced');
+    http.expectNone('api/v1/discover');
     http.verify();
   });
 });

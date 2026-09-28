@@ -2,13 +2,17 @@
   <h1>Discover</h1>
   <div class="modes" role="group" aria-label="Discovery mode">
     @for (m of modes; track m.id) {
-      <button type="button" [attr.aria-pressed]="current() === m.id" (click)="choose(m.id)">{{ m.label }}</button>
+      <button type="button" [attr.aria-pressed]="current() === m.id" (click)="choose(m.id)">
+        {{ m.label }}
+      </button>
     }
   </div>
 </header>
 
 @if (error()) {
-  <p class="notice" role="alert"><ob-icon name="alert" [size]="15" [strokeWidth]="2" />{{ error() }}</p>
+  <p class="notice" role="alert">
+    <ob-icon name="alert" [size]="15" [strokeWidth]="2" />{{ error() }}
+  </p>
 }
 
 @if (!data() && !error()) {
@@ -24,7 +28,10 @@
     <span class="pulse" aria-hidden="true"></span>
     <div>
       <p class="lead">Finding artists for you</p>
-      <p>The first time takes a minute or two while Offbeat looks at your library. This page updates by itself.</p>
+      <p>
+        The first time takes a minute or two while Offbeat looks at your library. This page updates
+        by itself.
+      </p>
     </div>
   </div>
 } @else if (data(); as d) {
@@ -43,123 +50,163 @@
       />
     }
   } @else {
-    <section class="picks-section">
-      <div class="section-head">
-        <h2>Top Picks for You</h2>
-        <span class="meta">{{ refreshed() }}</span>
-        @if (picks().length > 3) {
-          <span class="arrows">
-            <button type="button" aria-label="Previous picks" (click)="scroll(pickRow, -1)"><ob-icon name="chevron-left" [size]="18" /></button>
-            <button type="button" aria-label="More picks" (click)="scroll(pickRow, 1)"><ob-icon name="chevron-right" [size]="18" /></button>
-          </span>
-        }
-      </div>
-      @if (addError()) {
-        <p class="add-error" role="alert">{{ addError() }}</p>
-      }
-      @if (undo(); as u) {
-        <p class="undo" role="status">
-          {{ u.text }}
-          <button type="button" (click)="runUndo()">Undo</button>
-        </p>
-      }
-      <div class="scroller picks" #pickRow>
-        @for (pick of picks(); track pick.mbid) {
-          <article class="pick">
-            <a [routerLink]="['/artist', pick.mbid]">
-              <span class="art">
-                <span class="initial" aria-hidden="true">{{ pick.name.charAt(0) }}</span>
-                @if (pick.imageUrl) {
-                  <img [src]="pick.imageUrl" alt="" loading="lazy" decoding="async" />
-                }
-              </span>
-              <span class="text">
-                <span class="reason">{{ reason(pick) }}</span>
-                <span class="name">{{ pick.name }}</span>
-                @if (pick.genres.length) {
-                  <span class="genres">{{ pick.genres.slice(0, 2).join(', ') }}</span>
-                }
-              </span>
-            </a>
-            <div class="rate" role="group" [attr.aria-label]="'Rate ' + pick.name">
-              <button
-                type="button"
-                [attr.aria-pressed]="pick.feedback === 'up'"
-                [attr.aria-label]="'More like ' + pick.name"
-                title="More like this"
-                (click)="like(pick)"
-              >
-                <ob-icon name="thumbs-up" [size]="16" />
-              </button>
-              <button type="button" [attr.aria-label]="'Less like ' + pick.name" title="Less like this" (click)="dislike(pick)">
-                <ob-icon name="thumbs-down" [size]="16" />
-              </button>
-              <button type="button" [attr.aria-label]="'Never show ' + pick.name" title="Never show this" (click)="block(pick)">
-                <ob-icon name="block" [size]="16" />
-              </button>
+    @for (section of sections(); track section) {
+      @switch (section) {
+        @case ('picks') {
+          <section class="picks-section">
+            <div class="section-head">
+              <h2>Top Picks for You</h2>
+              <span class="meta">{{ refreshed() }}</span>
+              @if (picks().length > 3) {
+                <span class="arrows">
+                  <button type="button" aria-label="Previous picks" (click)="scroll(pickRow, -1)">
+                    <ob-icon name="chevron-left" [size]="18" />
+                  </button>
+                  <button type="button" aria-label="More picks" (click)="scroll(pickRow, 1)">
+                    <ob-icon name="chevron-right" [size]="18" />
+                  </button>
+                </span>
+              }
             </div>
-            <ob-quick-add
-              class="add"
-              [mbid]="pick.mbid"
-              [name]="pick.name"
-              [inLibrary]="pick.inLibrary"
-              (done)="onAdded(pick)"
-              (failed)="addError.set($event)"
-            />
-          </article>
-        }
-      </div>
-    </section>
-
-    @if (d.albums.length || d.albumsPending) {
-      <section>
-        <div class="section-head">
-          <h2>Albums to Start With</h2>
-          @if (d.albumsPending) {
-            <span class="meta" role="status">Finding albums</span>
-          }
-          @if (d.albums.length > 6) {
-            <span class="arrows">
-              <button type="button" aria-label="Previous albums" (click)="scroll(albumRow, -1)"><ob-icon name="chevron-left" [size]="18" /></button>
-              <button type="button" aria-label="More albums" (click)="scroll(albumRow, 1)"><ob-icon name="chevron-right" [size]="18" /></button>
-            </span>
-          }
-        </div>
-        <div class="scroller albums" #albumRow [attr.aria-busy]="d.albumsPending">
-          @if (d.albumsPending) {
-            @for (i of [1, 2, 3, 4, 5, 6]; track i) {
-              <span class="album-ghost" aria-hidden="true"><span class="square"></span><span class="line"></span></span>
+            @if (addError()) {
+              <p class="add-error" role="alert">{{ addError() }}</p>
             }
+            @if (undo(); as u) {
+              <p class="undo" role="status">
+                {{ u.text }}
+                <button type="button" (click)="runUndo()">Undo</button>
+              </p>
+            }
+            <div class="scroller picks" #pickRow>
+              @for (pick of picks(); track pick.mbid) {
+                <article class="pick">
+                  <a [routerLink]="['/artist', pick.mbid]">
+                    <span class="art">
+                      <span class="initial" aria-hidden="true">{{ pick.name.charAt(0) }}</span>
+                      @if (pick.imageUrl) {
+                        <img [src]="pick.imageUrl" alt="" loading="lazy" decoding="async" />
+                      }
+                    </span>
+                    <span class="text">
+                      <span class="reason">{{ reason(pick) }}</span>
+                      <span class="name">{{ pick.name }}</span>
+                      @if (pick.genres.length) {
+                        <span class="genres">{{ pick.genres.slice(0, 2).join(', ') }}</span>
+                      }
+                    </span>
+                  </a>
+                  <div class="rate" role="group" [attr.aria-label]="'Rate ' + pick.name">
+                    <button
+                      type="button"
+                      [attr.aria-pressed]="pick.feedback === 'up'"
+                      [attr.aria-label]="'More like ' + pick.name"
+                      title="More like this"
+                      (click)="like(pick)"
+                    >
+                      <ob-icon name="thumbs-up" [size]="16" />
+                    </button>
+                    <button
+                      type="button"
+                      [attr.aria-label]="'Less like ' + pick.name"
+                      title="Less like this"
+                      (click)="dislike(pick)"
+                    >
+                      <ob-icon name="thumbs-down" [size]="16" />
+                    </button>
+                    <button
+                      type="button"
+                      [attr.aria-label]="'Never show ' + pick.name"
+                      title="Never show this"
+                      (click)="block(pick)"
+                    >
+                      <ob-icon name="block" [size]="16" />
+                    </button>
+                  </div>
+                  <ob-quick-add
+                    class="add"
+                    [mbid]="pick.mbid"
+                    [name]="pick.name"
+                    [inLibrary]="pick.inLibrary"
+                    (done)="onAdded(pick)"
+                    (failed)="addError.set($event)"
+                  />
+                </article>
+              }
+            </div>
+          </section>
+        }
+        @case ('albums') {
+          @if (d.albums.length || d.albumsPending) {
+            <section>
+              <div class="section-head">
+                <h2>Albums to Start With</h2>
+                @if (d.albumsPending) {
+                  <span class="meta" role="status">Finding albums</span>
+                }
+                @if (d.albums.length > 6) {
+                  <span class="arrows">
+                    <button
+                      type="button"
+                      aria-label="Previous albums"
+                      (click)="scroll(albumRow, -1)"
+                    >
+                      <ob-icon name="chevron-left" [size]="18" />
+                    </button>
+                    <button type="button" aria-label="More albums" (click)="scroll(albumRow, 1)">
+                      <ob-icon name="chevron-right" [size]="18" />
+                    </button>
+                  </span>
+                }
+              </div>
+              <div class="scroller albums" #albumRow [attr.aria-busy]="d.albumsPending">
+                @if (d.albumsPending) {
+                  @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+                    <span class="album-ghost" aria-hidden="true"
+                      ><span class="square"></span><span class="line"></span
+                    ></span>
+                  }
+                }
+                @for (album of d.albums; track album.mbid) {
+                  <a class="album" [routerLink]="['/album', album.mbid]">
+                    <ob-cover [src]="album.coverUrl" />
+                    <span class="text">
+                      <span class="title">{{ album.title }}</span>
+                      <span class="artist">{{ album.artistName }}</span>
+                    </span>
+                  </a>
+                }
+              </div>
+            </section>
           }
-          @for (album of d.albums; track album.mbid) {
-            <a class="album" [routerLink]="['/album', album.mbid]">
-              <ob-cover [src]="album.coverUrl" />
-              <span class="text">
-                <span class="title">{{ album.title }}</span>
-                <span class="artist">{{ album.artistName }}</span>
-              </span>
-            </a>
+        }
+        @case ('tags') {
+          @if (d.tags.length) {
+            <section>
+              <h2>Explore by Tag</h2>
+              <div class="tags">
+                @for (tag of d.tags; track tag) {
+                  <a class="tag" [routerLink]="['/tag', tag]">{{ tag }}</a>
+                }
+              </div>
+            </section>
           }
-        </div>
-      </section>
-    }
-
-    @if (d.tags.length) {
-      <section>
-        <h2>Explore by Tag</h2>
-        <div class="tags">
-          @for (tag of d.tags; track tag) {
-            <a class="tag" [routerLink]="['/tag', tag]">{{ tag }}</a>
-          }
-        </div>
-      </section>
+        }
+      }
+    } @empty {
+      <ob-empty-state
+        icon="discover"
+        heading="Every section is hidden"
+        message="Choose what Discover shows in Settings, Discovery."
+      />
+      <p class="to-settings"><a routerLink="/settings/discovery">Open Discovery settings</a></p>
     }
 
     @if (!d.sources.lastfm) {
       <p class="upgrade">
         These picks come from ListenBrainz.
         @if (session.user()?.role === 'admin') {
-          <a routerLink="/settings/integrations/lastfm">Connect Last.fm</a> for sharper recommendations and deeper cuts.
+          <a routerLink="/settings/integrations/lastfm">Connect Last.fm</a> for sharper
+          recommendations and deeper cuts.
         } @else {
           An admin can connect Last.fm for sharper recommendations and deeper cuts.
         }
