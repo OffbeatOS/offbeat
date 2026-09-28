@@ -498,9 +498,13 @@ export class Activity {
     const byMbid = new Map<string, string>();
     const names = new Map<number, string>();
     for (const row of rows) {
-      // A removed user keeps their name on what they asked for.
-      const who = row.username ?? row.requestedBy;
-      const label = who ? `requested by ${who}` : 'Requested in Offbeat';
+      // A removed user keeps their name on what they asked for, marked as removed so a
+      // new account with the same name is never credited with it (user ids are not reused).
+      const label = row.username
+        ? `requested by ${row.username}`
+        : row.requestedBy
+          ? `requested by ${row.requestedBy} (removed)`
+          : 'Requested in Offbeat';
       if (row.albumId != null) byAlbumId.set(row.albumId, label);
       if (row.albumMbid) byMbid.set(row.albumMbid, label);
     }

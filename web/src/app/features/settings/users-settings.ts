@@ -5,6 +5,7 @@ import {
   DEFAULT_MEMBER_PERMISSIONS,
   PERMISSIONS,
   type Permission,
+  TEMPORARY_PASSWORD_DAYS,
   type TemporaryPassword,
   USERNAME_PATTERN,
   type UserRole,
@@ -28,7 +29,7 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
 type Panel =
   | { kind: 'user'; id: number }
   | { kind: 'add' }
-  | { kind: 'password'; username: string; password: string; created: boolean; then: number };
+  | { kind: 'password'; username: string; password: string; expiresAt: string; created: boolean; then: number };
 
 /** The editable part of a user, as the panel holds it until Save. */
 interface Draft {
@@ -36,10 +37,15 @@ interface Draft {
   permissions: Permission[];
 }
 
-/** "You, active now", "Active 2 hours ago", "Invited, not signed in yet". */
+/** Whether their temporary password has run out (they cannot sign in with it any more). */
+export function temporaryExpired(user: UserSummary, now = Date.now()): boolean {
+  return user.mustChangePassword && !!user.temporaryPasswordExpiresAt && Date.parse(user.temporaryPasswordExpiresAt) <= now;
+}
+
+/** "You, active now", "Active 2 hours ago", "Invited, not signed in yet", "Invite expired". */
 export function activityLine(user: UserSummary, meId: number | undefined, now = Date.now()): string {
   if (user.id === meId) return 'You, active now';
-  if (!user.lastSeenAt) return 'Invited, not signed in yet';
+  if (!user.lastSeenAt) return temporaryExpired(user, now) ? 'Invite expired' : 'Invited, not signed in yet';
   const days = Math.floor((now - Date.parse(user.lastSeenAt)) / 86_400_000);
   if (days === 1) return 'Active yesterday';
   const ago = timeAgo(user.lastSeenAt, now);
@@ -63,6 +69,7 @@ export class UsersSettings implements OnInit {
   private readonly api = inject(Api);
   protected readonly session = inject(Session);
 
+  protected readonly days = TEMPORARY_PASSWORD_DAYS;
   protected readonly permissions = PERMISSIONS;
   protected readonly label = PERMISSION_LABEL;
   protected readonly color = avatarColor;
@@ -97,6 +104,14 @@ export class UsersSettings implements OnInit {
 
   protected line(user: UserSummary): string {
     return activityLine(user, this.me());
+  }
+
+  /** For someone still on a temporary password: until when it works, or that it no longer does. */
+  protected temporaryNote(user: UserSummary): string {
+    if (!user.mustChangePassword || !user.temporaryPasswordExpiresAt) return '';
+    if (temporaryExpired(user)) return 'Their temporary password expired. Reset Password makes a new one.';
+    const until = new Date(user.temporaryPasswordExpiresAt).toLocaleDateString([], { month: 'long', day: 'numeric' });
+    return `Waiting for them to sign in with their temporary password, which works until ${until}.`;
   }
 
   protected joined(user: UserSummary): string {
@@ -143,7 +158,7 @@ export class UsersSettings implements OnInit {
     await this.run(async () => {
       const created = await this.api.post<CreatedUser>('users', { username, ...draft });
       this.users.update((list) => [...(list ?? []), created.user]);
-      this.showPassword(created.user.username, created.temporaryPassword, true, created.user.id);
+      this.showPassword(created.user.username, created.temporaryPassword, created.expiresAt, true, created.user.id);
     });
   }
 
@@ -162,9 +177,12 @@ export class UsersSettings implements OnInit {
     const user = this.selected();
     if (!user) return;
     await this.run(async () => {
-      const { temporaryPassword } = await this.api.post<TemporaryPassword>(`users/${user.id}/password`);
-      this.users.update((list) => list?.map((u) => (u.id === user.id ? { ...u, mustChangePassword: true } : u)) ?? null);
-      this.showPassword(user.username, temporaryPassword, false, user.id);
+      const { temporaryPassword, expiresAt } = await this.api.post<TemporaryPassword>(`users/${user.id}/password`);
+      this.users.update(
+        (list) =>
+          list?.map((u) => (u.id === user.id ? { ...u, mustChangePassword: true, temporaryPasswordExpiresAt: expiresAt } : u)) ?? null,
+      );
+      this.showPassword(user.username, temporaryPassword, expiresAt, false, user.id);
     });
   }
 
@@ -196,9 +214,9 @@ export class UsersSettings implements OnInit {
     if (user) this.select(user);
   }
 
-  private showPassword(username: string, password: string, created: boolean, then: number) {
+  private showPassword(username: string, password: string, expiresAt: string, created: boolean, then: number) {
     this.copied.set(false);
-    this.panel.set({ kind: 'password', username, password, created, then });
+    this.panel.set({ kind: 'password', username, password, expiresAt, created, then });
   }
 
   private async run(action: () => Promise<void>) {

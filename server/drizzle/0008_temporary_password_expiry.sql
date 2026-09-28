@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `temporary_password_expires_at` integer;

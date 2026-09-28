@@ -52,7 +52,8 @@
               <button class="btn btn-outline btn-sm" type="button" (click)="copy(p.password)">{{ copied() ? 'Copied' : 'Copy' }}</button>
             </div>
             <p>
-              Shown once. Give it to {{ p.username }}; they choose their own password when they sign in.
+              Shown once, and works for {{ days }} days. Give it to {{ p.username }}; they choose their own password when they
+              sign in.
               @if (!p.created) {
                 They were signed out everywhere.
               }
@@ -94,6 +95,9 @@
                 <span class="line">{{ joined(user) }}</span>
               </div>
             </div>
+            @if (temporaryNote(user); as note) {
+              <p class="note">{{ note }}</p>
+            }
             <ng-container *ngTemplateOutlet="access" />
             <div class="buttons">
               @if (user.id !== me()) {

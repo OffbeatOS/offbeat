@@ -95,6 +95,15 @@ describe('routing', () => {
     expect(router.url).toBe('/change-password');
   });
 
+  it('moves someone off an admin page the moment they stop being an admin', async () => {
+    const session = fakeSession({ user: admin });
+    const { router } = await boot(session, '/settings/users');
+    expect(router.url).toBe('/settings/users');
+    session.user.set({ ...admin, role: 'user', permissions: [] });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(router.url).toBe('/settings/discovery');
+  });
+
   it('only follows in-app return URLs', () => {
     expect(safeReturnUrl('/library')).toBe('/library');
     expect(safeReturnUrl('//evil.example')).toBe('/discover');

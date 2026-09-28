@@ -32,6 +32,13 @@ export function toCurrentUser(row: {
   };
 }
 
+export const TEMPORARY_EXPIRED = 'This temporary password has expired. Ask an admin for a new one.';
+
+/** A temporary password past its expiry (an invite or reset nobody used in time). */
+export function temporaryExpired(row: { mustChangePassword: boolean; temporaryPasswordExpiresAt: Date | null }, now = new Date()) {
+  return row.mustChangePassword && !!row.temporaryPasswordExpiresAt && row.temporaryPasswordExpiresAt.getTime() <= now.getTime();
+}
+
 export function can(user: CurrentUser, permission: Permission): boolean {
   return user.role === 'admin' || user.permissions.includes(permission);
 }

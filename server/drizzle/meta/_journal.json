@@ -57,6 +57,13 @@
       "when": 1790601385597,
       "tag": "0007_users_and_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790605126453,
+      "tag": "0008_temporary_password_expiry",
+      "breakpoints": true
     }
   ]
 }

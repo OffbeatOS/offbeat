@@ -12,8 +12,8 @@ import { count, eq, sql } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import type { SessionCookieOptions } from '../auth/guard.js';
-import { hashPassword, temporaryPassword, verifyPassword } from '../auth/password.js';
-import { parsePermissions } from '../auth/permissions.js';
+import { hashPassword, issueTemporaryPassword, verifyPassword } from '../auth/password.js';
+import { TEMPORARY_EXPIRED, parsePermissions, temporaryExpired } from '../auth/permissions.js';
 import { deleteUserSessions } from '../auth/sessions.js';
 import type { Db } from '../db/index.js';
 import { users } from '../db/schema.js';
@@ -55,8 +55,7 @@ export const userRoutes: FastifyPluginAsync<{ cookie: SessionCookieOptions }> = 
 
   app.post('/users', admin, async (request, reply): Promise<CreatedUser> => {
     const body = parse(createBody, request.body);
-    const temporary = temporaryPassword();
-    const passwordHash = await hashPassword(temporary);
+    const temporary = await issueTemporaryPassword();
     const created = app.db.transaction((tx) => {
       const taken = tx
         .select({ id: users.id })
@@ -68,16 +67,19 @@ export const userRoutes: FastifyPluginAsync<{ cookie: SessionCookieOptions }> = 
         .insert(users)
         .values({
           username: body.username,
-          passwordHash,
+          passwordHash: temporary.passwordHash,
           role: body.role,
           permissions: JSON.stringify(ordered(body.permissions)),
           mustChangePassword: true,
+          temporaryPasswordExpiresAt: temporary.expiresAt,
         })
         .returning()
         .get();
     });
     if (!created) throw new HttpError(409, 'That username is taken');
-    return reply.code(201).send({ user: summary(created), temporaryPassword: temporary });
+    return reply
+      .code(201)
+      .send({ user: summary(created), temporaryPassword: temporary.password, expiresAt: temporary.expiresAt.toISOString() });
   });
 
   app.patch('/users/:id', admin, async (request): Promise<UserSummary> => {
@@ -106,13 +108,16 @@ export const userRoutes: FastifyPluginAsync<{ cookie: SessionCookieOptions }> = 
   app.post('/users/:id/password', admin, async (request): Promise<TemporaryPassword> => {
     const { id } = parse(idParams, request.params);
     if (id === request.user!.id) throw new HttpError(409, 'Change your own password in Settings, Account');
-    const temporary = temporaryPassword();
-    const passwordHash = await hashPassword(temporary);
+    const temporary = await issueTemporaryPassword();
     const changed =
-      app.db.update(users).set({ passwordHash, mustChangePassword: true }).where(eq(users.id, id)).run().changes > 0;
+      app.db
+        .update(users)
+        .set({ passwordHash: temporary.passwordHash, mustChangePassword: true, temporaryPasswordExpiresAt: temporary.expiresAt })
+        .where(eq(users.id, id))
+        .run().changes > 0;
     if (!changed) throw new HttpError(404, 'That user does not exist');
     deleteUserSessions(app.db, id);
-    return { temporaryPassword: temporary };
+    return { temporaryPassword: temporary.password, expiresAt: temporary.expiresAt.toISOString() };
   });
 
   /**
@@ -141,9 +146,14 @@ export const userRoutes: FastifyPluginAsync<{ cookie: SessionCookieOptions }> = 
     if (!(await verifyPassword(me.passwordHash, body.currentPassword))) {
       throw new HttpError(422, 'Your current password is not right');
     }
+    if (temporaryExpired(me)) throw new HttpError(422, TEMPORARY_EXPIRED);
     if (body.newPassword === body.currentPassword) throw new HttpError(422, 'Choose a password different from the current one');
     const passwordHash = await hashPassword(body.newPassword);
-    app.db.update(users).set({ passwordHash, mustChangePassword: false }).where(eq(users.id, me.id)).run();
+    app.db
+      .update(users)
+      .set({ passwordHash, mustChangePassword: false, temporaryPasswordExpiresAt: null })
+      .where(eq(users.id, me.id))
+      .run();
     deleteUserSessions(app.db, me.id, request.cookies[cookie.name]);
     return reply.code(204).send();
   });
@@ -166,5 +176,6 @@ function summary(row: typeof users.$inferSelect): UserSummary {
     createdAt: row.createdAt.toISOString(),
     lastSeenAt: row.lastSeenAt ? row.lastSeenAt.toISOString() : null,
     mustChangePassword: row.mustChangePassword,
+    temporaryPasswordExpiresAt: row.temporaryPasswordExpiresAt ? row.temporaryPasswordExpiresAt.toISOString() : null,
   };
 }

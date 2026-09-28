@@ -1,4 +1,5 @@
 import type { ActivitySnapshot, CreatedUser, UserSummary } from '@offbeat/shared';
+import { eq } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ApiRouteInfo } from '../src/api/index.js';
@@ -218,6 +219,27 @@ describe('managing users', () => {
     expect((await call(admin, 'GET', '/users')).statusCode).toBe(403);
   });
 
+  it('temporary passwords expire after 7 days; a new one works again', async () => {
+    const { call, admin, login, app } = await setup();
+    const created = (await call(admin, 'POST', '/users', { username: 'late', role: 'user', permissions: [] })).json<CreatedUser>();
+    const days = (Date.parse(created.expiresAt) - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(6.99);
+    expect(days).toBeLessThanOrEqual(7);
+    expect(created.user.temporaryPasswordExpiresAt).toBe(created.expiresAt);
+
+    app.db.update(users).set({ temporaryPasswordExpiresAt: new Date(Date.now() - 1000) }).where(eq(users.id, created.user.id)).run();
+    const expired = await login('late', created.temporaryPassword);
+    expect(expired.statusCode).toBe(401);
+    expect(expired.json().message).toBe('This temporary password has expired. Ask an admin for a new one.');
+    // A wrong password still gets the usual answer: expiry is only revealed with the right one.
+    expect((await login('late', 'not-the-password')).json().message).toBe('Incorrect username or password');
+
+    const fresh = (await call(admin, 'POST', `/users/${created.user.id}/password`)).json<{ temporaryPassword: string }>();
+    const cookie = cookieOf(await login('late', fresh.temporaryPassword));
+    expect((await call(cookie, 'PUT', '/account/password', { currentPassword: fresh.temporaryPassword, newPassword: password() })).statusCode).toBe(204);
+    expect(app.db.select().from(users).where(eq(users.id, created.user.id)).get()?.temporaryPasswordExpiresAt).toBeNull();
+  });
+
   it('resets a password to a new temporary one: old sessions end and the old password stops working', async () => {
     const { call, admin, member, login } = await setup();
     const bob = await member('bob');
@@ -253,7 +275,7 @@ describe('managing users', () => {
     expect((await call(admin, 'DELETE', `/users/${bob.id}`)).statusCode).toBe(404);
   });
 
-  it('shows who asked in Activity, even after that user is removed', async () => {
+  it('shows who asked in Activity after that user is removed, never crediting a new account with the same name', async () => {
     const fake = await startFakeCatalog();
     cleanup.push(() => fake.close());
     const { call, admin, member, app } = await setup({ lidarrUrl: fake.lidarrUrl, apiKey: fake.apiKey });
@@ -263,6 +285,12 @@ describe('managing users', () => {
     await call(admin, 'DELETE', `/users/${bob.id}`);
     await app.activity.refresh();
     const snap = (await call(admin, 'GET', '/activity')).json<ActivitySnapshot>();
-    expect(snap.inProgress[0]?.source).toBe('requested by bob');
+    expect(snap.inProgress[0]?.source).toBe('requested by bob (removed)');
+
+    // A new bob gets a new id; the old request stays the old bob's.
+    const newBob = await member('bob', ['add-albums']);
+    expect(newBob.id).not.toBe(bob.id);
+    await app.activity.refresh();
+    expect((await call(admin, 'GET', '/activity')).json<ActivitySnapshot>().inProgress[0]?.source).toBe('requested by bob (removed)');
   });
 });

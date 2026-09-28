@@ -1,16 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Session } from '../../core/session';
+import { SETTINGS_SECTIONS } from './sections';
 
-/** `admin`: only admins see it (the routes are guarded too). */
-export const SETTINGS_SECTIONS = [
-  { path: 'integrations', label: 'Integrations', admin: true },
-  { path: 'discovery', label: 'Discovery', admin: false },
-  { path: 'users', label: 'Users', admin: true },
-  { path: 'account', label: 'Account', admin: false },
-  { path: 'notifications', label: 'Notifications', admin: false },
-  { path: 'about', label: 'About', admin: false },
-] as const;
 
 /** Settings mockup: title and section list on the left, section on the right. */
 @Component({

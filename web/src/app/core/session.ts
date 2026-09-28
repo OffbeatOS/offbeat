@@ -7,6 +7,8 @@ import { Api } from './api';
 export class Session {
   private readonly api = inject(Api);
   private loading: Promise<void> | null = null;
+  private refreshing: Promise<void> | null = null;
+  private refreshedAt = 0;
 
   readonly user = signal<CurrentUser | null>(null);
   readonly needsAdmin = signal(false);
@@ -48,6 +50,24 @@ export class Session {
   async logout(): Promise<void> {
     await this.api.post('auth/logout');
     this.user.set(null);
+  }
+
+  /**
+   * Asks the server who is signed in now: an admin may have changed this
+   * user's role or permissions (or reset their password) since the page
+   * loaded. `minGapMs` skips it if one ran that recently.
+   */
+  refresh(minGapMs = 0): Promise<void> {
+    if (!this.user() || Date.now() - this.refreshedAt < minGapMs) return Promise.resolve();
+    this.refreshing ??= this.api
+      .get<{ user: CurrentUser | null }>('auth/me')
+      .then((me) => {
+        this.refreshedAt = Date.now();
+        this.user.set(me.user);
+      })
+      .catch(() => undefined)
+      .finally(() => (this.refreshing = null));
+    return this.refreshing;
   }
 
   /** Called when any request comes back 401, for example after the session expired. */

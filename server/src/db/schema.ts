@@ -25,6 +25,8 @@ export const users = sqliteTable('users', {
   lastSeenAt: integer('last_seen_at', { mode: 'timestamp' }),
   /** Set by an admin adding the user or resetting their password: they choose their own at next sign-in. */
   mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
+  /** A temporary password stops working after this (an unused invite should not stay valid forever). */
+  temporaryPasswordExpiresAt: integer('temporary_password_expires_at', { mode: 'timestamp' }),
   /** JSON DiscoverPreferences (default mode, section order); `{}` means the defaults. */
   discoverPrefs: text('discover_prefs').notNull().default('{}'),
   createdAt: integer('created_at', { mode: 'timestamp' })

@@ -32,6 +32,8 @@ export interface UserSummary {
   lastSeenAt: string | null;
   /** Still has a temporary password from an admin. */
   mustChangePassword: boolean;
+  /** When that temporary password stops working; null once they chose their own. */
+  temporaryPasswordExpiresAt: string | null;
 }
 
 /** `POST /users`. Offbeat makes a temporary password; the user chooses their own at first sign-in. */
@@ -44,7 +46,11 @@ export interface CreateUserRequest {
 /** A temporary password, shown once: `POST /users` and `POST /users/:id/password`. */
 export interface TemporaryPassword {
   temporaryPassword: string;
+  expiresAt: string;
 }
+
+/** How long a temporary password works; after that an admin makes a new one. */
+export const TEMPORARY_PASSWORD_DAYS = 7;
 
 export interface CreatedUser extends TemporaryPassword {
   user: UserSummary;

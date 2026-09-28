@@ -7,7 +7,7 @@ import { LoginLimiter } from '../auth/login-limiter.js';
 import { verifyPassword } from '../auth/password.js';
 import { createSession, deleteExpiredSessions, deleteSession } from '../auth/sessions.js';
 import { users } from '../db/schema.js';
-import { toCurrentUser } from '../auth/permissions.js';
+import { TEMPORARY_EXPIRED, temporaryExpired, toCurrentUser } from '../auth/permissions.js';
 import { HttpError, parse } from './errors.js';
 
 const loginBody = z.object({
@@ -40,6 +40,9 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { c
       limiter.fail(request.ip);
       throw new HttpError(401, 'Incorrect username or password');
     }
+
+    // Checked only after the password matched, so it reveals nothing about unknown accounts.
+    if (temporaryExpired(user)) throw new HttpError(401, TEMPORARY_EXPIRED);
 
     limiter.succeed(request.ip);
     deleteExpiredSessions(app.db);
