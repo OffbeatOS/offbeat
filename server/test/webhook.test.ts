@@ -69,6 +69,10 @@ describe('Lidarr webhook receiver', () => {
     expect((await send(`offbeat:${view.password}`, { eventType: 'Grab', albums: [{ title: 'Made up' }] })).status).toBe(204);
     expect(poll).toHaveBeenCalledTimes(1);
     expect((await call('GET', '/settings/lidarr/webhook')).json()).toMatchObject({ lastEvent: 'album grabbed' });
+    // A Grab also checks once more shortly after, when the release has reached the queue.
+    const wake = vi.spyOn(app.activity, 'wake');
+    await new Promise((r) => setTimeout(r, 1700));
+    expect(wake).toHaveBeenCalled();
     // The body is never trusted: a malformed one is still just "look now".
     expect((await send(`offbeat:${view.password}`, { nonsense: true })).status).toBe(204);
     expect(poll).toHaveBeenCalledTimes(2);

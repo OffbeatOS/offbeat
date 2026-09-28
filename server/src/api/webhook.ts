@@ -11,6 +11,8 @@ const USERNAME = 'offbeat';
 const PATH = '/api/v1/webhooks/lidarr';
 /** Lidarr calls back during a test; allow for a slow Lidarr or network. */
 const TEST_TIMEOUT_MS = 30_000;
+/** A Grab arrives just before the release is in Lidarr's queue; check again after this. */
+const GRAB_RECHECK_MS = 1500;
 
 const storedSchema = z.object({
   token: z.string(),
@@ -72,6 +74,9 @@ export const webhookRoutes: FastifyPluginAsync<{ baseUrl: string }> = async (app
     const type = typeof (request.body as { eventType?: unknown } | null)?.eventType === 'string' ? (request.body as { eventType: string }).eventType : 'Unknown';
     if (type === 'Test') testReceivedAt = Date.now();
     else void app.activity.expectMovement(); // look at Lidarr now, and closely for a while
+    // Lidarr sends Grab just before the release reaches its queue, so the check above can
+    // miss it: look once more a moment later.
+    if (type === 'Grab') setTimeout(() => void app.activity.wake(), GRAB_RECHECK_MS).unref();
     save({ ...stored, lastEventAt: new Date().toISOString(), lastEvent: EVENT_LABEL[type] ?? type.toLowerCase() });
     request.log.info({ eventType: type }, 'Lidarr webhook');
     return reply.code(204).send();
