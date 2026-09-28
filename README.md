@@ -1,6 +1,6 @@
 <h1 align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/offbeat_logo.png">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/offbeat-logo-dark.png">
     <img src="docs/screenshots/offbeat-logo-light.png" alt="Offbeat" width="240">
   </picture>
 </h1>
