@@ -232,6 +232,24 @@ export class Catalog {
     return (await this.lidarrAlbums(lidarrArtistId)).find((a) => a.foreignAlbumId === releaseGroupMbid);
   }
 
+  /**
+   * Current statuses of albums shown outside an artist page (Discover, tag
+   * pages): only albums by library artists can have one besides Add.
+   */
+  async withStatuses(albums: ReleaseSummary[]): Promise<ReleaseSummary[]> {
+    const byArtist = new Map<string, Map<string, ReleaseStatus>>();
+    for (const artistMbid of new Set(albums.map((a) => a.artistMbid))) {
+      const row = this.library.byMbid(artistMbid);
+      if (!row) continue;
+      const lidarr = await this.lidarrAlbums(row.lidarrId).catch(() => []);
+      byArtist.set(artistMbid, new Map(lidarr.map((al) => [al.foreignAlbumId, lidarrStatus(al)])));
+    }
+    return albums.map((album) => ({
+      ...album,
+      status: this.pendingOr(album.mbid, byArtist.get(album.artistMbid)?.get(album.mbid) ?? { kind: 'available' }),
+    }));
+  }
+
   /** Drops cached album statuses, for example after a download finished. */
   forgetAlbums() {
     this.albumCache.clear();
@@ -270,7 +288,7 @@ export class Catalog {
       if (!lidarrArtistId) {
         // Only the album asked for: no back catalog, and no future releases either.
         const added = await this.createArtist(artistMbid, settings, {
-          monitored: settings.addMonitored,
+          monitored: true,
           monitorAlbums: 'none',
           monitorNewItems: 'none',
           search: false,
@@ -280,6 +298,7 @@ export class Catalog {
         // rescan finish; monitoring the album before then would be undone.
         await this.waitForArtistSettled(lidarrArtistId);
       }
+      await this.keepArtistWatched(lidarrArtistId);
 
       const album = await this.waitForAlbum(lidarrArtistId, releaseGroupMbid);
       if (!album.monitored) {
@@ -291,6 +310,44 @@ export class Catalog {
       this.record(userId, artistMbid, releaseGroupMbid, lidarrArtistId, album.id);
       return this.album(releaseGroupMbid);
     });
+  }
+
+  /**
+   * Other albums a single-album add would start monitoring again: when the
+   * artist is in Lidarr but unmonitored, monitoring it (see keepArtistWatched)
+   * also resumes every album still marked monitored, so Lidarr would search
+   * for those too. Empty when the artist is new or already monitored.
+   */
+  async albumsResumedBy(releaseGroupMbid: string, artistMbid: string): Promise<string[]> {
+    const row = this.library.byMbid(artistMbid);
+    if (!row) return [];
+    const client = this.client();
+    const raw = await client.rawArtist(row.lidarrId);
+    if (raw.monitored === true) return [];
+    return (await client.albums(row.lidarrId))
+      .filter((a) => a.monitored && a.foreignAlbumId !== releaseGroupMbid)
+      .map((a) => a.title);
+  }
+
+  /**
+   * Lidarr only searches, re-grabs, and upgrades albums of monitored artists,
+   * so a single-album add must leave the artist monitored, whatever "Monitor
+   * new artists" says. Adding an artist with no albums to monitor leaves it
+   * unmonitored in Lidarr, so this runs after the post-add actions. An
+   * unmonitored artist becomes monitored with future releases off, so nothing
+   * but the chosen album is monitored. An artist the user already monitors is
+   * left exactly as it is.
+   */
+  private async keepArtistWatched(lidarrArtistId: number) {
+    const client = this.client();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const raw = await client.rawArtist(lidarrArtistId);
+      if (raw.monitored === true) return;
+      await client.updateArtist(lidarrArtistId, { ...raw, monitored: true, monitorNewItems: 'none' });
+      await new Promise((resolve) => setTimeout(resolve, this.options.pollMs ?? 1000));
+    }
+    const raw = await client.rawArtist(lidarrArtistId);
+    if (raw.monitored !== true) throw new HttpError(422, 'Lidarr would not keep this artist monitored. Monitor it in Lidarr so the album is searched and upgraded.');
   }
 
   /** Changes whether Lidarr monitors an artist that is already in the library. */

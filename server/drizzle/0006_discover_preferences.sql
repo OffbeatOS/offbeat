@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `discover_prefs` text DEFAULT '{}' NOT NULL;

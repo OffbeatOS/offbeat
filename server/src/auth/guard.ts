@@ -3,7 +3,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { HttpError } from '../api/errors.js';
 import { resolveSession } from './sessions.js';
 
-export const SESSION_COOKIE = 'offbeat_session';
+/** Default session cookie name; change it with SESSION_COOKIE when several instances share a host. */
+export const DEFAULT_SESSION_COOKIE = 'offbeat_session';
 
 declare module 'fastify' {
   interface FastifyContextConfig {
@@ -20,6 +21,8 @@ declare module 'fastify' {
 export interface SessionCookieOptions {
   /** Normalized BASE_URL, so the cookie is scoped to Offbeat's subpath. */
   baseUrl: string;
+  /** Cookie name. Browsers share cookies across ports, so two instances on one host need different names. */
+  name: string;
 }
 
 export function setSessionCookie(
@@ -27,9 +30,9 @@ export function setSessionCookie(
   reply: FastifyReply,
   token: string,
   expiresAt: Date,
-  { baseUrl }: SessionCookieOptions,
+  { baseUrl, name }: SessionCookieOptions,
 ) {
-  reply.setCookie(SESSION_COOKIE, token, {
+  reply.setCookie(name, token, {
     path: `${baseUrl}/`,
     httpOnly: true,
     sameSite: 'lax',
@@ -38,8 +41,8 @@ export function setSessionCookie(
   });
 }
 
-export function clearSessionCookie(reply: FastifyReply, { baseUrl }: SessionCookieOptions) {
-  reply.clearCookie(SESSION_COOKIE, { path: `${baseUrl}/` });
+export function clearSessionCookie(reply: FastifyReply, { baseUrl, name }: SessionCookieOptions) {
+  reply.clearCookie(name, { path: `${baseUrl}/` });
 }
 
 /**
@@ -51,7 +54,7 @@ export function registerAuthGuard(app: FastifyInstance, cookie: SessionCookieOpt
   app.decorateRequest('user', null);
 
   app.addHook('onRequest', async (request, reply) => {
-    const token = request.cookies[SESSION_COOKIE];
+    const token = request.cookies[cookie.name];
     if (token) {
       const session = resolveSession(app.db, token);
       if (session) {

@@ -8,6 +8,7 @@ import type { ReleaseStatus } from './catalog.js';
  * - `queued`, `downloading`, `importing`: in the download client, or being imported
  * - `paused`: paused in the download client
  * - `import-blocked`: downloaded, but Lidarr would not import it (usually fixed in Lidarr)
+ * - `import-stuck`: Lidarr has said "importing" for over an hour without importing it
  * - `failed`: the download failed, or Offbeat could not add it
  */
 export type ActivityState =
@@ -18,6 +19,7 @@ export type ActivityState =
   | 'importing'
   | 'paused'
   | 'import-blocked'
+  | 'import-stuck'
   | 'failed';
 
 export interface ActivityItem {
@@ -42,7 +44,7 @@ export interface ActivityItem {
   source: string;
   canRetry: boolean;
   canCancel: boolean;
-  /** Where to fix it in Lidarr (its Activity page, or the album's page for a manual search). */
+  /** Where to fix it in Lidarr (its queue, where Manual Import is, or the album's page for a manual search). */
   lidarrLink: string | null;
 }
 

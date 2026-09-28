@@ -16,7 +16,7 @@ import type { MusicBrainzClient } from '../integrations/musicbrainz/client.js';
 import type { ImageUrls } from '../library/image-urls.js';
 import type { Library } from '../library/library.js';
 import type { SettingsStore } from '../settings/store.js';
-import { ACTIVE_STATES, ATTENTION_STATES, describeQueueItem } from './mapping.js';
+import { ACTIVE_STATES, ATTENTION_STATES, describeQueueItem, importStuckReason } from './mapping.js';
 
 export type ActivityEvent = { type: 'activity'; data: ActivitySnapshot } | { type: 'add-result'; data: AddResult };
 type Listener = (event: ActivityEvent) => void;
@@ -49,9 +49,12 @@ export interface ActivityOptions {
   historyEveryMs?: number;
   /** A poll taking longer than this is abandoned, so one stuck request cannot stop Activity. */
   pollTimeoutMs?: number;
+  /** An item Lidarr has shown as "importing" this long is flagged as stuck. Default one hour. */
+  importStuckMs?: number;
 }
 
 const FAILED_ADD_TTL_MS = 24 * 60 * 60 * 1000;
+const IMPORT_STUCK_MS = 60 * 60 * 1000;
 
 /**
  * The single poller for Lidarr's activity. Browsers subscribe (over SSE)
@@ -69,6 +72,13 @@ export class Activity {
   private history: LidarrHistoryItem[] = [];
   private historyAt = 0;
   private queueIds = new Set<number>();
+  /**
+   * When each queue item was first seen importing. Lidarr's queue has no
+   * completion time, so after a restart the hour starts again.
+   */
+  private readonly importingSince = new Map<number, number>();
+  /** Manual Import rejections per stuck queue item; null while being fetched. */
+  private readonly stuckRejections = new Map<number, string[] | null>();
   /** Newest "grabbed" history event seen, so a new grab can be noticed. */
   private lastGrabId: number | null = null;
   /** Poll at the active interval until then, even while the queue looks idle. */
@@ -272,6 +282,7 @@ export class Activity {
         this.catalog.forgetAlbums();
         void this.library.sync().catch(() => undefined);
       }
+      this.noticeStuckImports(client, queue);
       this.stage = 'searching albums';
       const searching = await this.searchingAlbums(client, commands, queue);
       this.stage = 'building the snapshot';
@@ -283,6 +294,47 @@ export class Activity {
       this.log.warn({ err: error }, 'Could not poll Lidarr activity');
       this.publish({ ...this.snapshot }, message);
     }
+  }
+
+  /**
+   * Tracks how long each item has been importing. Once one passes the limit,
+   * asks Lidarr's Manual Import preview why, once, in the background so a slow
+   * answer never holds up the poll; the next poll shows the reason.
+   */
+  private noticeStuckImports(client: LidarrClient, queue: LidarrQueueItem[]) {
+    const now = Date.now();
+    const ids = new Set(queue.map((q) => q.id));
+    for (const id of [...this.importingSince.keys()]) if (!ids.has(id)) this.importingSince.delete(id);
+    for (const id of [...this.stuckRejections.keys()]) if (!ids.has(id)) this.stuckRejections.delete(id);
+    for (const q of queue) {
+      if (describeQueueItem(q).state !== 'importing') {
+        this.importingSince.delete(q.id);
+        continue;
+      }
+      if (!this.importingSince.has(q.id)) this.importingSince.set(q.id, now);
+      if (!this.isStuck(q.id) || this.stuckRejections.has(q.id)) continue;
+      if (!q.downloadId) {
+        this.stuckRejections.set(q.id, []);
+        continue;
+      }
+      this.stuckRejections.set(q.id, null);
+      void client
+        .importRejections(q.downloadId)
+        .catch((error: unknown) => {
+          this.log.warn({ err: error, queueId: q.id }, 'Could not ask Lidarr why an import is stuck');
+          return [];
+        })
+        .then((reasons) => {
+          if (!this.stuckRejections.has(q.id)) return; // left the queue meanwhile
+          this.stuckRejections.set(q.id, reasons);
+          void this.wake();
+        });
+    }
+  }
+
+  private isStuck(queueId: number): boolean {
+    const since = this.importingSince.get(queueId);
+    return since !== undefined && Date.now() - since >= (this.options.importStuckMs ?? IMPORT_STUCK_MS);
   }
 
   /** A grab we have not seen yet (for example a search started in Lidarr): watch closely. */
@@ -354,7 +406,19 @@ export class Activity {
     }
     for (const q of queue) {
       const albumMbid = q.album?.foreignAlbumId ?? null;
-      const described = describeQueueItem(q);
+      let described = describeQueueItem(q);
+      if (described.state === 'importing' && this.isStuck(q.id)) {
+        const rejections = this.stuckRejections.get(q.id) ?? [];
+        described = {
+          state: 'import-stuck',
+          progress: null,
+          detail: 'Downloaded, not imported',
+          reason: importStuckReason(rejections),
+          messages: rejections,
+          canRetry: true,
+          canCancel: false,
+        };
+      }
       items.push({
         ...this.base(
           `queue:${q.id}`,
@@ -366,7 +430,7 @@ export class Activity {
         ...described,
         source: sourceFor(albumMbid, q.albumId),
         lidarrLink:
-          described.state === 'import-blocked'
+          described.state === 'import-blocked' || described.state === 'import-stuck'
             ? `${lidarrUrl}/activity/queue`
             : described.state === 'failed' && albumMbid
               ? `${lidarrUrl}/album/${albumMbid}`

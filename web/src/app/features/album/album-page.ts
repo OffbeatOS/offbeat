@@ -32,6 +32,8 @@ export class AlbumPage {
   protected readonly loadError = signal<{ status: number; message: string } | null>(null);
   protected readonly busy = signal<'add' | 'monitor' | 'search' | null>(null);
   protected readonly actionError = signal('');
+  /** Why adding needs a second click (the server's 409), or empty. */
+  protected readonly confirmAdd = signal('');
   protected readonly searchQueued = signal(false);
 
   /** In Lidarr means Lidarr knows the album; otherwise the page offers Add Album. */
@@ -140,20 +142,23 @@ export class AlbumPage {
   }
 
   /** Starts the add and returns at once; the result arrives over the activity stream. */
-  protected async add() {
+  protected async add(resumeMonitoring = false) {
     const album = this.album();
     if (!album || this.adding()) return;
     this.actionError.set('');
+    this.confirmAdd.set('');
     this.addBaseline = this.store.addResults().get(album.mbid);
     this.waitingForAdd = true;
     this.album.set({ ...album, status: { kind: 'adding' } });
     try {
-      const body: AddAlbumRequest = { artistMbid: album.artistMbid };
+      const body: AddAlbumRequest = { artistMbid: album.artistMbid, resumeMonitoring };
       await this.api.post(`albums/${album.mbid}`, body);
     } catch (error) {
       this.waitingForAdd = false;
       this.album.set(album);
-      this.actionError.set(error instanceof ApiError ? error.message : 'Could not add this album');
+      // Adding would resume other albums the user left monitored: ask first.
+      if (error instanceof ApiError && error.status === 409) this.confirmAdd.set(error.message);
+      else this.actionError.set(error instanceof ApiError ? error.message : 'Could not add this album');
     }
   }
 

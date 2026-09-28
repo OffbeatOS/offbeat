@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, type OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { LidarrSettingsView } from '@offbeat/shared';
+import type { LastfmSettingsView, LidarrSettingsView } from '@offbeat/shared';
 import { Api, ApiError } from '../../core/api';
 import { Icon } from '../../shared/icon/icon';
 import { SettingsSection } from './settings-section';
 
 /**
- * Integrations list (settings mockup). Lidarr is the only integration so far;
- * the others in the mockup arrive with the phases that use them.
+ * Integrations list (settings mockup). Lidarr is required; Last.fm is optional;
+ * ListenBrainz needs no setup. The others in the mockup arrive with the phases
+ * that use them.
  */
 @Component({
   selector: 'ob-integrations-settings',
@@ -90,6 +91,18 @@ import { SettingsSection } from './settings-section';
       border: 1px solid var(--border-button);
     }
 
+    .builtin {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-3);
+      white-space: nowrap;
+    }
+
+    .desc a {
+      color: var(--text-2);
+      text-decoration: underline;
+    }
+
     .error {
       font-size: 13px;
       color: var(--status-failed);
@@ -117,6 +130,30 @@ import { SettingsSection } from './settings-section';
             <a class="connect" routerLink="lidarr">Connect</a>
           }
         </div>
+        <div class="row">
+          <div class="mark" aria-hidden="true">fm</div>
+          <div class="about">
+            <span class="name">Last.fm</span>
+            <span class="desc">Optional. Preferred source for similar artists and tags when connected</span>
+          </div>
+          @if (lastfm()?.configured) {
+            <span class="connected"><ob-icon name="check" [size]="14" [strokeWidth]="2.6" />Connected</span>
+            <a class="configure" routerLink="lastfm">Configure</a>
+          } @else if (loaded()) {
+            <a class="connect" routerLink="lastfm">Connect</a>
+          }
+        </div>
+        <div class="row">
+          <div class="mark" aria-hidden="true">LB</div>
+          <div class="about">
+            <span class="name">ListenBrainz</span>
+            <span class="desc">
+              Similar artists for recommendations, no key needed. Add your username in
+              <a routerLink="/settings/account">Account</a> to use your listening history.
+            </span>
+          </div>
+          <span class="builtin">Built in</span>
+        </div>
       </div>
     </ob-settings-section>
   `,
@@ -124,13 +161,18 @@ import { SettingsSection } from './settings-section';
 export class IntegrationsSettings implements OnInit {
   private readonly api = inject(Api);
   protected readonly lidarr = signal<LidarrSettingsView | null>(null);
+  protected readonly lastfm = signal<LastfmSettingsView | null>(null);
   protected readonly loaded = signal(false);
   protected readonly error = signal('');
 
   async ngOnInit() {
     try {
-      const { settings } = await this.api.get<{ settings: LidarrSettingsView | null }>('settings/lidarr');
+      const [{ settings }, lastfm] = await Promise.all([
+        this.api.get<{ settings: LidarrSettingsView | null }>('settings/lidarr'),
+        this.api.get<LastfmSettingsView>('settings/lastfm'),
+      ]);
       this.lidarr.set(settings);
+      this.lastfm.set(lastfm);
     } catch (error) {
       this.error.set(error instanceof ApiError ? error.message : 'Could not load integrations');
     } finally {

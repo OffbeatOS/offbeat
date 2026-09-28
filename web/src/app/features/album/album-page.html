@@ -55,6 +55,13 @@
           }
         }
       </div>
+      @if (confirmAdd(); as message) {
+        <div class="confirm" role="alert">
+          <p>{{ message }}</p>
+          <button class="confirm-yes" type="button" (click)="add(true)">Add anyway</button>
+          <button class="confirm-no" type="button" (click)="confirmAdd.set('')">Cancel</button>
+        </div>
+      }
       @if (actionError()) {
         <p class="error" role="alert">{{ actionError() }}</p>
       }

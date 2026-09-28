@@ -44,13 +44,16 @@ export const routes: Routes = [
     loadComponent: () => import('./shared/shell/shell-layout').then((m) => m.ShellLayout),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'discover' },
-      placeholder(
-        'discover',
-        'Discover',
-        'discover',
-        'No recommendations yet',
-        'Picks based on your library will show up here once Lidarr is connected.',
-      ),
+      {
+        path: 'discover',
+        title: 'Discover',
+        loadComponent: () => import('./features/discover/discover-page').then((m) => m.DiscoverPage),
+      },
+      {
+        path: 'tag/:tag',
+        title: 'Tag',
+        loadComponent: () => import('./features/tag/tag-page').then((m) => m.TagPage),
+      },
       {
         path: 'search',
         title: 'Search',
@@ -102,7 +105,18 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/settings/lidarr-settings').then((m) => m.LidarrSettings),
           },
-          settingsPlaceholder('discovery', 'Discovery', 'How recommendations are chosen and refreshed.'),
+          {
+            path: 'integrations/lastfm',
+            title: 'Last.fm settings',
+            loadComponent: () =>
+              import('./features/settings/lastfm-settings').then((m) => m.LastfmSettings),
+          },
+          {
+            path: 'discovery',
+            title: 'Discovery settings',
+            loadComponent: () =>
+              import('./features/settings/discovery-settings').then((m) => m.DiscoverySettings),
+          },
           settingsPlaceholder('users', 'Users', 'People who can use this Offbeat server.'),
           {
             path: 'account',

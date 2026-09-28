@@ -10,7 +10,9 @@ import { STATE_LABEL, percent, stateTone } from './activity-labels';
  * docs/design): In Library, "N missing", Wanted (plain text), live Searching
  * and the like (with a pulsing dot, so they read as work under way), Downloading
  * (with a bar), Import blocked, Failed, or Add. Adding answers at once with
- * "Adding"; the background add reports back over the activity stream.
+ * "Adding"; the background add reports back over the activity stream. When
+ * adding would resume other albums the user left monitored in Lidarr, it asks
+ * first.
  */
 @Component({
   selector: 'ob-release-action',
@@ -51,6 +53,15 @@ import { STATE_LABEL, percent, stateTone } from './activity-labels';
         }
       }
     }
+    @if (confirm(); as message) {
+      <span class="confirm" role="alert">
+        {{ message }}
+        <span class="confirm-actions">
+          <button type="button" (click)="add($event, true)">Add anyway</button>
+          <button type="button" (click)="cancel($event)">Cancel</button>
+        </span>
+      </span>
+    }
     @if (error()) {
       <span class="error" role="alert">{{ error() }}</span>
     }
@@ -75,6 +86,8 @@ export class ReleaseAction {
   private baseline: AddResult | undefined;
   private waiting = false;
   protected readonly error = signal('');
+  /** Why the add needs a second click (409 from the server), or empty. */
+  protected readonly confirm = signal('');
 
   protected readonly label = STATE_LABEL;
   protected readonly tone = stateTone;
@@ -125,22 +138,30 @@ export class ReleaseAction {
     }
   }
 
-  protected async add(event: Event) {
+  protected cancel(event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.confirm.set('');
+  }
+
+  protected async add(event: Event, resumeMonitoring = false) {
     // Cards are links; the button must not navigate.
     event.preventDefault();
     event.stopPropagation();
     if (this.status().kind === 'adding') return;
     this.error.set('');
+    this.confirm.set('');
     this.baseline = this.store.addResults().get(this.release().mbid);
     this.waiting = true;
     this.override.set({ kind: 'adding' });
     try {
-      const request: AddAlbumRequest = { artistMbid: this.release().artistMbid };
+      const request: AddAlbumRequest = { artistMbid: this.release().artistMbid, resumeMonitoring };
       await this.api.post<{ status: ReleaseStatus }>(`albums/${this.release().mbid}`, request);
     } catch (error) {
       this.waiting = false;
       this.override.set(null);
-      this.error.set(error instanceof ApiError ? error.message : 'Could not add this album');
+      if (error instanceof ApiError && error.status === 409) this.confirm.set(error.message);
+      else this.error.set(error instanceof ApiError ? error.message : 'Could not add this album');
     }
   }
 }

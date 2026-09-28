@@ -9,12 +9,13 @@ export const STATE_LABEL: Record<ActivityState, string> = {
   importing: 'Importing',
   paused: 'Paused',
   'import-blocked': 'Import blocked',
+  'import-stuck': 'Import stuck',
   failed: 'Failed',
 };
 
 /** Blue for things moving along; red for things that need someone. */
 export function stateTone(state: ActivityState): 'progress' | 'failed' | 'muted' {
-  if (state === 'import-blocked' || state === 'failed') return 'failed';
+  if (state === 'import-blocked' || state === 'import-stuck' || state === 'failed') return 'failed';
   if (state === 'paused') return 'muted';
   return 'progress';
 }

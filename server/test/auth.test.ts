@@ -205,7 +205,7 @@ describe('route guard', () => {
     const app = Fastify();
     app.decorate('db', db);
     await app.register(fastifyCookie);
-    registerAuthGuard(app, { baseUrl: '' });
+    registerAuthGuard(app, { baseUrl: '', name: 'offbeat_session' });
     app.setErrorHandler(apiErrorHandler);
     app.get('/open', { config: { public: true } }, async () => 'open');
     app.get('/private', async (request) => request.user?.username);
@@ -322,5 +322,31 @@ describe('hardening', () => {
       });
     expect((await attempt('203.0.113.1')).statusCode).toBe(401);
     expect((await attempt('203.0.113.99')).statusCode).toBe(429);
+  });
+});
+
+describe('session cookie name', () => {
+  it('uses the configured name, so two instances on one host keep separate sessions', async () => {
+    const app = await buildApp({
+      config: { baseUrl: '', trustProxy: false, logLevel: 'error', sessionCookie: 'offbeat_dev' },
+      db: openDatabase(':memory:'),
+      secretKey: randomBytes(32),
+      imageCacheDir: tmpImageDir(),
+      webRoot: null,
+      logger: false,
+    });
+    try {
+      const setup = await app.inject({ method: 'POST', url: '/api/v1/setup/admin', payload: { username: 'sam', password: randomBytes(12).toString('base64url') } });
+      const cookie = setup.cookies.find((c) => c.name === 'offbeat_dev');
+      expect(cookie?.value).toBeTruthy();
+      expect(setup.cookies.some((c) => c.name === 'offbeat_session')).toBe(false);
+      const me = await app.inject({ method: 'GET', url: '/api/v1/auth/me', headers: { cookie: `offbeat_dev=${cookie!.value}` } });
+      expect(me.json()).toMatchObject({ user: { username: 'sam' } });
+      // The default name means nothing to this instance.
+      const other = await app.inject({ method: 'GET', url: '/api/v1/auth/me', headers: { cookie: `offbeat_session=${cookie!.value}` } });
+      expect(other.json()).toMatchObject({ user: null });
+    } finally {
+      await app.close();
+    }
   });
 });

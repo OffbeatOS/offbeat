@@ -72,7 +72,7 @@
             <div class="actions">
               @if (item.lidarrLink) {
                 <a class="outline" [href]="item.lidarrLink" target="_blank" rel="noopener noreferrer">
-                  {{ item.state === 'import-blocked' ? 'Open in Lidarr' : 'Search Manually' }}
+                  {{ linkLabel(item) }}
                 </a>
               }
               @if (item.canRetry) {

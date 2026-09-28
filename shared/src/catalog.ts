@@ -91,6 +91,12 @@ export interface UpdateAlbumRequest {
 /** `POST /albums/:mbid` */
 export interface AddAlbumRequest {
   artistMbid: string;
+  /**
+   * Go ahead even though the artist is unmonitored in Lidarr with other albums
+   * still monitored, which monitoring it again resumes. Without it, that add
+   * answers 409 with a message naming those albums.
+   */
+  resumeMonitoring?: boolean;
 }
 
 /** `PATCH /artists/:mbid` */

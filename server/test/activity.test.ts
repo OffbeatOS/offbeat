@@ -1,7 +1,7 @@
 import type { ActivitySnapshot } from '@offbeat/shared';
 import { randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
-import { describeQueueItem, formatTimeLeft, queueMessages, queueState } from '../src/activity/mapping.js';
+import { describeQueueItem, formatTimeLeft, importStuckReason, queueMessages, queueState } from '../src/activity/mapping.js';
 import { buildApp } from '../src/app.js';
 import { openDatabase } from '../src/db/index.js';
 import { WORLD, startFakeCatalog } from './fake-catalog.js';
@@ -54,6 +54,7 @@ async function setup(
     burstMs?: number;
     historyEveryMs?: number;
     pollTimeoutMs?: number;
+    importStuckMs?: number;
     autoStart?: boolean;
   } = {},
 ) {
@@ -76,6 +77,7 @@ async function setup(
       burstMs: options.burstMs ?? 0,
       historyEveryMs: options.historyEveryMs ?? 30_000,
       pollTimeoutMs: options.pollTimeoutMs ?? 45_000,
+      importStuckMs: options.importStuckMs,
     },
   });
   cleanup.push(() => app.close(), () => fake.close());
@@ -132,6 +134,13 @@ describe('mapping Lidarr queue records', () => {
     expect(described.canRetry).toBe(true);
   });
 
+  it('explains a stuck import from Manual Import rejections', () => {
+    expect(importStuckReason(['Album match is not close enough: 74.4 % vs 80 % [album]'])).toMatch(/only 74%, and Lidarr needs 80%. This is often a different edition/);
+    expect(importStuckReason(['Not an upgrade for existing track file(s)'])).toContain('same or better quality');
+    expect(importStuckReason(['Has unmatched tracks'])).toContain('do not match any track');
+    expect(importStuckReason([])).toContain('has not said why. Use Manual Import in Lidarr');
+  });
+
   it('shows progress and time left while downloading', () => {
     const described = describeQueueItem(queueRecord({}) as never);
     expect(described).toMatchObject({ state: 'downloading', progress: 0.75, detail: '75%, about 3 min left', canCancel: true });
@@ -156,6 +165,34 @@ describe('activity snapshot', () => {
     });
     // Queue items are albums Lidarr has, so their covers come from Lidarr's local copy first.
     expect(snap.inProgress[0]?.coverUrl).toMatch(/^api\/v1\/images\/album\/[0-9a-f-]{36}\?src=lidarr$/);
+  });
+
+  it('flags an import Lidarr has not finished in the time allowed, with its reason in plain words', async () => {
+    const { app, fake, call } = await setup({ importStuckMs: 300 });
+    const importing = { status: 'completed', trackedDownloadStatus: 'ok', trackedDownloadState: 'importing', sizeleft: 0, downloadId: 'SABnzbd_nzo_1' };
+    fake.queue.push(queueRecord({ id: 7, ...importing }));
+    const reason = 'Album match is not close enough: 74.4 % vs 80 % [album, unmatched tracks]';
+    fake.manualImport.set('SABnzbd_nzo_1', [{ rejections: [{ reason }, { reason: 'Has unmatched tracks' }] }, { rejections: [{ reason }] }]);
+
+    let snap = await snapshot(call, app);
+    expect(snap.inProgress.map((i) => [i.id, i.state])).toEqual([['queue:7', 'importing']]);
+    expect(fake.hits.filter((h) => h.startsWith('manualimport'))).toEqual([]);
+
+    await new Promise((r) => setTimeout(r, 350));
+    await snapshot(call, app); // now stuck: asks Lidarr why, in the background
+    await new Promise((r) => setTimeout(r, 100));
+    snap = await snapshot(call, app);
+    expect(snap.inProgress).toEqual([]);
+    expect(snap.attention[0]).toMatchObject({
+      id: 'queue:7',
+      state: 'import-stuck',
+      canRetry: true,
+      messages: [reason, 'Has unmatched tracks'],
+      lidarrLink: `${fake.lidarrUrl}/activity/queue`,
+    });
+    expect(snap.attention[0]!.reason).toContain('match the album only 74%, and Lidarr needs 80%');
+    await snapshot(call, app);
+    expect(fake.hits.filter((h) => h.startsWith('manualimport'))).toHaveLength(1); // asked once
   });
 
   it('credits adds made through Offbeat to the user who asked', async () => {

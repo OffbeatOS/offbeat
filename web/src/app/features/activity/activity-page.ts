@@ -66,6 +66,12 @@ export class ActivityPage {
     return [item.artistName, item.source].filter(Boolean).join(', ');
   }
 
+  /** What the Lidarr link does: its queue (with Manual Import there), or the album for a manual search. */
+  protected linkLabel(item: ActivityItem): string {
+    if (item.state === 'import-stuck') return 'Manual Import in Lidarr';
+    return item.state === 'import-blocked' ? 'Open in Lidarr' : 'Search Manually';
+  }
+
   protected toggleDetails(id: string) {
     this.expanded.update((set) => {
       const next = new Set(set);

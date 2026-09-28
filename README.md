@@ -1,4 +1,9 @@
-# offbeat
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/offbeat-logo-dark.png">
+    <img src="docs/screenshots/offbeat-logo-light.png" alt="Offbeat" width="240">
+  </picture>
+</h1>
 
 [![CI](https://github.com/OffbeatOS/offbeat/actions/workflows/ci.yml/badge.svg)](https://github.com/OffbeatOS/offbeat/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/OffbeatOS/offbeat?sort=semver)](https://github.com/OffbeatOS/offbeat/releases/latest)
@@ -7,19 +12,30 @@
 
 Self-hosted music discovery for Lidarr. Find new artists based on what you already have, add them to Lidarr in one click, and follow downloads as they land. Native streaming is planned.
 
-> **Status: 0.1, early.** The library and request side works today (see below); discovery is next. Versions before 1.0 may include breaking changes between releases, so read the release notes before upgrading. See the [roadmap](ROADMAP.md) for what is done and what is coming.
+> **Status: early.** Library, requests, and discovery work today (see below). Versions before 1.0 may include breaking changes between releases, so read the release notes before upgrading. See the [roadmap](ROADMAP.md) for what is done and what is coming.
 
-## What works in 0.1
+![Discover: top picks, each with the reason it was picked, and an album to start with from each](docs/screenshots/discover.png)
 
+## What works
+
+- **Discover.** Recommendations from your library and listening history, each with the reason it was picked ("Because you like NOFX"), in Safer, Balanced, or Deeper mode. Albums to start with, tag pages to explore, one-click adds, thumbs up and down, and a blocklist. Works with no API key through ListenBrainz; connect Last.fm for sharper picks.
 - **Library.** Your Lidarr library as a fast, filterable grid, served from a local cache so it stays usable even when Lidarr is down.
 - **Search, Artist, and Album pages.** Look up anything on MusicBrainz, see what you already have track by track, and add an artist or a single album in one click.
 - **Sensible adds.** Adding an artist monitors their latest album and future releases; adding one album gets just that album. Lidarr searches right away, and everything Offbeat adds is tagged `offbeat`. All of it can be changed in Settings.
 - **Activity.** Searches, downloads, and imports update live, with plain-English reasons when an import is blocked, and Retry or Cancel in one click. The bottom bar shows the current download on every page.
 - **One small container.** One process, one port, SQLite. No external database or cache.
 
-Coming next: discovery (recommendations from your library and listening history, each with an explanation), then multi-user, flows and playlists, and streaming.
+Coming next: multi-user, flows and playlists, and streaming.
 
 Offbeat talks to Lidarr for everything in your library; it never writes to your music folders itself.
+
+## Screenshots
+
+| Artist | Activity |
+| --- | --- |
+| ![An artist page: the discography with each album's status in Lidarr](docs/screenshots/artist.png) | ![Activity: downloads and imports as they happen](docs/screenshots/activity.png) |
+| **Library** | **Discover on a phone** |
+| ![The library as a grid of artists](docs/screenshots/library.png) | <img src="docs/screenshots/discover-mobile.png" alt="Discover on a phone" width="220"> |
 
 ## Quick start (Docker)
 
@@ -69,6 +85,7 @@ Integrations and add behavior are configured in the web UI. Environment variable
 | `TZ` | `UTC` | Timezone for schedules |
 | `TRUST_PROXY` | `false` | Trust `X-Forwarded-*` headers (set this behind a reverse proxy) |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, or `error` |
+| `SESSION_COOKIE` | `offbeat_session` | Session cookie name. Give each instance its own when several share a host, since browsers share cookies across ports |
 
 ## Contributing
 

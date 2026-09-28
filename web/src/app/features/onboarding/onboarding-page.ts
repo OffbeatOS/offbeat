@@ -3,19 +3,20 @@ import { Router } from '@angular/router';
 import { Session } from '../../core/session';
 import { FocusLayout } from '../../shared/focus-layout/focus-layout';
 import { AccountStep } from './account-step';
+import { LastfmStep } from './lastfm-step';
 import { LidarrStep } from './lidarr-step';
 import { StepIndicator } from './step-indicator';
 
-const STEPS = ['Account', 'Lidarr'] as const;
+const STEPS = ['Account', 'Lidarr', 'Last.fm'] as const;
 
 /**
  * First-run wizard. It resumes at the first unfinished step, so an admin who
- * left before connecting Lidarr comes back to that step. More steps are added
- * as their slices land.
+ * left before connecting Lidarr comes back to that step. The last step, Last.fm,
+ * is optional and can be skipped.
  */
 @Component({
   selector: 'ob-onboarding-page',
-  imports: [FocusLayout, StepIndicator, AccountStep, LidarrStep],
+  imports: [FocusLayout, StepIndicator, AccountStep, LidarrStep, LastfmStep],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ob-focus-layout>
@@ -26,6 +27,9 @@ const STEPS = ['Account', 'Lidarr'] as const;
         }
         @case ('Lidarr') {
           <ob-lidarr-step (done)="next()" />
+        }
+        @case ('Last.fm') {
+          <ob-lastfm-step (done)="next()" />
         }
       }
     </ob-focus-layout>

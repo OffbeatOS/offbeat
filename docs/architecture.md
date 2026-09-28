@@ -54,6 +54,7 @@ Environment variables cover deployment only. Everything else (Lidarr URL and key
 | `TZ` | Timezone for schedules |
 | `TRUST_PROXY` | Trust `X-Forwarded-*` headers |
 | `LOG_LEVEL` | `debug`, `info`, `warn`, `error` |
+| `SESSION_COOKIE` | Session cookie name (default `offbeat_session`); set a different one per instance when several share a host |
 
 ## Repo layout
 
@@ -104,6 +105,8 @@ The MusicBrainz ID (MBID) is the join key across every service. Pages are routed
 - `POST /artist` to add, `PUT /album/monitor` to monitor one album, `POST /command` for `AlbumSearch`
 - `GET /album?artistId=` for per-album status. Use `statistics.totalTrackCount`: `trackCount` is 0 for unmonitored artists.
 - `GET /command` to wait for a new artist's refresh and post-add actions before monitoring a single album (they would otherwise reset it), and to show albums Lidarr is searching for
+- A single-album add leaves the artist monitored (Lidarr only searches, re-grabs, and upgrades albums of monitored artists), with future releases off and only that album monitored, whatever "Monitor new artists" says. Lidarr leaves an artist added with no albums to monitor unmonitored, so Offbeat re-applies it after the post-add actions. An artist already in Lidarr but unmonitored becomes monitored with future releases off; one the user already monitors is left as it is. Monitoring an unmonitored artist again also resumes any of its albums still marked monitored, so in that case `POST /albums/:mbid` answers 409 naming those albums, and the add goes ahead only with `resumeMonitoring: true` (the UI asks first: Add anyway or Cancel).
+- Deleting an artist while Lidarr is still refreshing it makes Lidarr add it back ("Adding missing parent artist"). Anything that removes artists must wait until no RefreshArtist is queued or running.
 - `GET /queue` and `GET /history` for Activity; `DELETE /queue/:id` to cancel, or to retry with `blocklist=true` followed by a fresh `AlbumSearch`
 - `GET /qualityprofile`, `/metadataprofile`, `/rootfolder` for onboarding
 - `/MediaCover/...` for artwork, proxied
@@ -112,9 +115,9 @@ The MusicBrainz ID (MBID) is the join key across every service. Pages are routed
 
 **Cover Art Archive.** Album art by release group MBID, proxied and cached. When it has no cover, Offbeat falls back to the one Lidarr has, then to a flat placeholder (`GET /images/album/:mbid` picks the source).
 
-**Last.fm (planned, recommended).** `artist.getSimilar`, `artist.getTopTags`, `artist.getInfo`, `tag.getTopArtists`, `user.getTopArtists`.
+**ListenBrainz (built in, no key).** The default source for discovery, so recommendations work with no API key. Similar artists come from the ListenBrainz Labs similarity data, keyed by MBID, so no name matching is needed. Users can add a ListenBrainz username in Settings, Account to weight seeds by their listening history (checked with `/1/user/<name>/listen-count` when saved).
 
-**ListenBrainz (planned, optional).** Per-user listening history as an alternative to Last.fm.
+**Last.fm (optional, preferred when present).** An admin adds an API key in onboarding or Settings, Integrations; it is checked with Last.fm, stored encrypted, and only its last four characters reach the browser. When connected, Last.fm is the preferred source for similar artists and tags, alongside ListenBrainz. Users can add a Last.fm username in Settings, Account (checked with `user.getInfo`). Methods: `artist.getSimilar`, `artist.getTopTags`, `artist.getInfo`, `tag.getTopArtists`, `user.getTopArtists`. Paced at five requests per second.
 
 **Navidrome (phase 4).** Subsonic API for publishing flow libraries and smart playlists.
 
@@ -131,37 +134,47 @@ One server-side poller reads Lidarr's queue, commands, and history, and pushes a
 - **Adds are non-blocking.** `POST /albums/:mbid` answers 202 at once; the add runs in the background and reports back as an `add-result` event. A failed add shows under Needs Attention with Retry.
 - **Attribution.** Items added through Offbeat say who asked for them (from `requests`); everything else says "Added in Lidarr".
 - When an item leaves the queue, album statuses and the library cache refresh.
+- **Stuck imports.** Lidarr can leave a finished download in "importing" for good when it will not import it on its own (for example a match below 80%), without saying why on the queue item. After an hour in that state (counted from when Offbeat first saw it, since the queue has no completion time), the item moves to Needs Attention as Import stuck. Offbeat asks Lidarr's Manual Import preview for the rejections once, in the background, and explains them in plain words, with a link to Lidarr's queue, where Manual Import is.
 
 ## Discovery engine
 
-Planned for phase 2. Runs as a scheduled job per user; results are cached so the Discover page renders instantly.
+Works with no API key: ListenBrainz is always a source, and a Last.fm key adds a second, preferred one. Scoring is pure functions in `server/src/discovery/engine.ts`; fetching, caching, and storage are in `discovery.ts`. Each user is refreshed daily at 4:00 and on demand (`POST /discover/refresh`); results for all three modes are stored, so Discover renders instantly.
 
-1. **Seeds.** Library artists, weighted by the user's Last.fm or ListenBrainz play counts when available (equal weight otherwise).
-2. **Candidates.** For each seed, fetch similar artists. Score each candidate as the sum of `match x seed_weight` across all seeds, so artists recommended by many seeds rise to the top.
-3. **Filter.** Remove artists already in Lidarr, blocklisted artists, and artists carrying blocklisted tags.
-4. **Mode.**
-   - *Safer:* favor high match scores and multiple seed hits.
-   - *Balanced:* default blend.
-   - *Deeper:* add a second hop (similar of similar) and penalize high Last.fm listener counts.
-5. **Variety.** Add a small random factor so the page changes between refreshes.
-6. **Feedback.** Thumbs up or down adjusts tag weights for future runs. "Never show this" adds to the blocklist.
-7. **Explanations.** Store the strongest seed for each recommendation so the UI can show "Because you like X."
+1. **Seeds.** Library artists (weight 1) plus artists the user plays (ListenBrainz or Last.fm username, three plays or more), with plays adding weight on a log scale. At most 60 seeds.
+2. **Similar artists.** Per seed, ListenBrainz session-based similarity (keyed by MBID) and, when connected, Last.fm `artist.getSimilar`. ListenBrainz counts sessions, so popular artists score high next to anything: its scores are divided by listeners to the power 0.3 (ListenBrainz popularity data), with a floor of 20,000 and counts below a quarter of the list's typical one not trusted (the data has gaps for some big artists). With both sources, a match is 0.6 Last.fm plus 0.4 ListenBrainz, so artists both agree on rank highest; when one source knows nothing about a seed, the other counts in full.
+3. **Names.** Everything is keyed by MBID. A Last.fm suggestion ListenBrainz does not corroborate is checked by name through Lidarr's artist lookup, and the first exact match wins: Last.fm gives no MBID for some artists, and a wrong one for some shared names (several bands are called Face to Face).
+4. **Score.** Each candidate sums `match x seed_weight` over its seeds, so artists several seeds agree on rise.
+5. **Filter.** Remove library artists, seeds, Various Artists, blocklisted artists and tags, and artists the user gave a thumbs down.
+6. **Mode.**
+   - *Safer:* squared matches (strong ones count most) and a bigger boost for several seeds.
+   - *Balanced:* the plain sum with a small boost for several seeds.
+   - *Deeper:* adds a second hop (the similar artists of its own top 12 picks, at half weight) and divides by the log of listeners, squared.
+7. **Variety.** Each score is multiplied by a random factor within 10 percent, seeded per refresh.
+8. **Explanations.** The seed behind the strongest match: "Because you like X", or for Deeper's second hop, "Y, which is like X". No seed explains more than 3 of the top 10: a pick whose strongest seed is full is explained by another contributing seed with room, if that seed contributed at least half as much, and otherwise moves below the top 10. So every part of a library gets a voice.
+9. **Enrichment.** Names, disambiguation, and artwork from Lidarr's artist lookup (Last.fm has no real artist images). Genres from Last.fm's top tags when connected (filtered to real genres), otherwise from MusicBrainz's curated genres (for the top 30 per mode in a refresh, at one request per second), never free-form tags.
+10. **Feedback.** Thumbs up or down adjusts tag weights: each rating counts +1 or -1 for the artist's genres, and a pick's score is multiplied by 1 + 0.15 times the sum of tanh(weight / 2) over its genres, clamped to 0.4 to 1.6 (`taste.ts`). The per-seed cap is applied again after re-weighting. "Never show this" adds to the blocklist. Settings, Discovery lists blocked artists and tags, and the artists hidden by a thumbs down, each with a way to undo it. A thumbs down or block hides the pick at once, since stored recommendations are filtered when read rather than rewritten, so undoing it brings the pick back in place; a refresh follows a minute after the last change.
 
-Discover sections: Top Picks for You, Albums to Start With, Explore by Tag, and (phase 3) Local Shows. Users can reorder or hide sections.
+Every upstream answer is cached in `source_cache` (similar artists and popularity 7 days, lookups 30 days, listening stats 1 day) and served stale if a source is down. `server/scripts/discover-sample.ts` prints a sample per mode and source mix for reviewing quality.
+
+Discover sections: Top Picks for You (with quick add), Albums to Start With (each top pick's most played studio album: MusicBrainz release groups ranked by ListenBrainz listeners), Explore by Tag (genres across the recommendations, weighted by score), and (phase 3) Local Shows. In Settings, Discovery each user can reorder sections (by dragging, or with Move up and Move down for keyboard and touch) and hide them, and choose the default mode: Discover opens with it when the URL names no mode, and a mode in the URL always wins. Refresh Now there shows the running refresh step by step (library and listening, similar artists, artist details, albums). A tag page lists the best-known artists MusicBrainz tags with that genre (ranked by ListenBrainz listeners), their starting albums, and the genres that go with it in the user's recommendations.
 
 ## Data model
 
 Current tables (see `server/src/db/schema.ts`):
 
-- `users` (id, username unique regardless of case, password_hash, role, permissions, lastfm_username, listenbrainz_username, created_at)
+- `users` (id, username unique regardless of case, password_hash, role, permissions, lastfm_username, listenbrainz_username, discover_prefs (JSON: default mode and section layout), created_at)
 - `sessions` (sha256 of token, user_id, expires_at)
 - `settings` (key, value json or ciphertext, encrypted flag)
 - `library_artists` (cached Lidarr artists: ids, names, sort name, monitoring, stats, missing albums, artwork paths)
 - `musicbrainz_cache` (request path, body, fetched_at)
 - `requests` (user_id, artist and album MBIDs, Lidarr ids) to attribute adds to users
+- `source_cache` (key, body, fetched_at): discovery's upstream answers
+- `recommendations` (user_id, mode, payload, generated_at): each user's latest recommendations per mode
+- `feedback` (user_id, artist_mbid, name, value, genres, created_at): thumbs up (+1) or down (-1), with the artist's genres at the time
+- `blocklist` (id, user_id, kind, key, name, source, created_at): blocked artists (keyed by MBID) and tags (keyed lowercase)
 - `jobs` (name, last run, last success, error)
 
-Planned: `artist_cache`, `similar_cache`, `recommendations`, `feedback`, `blocklist` (phase 2); `flows`, `flow_runs`, `flow_tracks`, `playlists`, `playlist_tracks` (phase 4).
+Planned: `flows`, `flow_runs`, `flow_tracks`, `playlists`, `playlist_tracks` (phase 4).
 
 ## API
 
@@ -171,6 +184,11 @@ All routes live under `/api/v1`. Implemented:
 - `GET /setup/state`, `POST /setup/admin`, `POST /setup/lidarr/test`, `POST /setup/lidarr`
 - `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
 - `GET /settings/lidarr`, `PUT /settings/lidarr`
+- `GET /settings/lastfm`, `PUT /settings/lastfm` (checked with Last.fm), `DELETE /settings/lastfm` (admin)
+- `GET /discover?mode=safer|balanced|deeper` (Top Picks, Albums to Start With, Explore by Tag; no mode means the user's default), `POST /discover/refresh`, `GET /discover/status`, `GET` and `PUT /discover/preferences`, `POST /discover/feedback`
+- `GET /blocklist` (blocked artists and tags, and hidden artists), `POST /blocklist`, `DELETE /blocklist/:id`
+- `GET /tags/:tag` (a tag page)
+- `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service)
 - `GET /library`, `POST /library/refresh`
 - `GET /search?q=`
 - `GET /artists/:mbid`, `POST /artists/:mbid` (add), `PATCH /artists/:mbid` (monitoring)
@@ -179,7 +197,7 @@ All routes live under `/api/v1`. Implemented:
 - `GET /events` (Server-Sent Events: `activity` snapshots and `add-result`)
 - `GET /images/artist/:id`, `GET /images/album/:mbid`, `GET /images/remote` (signed)
 
-Planned: `/discover` and `/blocklist` (phase 2), `/users` (phase 3), `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
+Planned: `/users` (phase 3), `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
 
 ## Details that save pain later
 

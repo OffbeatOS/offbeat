@@ -44,6 +44,34 @@ export function importBlockedReason(messages: string[]): string {
   return 'Lidarr downloaded this, but could not import it. Open Lidarr to see why.';
 }
 
+/**
+ * Why a download has sat in "importing" for over an hour, from the rejections
+ * in Lidarr's Manual Import preview (empty when it gave none, or while they
+ * are still being fetched).
+ */
+export function importStuckReason(rejections: string[]): string {
+  const text = rejections.join(' ').toLowerCase();
+  const lead = 'Lidarr downloaded this over an hour ago but will not import it on its own';
+  const fix = 'Use Manual Import in Lidarr to check the tracks and import them.';
+  const match = text.match(/match is not close enough: ([\d.]+) ?% vs ([\d.]+) ?%/);
+  if (match) {
+    const got = Math.round(Number(match[1]));
+    const needed = Math.round(Number(match[2]));
+    return `${lead}: the files match the album only ${got}%, and Lidarr needs ${needed}%. This is often a different edition of the album. ${fix}`;
+  }
+  if (text.includes('not an upgrade') || text.includes('not a custom format upgrade')) {
+    return `${lead}: you already have these tracks at the same or better quality. Remove the download in Lidarr, or use Manual Import to replace them anyway.`;
+  }
+  if (text.includes('unmatched tracks') || text.includes('missing tracks')) {
+    return `${lead}: some files do not match any track on the album. ${fix}`;
+  }
+  if (text.includes('no files found') || text.includes('no audio files')) {
+    return `${lead}: it found no audio files in the download. Retry to try a different release.`;
+  }
+  if (rejections.length) return `${lead}. ${fix}`;
+  return `${lead}, and it has not said why. ${fix}`;
+}
+
 export function formatTimeLeft(timeleft: string | null | undefined): string {
   // Lidarr sends "hh:mm:ss" or "d.hh:mm:ss".
   const match = timeleft?.match(/^(?:(\d+)\.)?(\d+):(\d+):(\d+)/);
@@ -110,4 +138,4 @@ export function describeQueueItem(
 export const ACTIVE_STATES: ReadonlySet<ActivityState> = new Set(['adding', 'searching', 'queued', 'downloading', 'importing']);
 
 /** States that need someone to act. */
-export const ATTENTION_STATES: ReadonlySet<ActivityState> = new Set(['import-blocked', 'failed']);
+export const ATTENTION_STATES: ReadonlySet<ActivityState> = new Set(['import-blocked', 'import-stuck', 'failed']);

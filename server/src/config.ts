@@ -13,6 +13,8 @@ export interface Config {
   baseUrl: string;
   trustProxy: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+  /** Session cookie name, for running several instances on one host. */
+  sessionCookie: string;
 }
 
 const booleanish = z
@@ -26,6 +28,10 @@ const envSchema = z.object({
   BASE_URL: z.string().default(''),
   TRUST_PROXY: booleanish.default(false),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  SESSION_COOKIE: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,64}$/, 'use up to 64 letters, numbers, dashes, or underscores')
+    .default('offbeat_session'),
 });
 
 export function normalizeBaseUrl(raw: string): string {
@@ -53,5 +59,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     baseUrl: normalizeBaseUrl(vars.BASE_URL),
     trustProxy: vars.TRUST_PROXY,
     logLevel: vars.LOG_LEVEL,
+    sessionCookie: vars.SESSION_COOKIE,
   };
 }

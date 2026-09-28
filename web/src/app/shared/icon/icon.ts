@@ -13,8 +13,14 @@ export type IconName =
   | 'alert'
   | 'chevron-right'
   | 'chevron-left'
+  | 'chevron-up'
+  | 'chevron-down'
+  | 'grip'
   | 'check'
-  | 'close';
+  | 'close'
+  | 'thumbs-up'
+  | 'thumbs-down'
+  | 'block';
 
 /** 24px viewBox stroke icons at 1.8px, drawn in `currentColor` (Lucide style). */
 @Component({
@@ -81,6 +87,22 @@ export type IconName =
         @case ('chevron-left') {
           <path d="M15 6l-6 6 6 6" />
         }
+        @case ('chevron-up') {
+          <path d="M6 15l6-6 6 6" />
+        }
+        @case ('chevron-down') {
+          <path d="M6 9l6 6 6-6" />
+        }
+        @case ('grip') {
+          <g fill="currentColor" stroke="none">
+            <circle cx="9" cy="6" r="1.6" />
+            <circle cx="15" cy="6" r="1.6" />
+            <circle cx="9" cy="12" r="1.6" />
+            <circle cx="15" cy="12" r="1.6" />
+            <circle cx="9" cy="18" r="1.6" />
+            <circle cx="15" cy="18" r="1.6" />
+          </g>
+        }
         @case ('close') {
           <path d="M6 6l12 12M18 6L6 18" />
         }
@@ -89,6 +111,18 @@ export type IconName =
         }
         @case ('chevron-right') {
           <path d="M9 6l6 6-6 6" />
+        }
+        @case ('thumbs-up') {
+          <path d="M7 10v11H4V10z" />
+          <path d="M7 10l4-7c1.7 0 2.7 1.2 2.4 2.9L13 9h5.3a2 2 0 0 1 2 2.4l-1.4 7.2A2 2 0 0 1 16.9 21H7" />
+        }
+        @case ('thumbs-down') {
+          <path d="M17 14V3h3v11z" />
+          <path d="M17 14l-4 7c-1.7 0-2.7-1.2-2.4-2.9L11 15H5.7a2 2 0 0 1-2-2.4l1.4-7.2A2 2 0 0 1 7.1 3H17" />
+        }
+        @case ('block') {
+          <circle cx="12" cy="12" r="9" />
+          <path d="M5.6 5.6l12.8 12.8" />
         }
       }
     </svg>

@@ -17,6 +17,8 @@ export interface FakeCatalog {
   /** Lidarr's download queue; tests push items in the shape Lidarr returns. */
   queue: Record<string, unknown>[];
   history: Record<string, unknown>[];
+  /** Manual Import preview per download id: the files and why each would be rejected. */
+  manualImport: Map<string, { rejections: { reason: string }[] }[]>;
   /** Queue removals, with the flags Offbeat sent. */
   removals: { id: number; blocklist: boolean; skipRedownload: boolean }[];
   /** Paths Lidarr received, for counting polls. */
@@ -92,6 +94,7 @@ export async function startFakeCatalog(
   const downloads: Record<string, unknown>[] = [];
   const history: Record<string, unknown>[] = [];
   const removals: FakeCatalog['removals'] = [];
+  const manualImport: FakeCatalog['manualImport'] = new Map();
   const hits: string[] = [];
   const control = { stallQueue: false, failAlbumLookup: false };
   const apiKey = randomBytes(16).toString('hex');
@@ -223,6 +226,8 @@ export async function startFakeCatalog(
       const monitorAll = input.addOptions.monitor === 'all';
       setTimeout(() => {
         for (const album of artist.albums) album.monitored = monitorAll;
+        // As seen on a real Lidarr: an artist added with no albums to monitor ends up unmonitored.
+        if (input.addOptions.monitor === 'none') artist.monitored = false;
         refresh.status = 'completed';
       }, albumDelayMs + postAddDelayMs);
       return json(res, 201, artistResource(artist));
@@ -231,7 +236,12 @@ export async function startFakeCatalog(
     if (artistMatch) {
       const artist = library.get(Number(artistMatch[1]));
       if (!artist) return json(res, 404, {});
-      if (req.method === 'PUT') artist.monitored = Boolean((body as { monitored: boolean }).monitored);
+      if (req.method === 'PUT') {
+        const update = body as { monitored: boolean; monitorNewItems?: string };
+        artist.monitored = Boolean(update.monitored);
+        if (update.monitorNewItems !== undefined) artist.monitorNewItems = update.monitorNewItems;
+        writes.push({ method: 'PUT', path, body });
+      }
       return json(res, req.method === 'PUT' ? 202 : 200, artistResource(artist));
     }
     if (path === 'album' && req.method === 'GET') {
@@ -252,6 +262,9 @@ export async function startFakeCatalog(
       return json(res, 200, { totalRecords: downloads.length, records: downloads });
     }
     if (path === 'history') return json(res, 200, { totalRecords: history.length, records: history });
+    if (path === 'manualimport' && req.method === 'GET') {
+      return json(res, 200, manualImport.get(url.searchParams.get('downloadId') ?? '') ?? []);
+    }
     const queueMatch = path.match(/^queue\/(\d+)$/);
     if (queueMatch && req.method === 'DELETE') {
       const index = downloads.findIndex((d) => d['id'] === Number(queueMatch[1]));
@@ -340,6 +353,7 @@ export async function startFakeCatalog(
     tags,
     queue: downloads,
     history,
+    manualImport,
     removals,
     hits,
     get stallQueue() {

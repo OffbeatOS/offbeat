@@ -96,4 +96,35 @@ describe('ReleaseAction', () => {
     await settle(fixture);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('In Library');
   });
+
+  it('asks before resuming other monitored albums, and only then sends resumeMonitoring', async () => {
+    TestBed.configureTestingModule({
+      imports: [ReleaseAction],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(ReleaseAction);
+    fixture.componentRef.setInput('release', release({ kind: 'available' }));
+    await settle(fixture);
+    const el = fixture.nativeElement as HTMLElement;
+    const button = (label: string) => [...el.querySelectorAll('button')].find((b) => b.textContent?.trim() === label)!;
+
+    el.querySelector<HTMLButtonElement>('.add')!.click();
+    const first = http.expectOne(`api/v1/albums/${MBID}`);
+    expect(first.request.body).toMatchObject({ resumeMonitoring: false });
+    const message = 'This will also resume monitoring 1 other album by this artist in Lidarr: Teenage Politics.';
+    first.flush({ statusCode: 409, error: 'Conflict', message }, { status: 409, statusText: 'Conflict' });
+    await settle(fixture);
+    expect(el.querySelector('.confirm')?.textContent).toContain(message);
+    expect(el.querySelector('.add')).not.toBeNull(); // still Add, nothing started
+
+    button('Add anyway').click();
+    const second = http.expectOne(`api/v1/albums/${MBID}`);
+    expect(second.request.body).toMatchObject({ resumeMonitoring: true });
+    second.flush({ status: { kind: 'adding' } }, { status: 202, statusText: 'Accepted' });
+    await settle(fixture);
+    expect(el.querySelector('.confirm')).toBeNull();
+    expect(el.textContent).toContain('Adding');
+    http.verify();
+  });
 });

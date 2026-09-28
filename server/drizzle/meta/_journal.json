@@ -29,6 +29,27 @@
       "when": 1790484922891,
       "tag": "0003_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790539741837,
+      "tag": "0004_discovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790557847700,
+      "tag": "0005_feedback",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790559525247,
+      "tag": "0006_discover_preferences",
+      "breakpoints": true
     }
   ]
 }
