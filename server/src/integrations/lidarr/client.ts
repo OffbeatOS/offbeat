@@ -426,7 +426,7 @@ export class LidarrClient {
    * Asks Lidarr to send its Test event with these settings. Lidarr answers
    * with an error when the call failed (unreachable, or not a 2xx answer).
    */
-  async testNotification(body: LidarrNotificationInput): Promise<void> {
+  async testNotification(body: LidarrNotificationInput & { id?: number }): Promise<void> {
     await this.write('POST', 'notification/test', body, z.unknown());
   }
 

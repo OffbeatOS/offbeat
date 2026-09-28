@@ -91,9 +91,11 @@ export const webhookRoutes: FastifyPluginAsync<{ baseUrl: string }> = async (app
     const stored = ensure();
     const client = lidarr(TEST_TIMEOUT_MS);
     const body = notificationFor(callbackUrl, stored.token);
-    await testAt(client, body, callbackUrl);
+    // Found first: Lidarr requires unique names even when testing, so a test of our
+    // own webhook must say which one it is.
+    const existing = await withLidarr(() => findOurs(stored));
+    await testAt(client, body, callbackUrl, existing?.id);
 
-    const existing = await findOurs(stored);
     const saved = await withLidarr(() =>
       existing ? client.updateNotification(existing.id, body) : client.createNotification(body),
     );
@@ -107,8 +109,9 @@ export const webhookRoutes: FastifyPluginAsync<{ baseUrl: string }> = async (app
   app.post('/settings/lidarr/webhook/test', admin, async (request): Promise<LidarrWebhookView> => {
     const stored = ensure();
     if (!stored.callbackUrl) throw new HttpError(409, 'Set up the webhook first');
-    await testAt(lidarr(TEST_TIMEOUT_MS), notificationFor(stored.callbackUrl, stored.token), stored.callbackUrl);
-    return view(load()!, !!(await findOurs(stored).catch(() => null)), request);
+    const existing = await withLidarr(() => findOurs(stored));
+    await testAt(lidarr(TEST_TIMEOUT_MS), notificationFor(stored.callbackUrl, stored.token), stored.callbackUrl, existing?.id);
+    return view(load()!, !!existing, request);
   });
 
   /** A new token; Lidarr's webhook is updated to match, so events keep arriving. */
@@ -153,10 +156,10 @@ export const webhookRoutes: FastifyPluginAsync<{ baseUrl: string }> = async (app
   }
 
   /** Has Lidarr call the address with a Test event, and checks that it reached this Offbeat. */
-  async function testAt(client: ReturnType<typeof lidarr>, body: LidarrNotificationInput, url: string) {
+  async function testAt(client: ReturnType<typeof lidarr>, body: LidarrNotificationInput, url: string, id?: number) {
     const started = Date.now();
     try {
-      await client.testNotification(body);
+      await client.testNotification(id === undefined ? body : { ...body, id });
     } catch (error) {
       const message = error instanceof LidarrError ? error.message : '';
       // Lidarr waiting on a connection that never answers: our request to Lidarr times out first.

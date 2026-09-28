@@ -138,6 +138,7 @@ One server-side poller reads Lidarr's queue, commands, and history, and pushes a
 - **Adds are non-blocking.** `POST /albums/:mbid` answers 202 at once; the add runs in the background and reports back as an `add-result` event. A failed add shows under Needs Attention with Retry.
 - **Attribution.** Items added through Offbeat say who asked for them (from `requests`); everything else says "Added in Lidarr".
 - When an item leaves the queue, album statuses and the library cache refresh.
+- **Lidarr webhook** (`server/src/api/webhook.ts`). Lidarr calls `POST /api/v1/webhooks/lidarr` on grab, import, upgrade, and download or import failure. It is a public route that checks only Basic auth (user `offbeat`, a random token as password, compared in constant time), never a token in the URL. The body is not trusted: any event just makes Activity poll Lidarr now, then quickly for a few minutes. Polling on a timer (30 seconds with a browser watching and nothing moving) stays as the fallback. Set Up Automatically asks Lidarr to send its Test event to the callback address first and saves only if Lidarr succeeded and the event reached this Offbeat; it then updates Offbeat's existing webhook in Lidarr (found by id, name, or receiver path) rather than adding another. Lidarr requires unique names even when testing, so a test of the existing webhook carries its id.
 - **Stuck imports.** Lidarr can leave a finished download in "importing" for good when it will not import it on its own (for example a match below 80%), without saying why on the queue item. After an hour in that state (counted from when Offbeat first saw it, since the queue has no completion time), the item moves to Needs Attention as Import stuck. Offbeat asks Lidarr's Manual Import preview for the rejections once, in the background, and explains them in plain words, with a link to Lidarr's queue, where Manual Import is.
 
 ## Discovery engine
@@ -193,6 +194,7 @@ All routes live under `/api/v1`. Implemented:
 - `GET /blocklist` (blocked artists and tags, and hidden artists), `POST /blocklist`, `DELETE /blocklist/:id`
 - `GET /tags/:tag` (a tag page)
 - `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service), `PUT /account/password`
+- `GET`, `PUT`, and `DELETE /settings/lidarr/webhook`, `POST /settings/lidarr/webhook/test`, `POST /settings/lidarr/webhook/token` (admins only); `POST /webhooks/lidarr` (Lidarr, Basic auth)
 - `GET /users`, `POST /users` (answers with a temporary password), `PATCH /users/:id` (role and permissions), `POST /users/:id/password` (a new temporary password), `DELETE /users/:id`: admins only
 - `GET /library`, `POST /library/refresh`
 - `GET /search?q=`

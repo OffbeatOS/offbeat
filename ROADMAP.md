@@ -52,7 +52,7 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
   - Admin-configured channels at first; per-user preferences follow the users and permissions work
   - Messages link back to the album or artist in Offbeat when a base URL is set
   - Failed deliveries are retried and logged, and never block the rest of Offbeat
-- [ ] Lidarr webhook receiver (Settings, Connect, Webhook in Lidarr) for instant Activity updates on grab and import; polling stays as the fallback
+- [x] Lidarr webhook receiver (Settings, Connect, Webhook in Lidarr) for instant Activity updates on grab and import; polling stays as the fallback. Set Up Automatically creates or updates it after a test
 - [ ] Shows via Ticketmaster
 - [x] Admin password reset CLI (`offbeat reset-password`, `list-users`, `make-admin`)
 

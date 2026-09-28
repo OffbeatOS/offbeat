@@ -266,6 +266,12 @@ export async function startFakeCatalog(
     }
     if (path === 'history') return json(res, 200, { totalRecords: history.length, records: history });
     if (path === 'notification' && req.method === 'GET') return json(res, 200, notifications);
+    // Like Lidarr: names must be unique, on test and create, unless it is that notification itself.
+    const nameTaken = (candidate: { name?: string; id?: number }) =>
+      notifications.some((n) => n.name === candidate.name && n.id !== candidate.id);
+    if ((path === 'notification/test' || path === 'notification') && req.method === 'POST' && nameTaken(body as { name?: string; id?: number })) {
+      return json(res, 400, [{ propertyName: 'Name', errorMessage: 'Should be unique' }]);
+    }
     if (path === 'notification/test' && req.method === 'POST') {
       // Like Lidarr: call the webhook with its Basic auth and a Test event; fail if that fails.
       const posted = body as { fields: { name: string; value: unknown }[] };
