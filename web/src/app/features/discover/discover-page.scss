@@ -147,8 +147,14 @@ section {
   }
 }
 
+// How many show at once comes from tokens.scss: wider windows show more rather than stretching them.
+.picks,
+.albums {
+  grid-auto-columns: calc((100% - (var(--n) - 1) * var(--grid-gap)) / var(--n));
+}
+
 .picks {
-  grid-auto-columns: calc((100% - 2 * var(--grid-gap)) / 3);
+  --n: var(--picks-per-row);
 
   @include mixins.mobile {
     grid-auto-columns: 290px;
@@ -156,7 +162,7 @@ section {
 }
 
 .albums {
-  grid-auto-columns: calc((100% - 5 * var(--grid-gap)) / 6);
+  --n: var(--albums-per-row);
 
   @include mixins.mobile {
     grid-auto-columns: 140px;

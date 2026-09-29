@@ -67,4 +67,29 @@
   --heading-gap: 16px;
   --grid-gap: 20px;
   --touch-target: 44px;
+  // Cards shown at once in rows that scroll sideways (Discover): more on wider windows, so
+  // cards keep their size on large and ultrawide screens instead of stretching.
+  --picks-per-row: 3;
+  --albums-per-row: 6;
+}
+
+@media (min-width: 1800px) {
+  :root {
+    --picks-per-row: 4;
+    --albums-per-row: 8;
+  }
+}
+
+@media (min-width: 2300px) {
+  :root {
+    --picks-per-row: 5;
+    --albums-per-row: 10;
+  }
+}
+
+@media (min-width: 2800px) {
+  :root {
+    --picks-per-row: 6;
+    --albums-per-row: 12;
+  }
 }
