@@ -141,7 +141,9 @@ h1 {
   background: var(--text);
   color: var(--bg);
 
-  &.off {
+  &.off,
+  // Beside Play and Shuffle, monitoring steps back.
+  &.quiet {
     background: var(--surface-3);
     color: var(--text);
   }
@@ -212,14 +214,14 @@ h1 {
 .track-head,
 li {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr) 56px 40px;
   align-items: center;
   padding: 0 12px;
 }
 
 .with-status .track-head,
 .with-status li {
-  grid-template-columns: 48px minmax(0, 1fr) 140px;
+  grid-template-columns: 48px minmax(0, 1fr) 140px 56px 40px;
 }
 
 .track-head {
@@ -236,9 +238,30 @@ li {
 }
 
 .n {
+  display: flex;
+  align-items: center;
   font-size: 14px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
+}
+
+.play-mark {
+  display: none;
+  color: var(--text);
+}
+
+// A playable row shows play where its number was, on hover.
+li.can-play:hover {
+  background: var(--surface-input);
+  border-radius: 8px;
+
+  .number {
+    display: none;
+  }
+
+  .play-mark {
+    display: inline-flex;
+  }
 }
 
 .title {
@@ -247,6 +270,54 @@ li {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+button.title {
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+// The track playing (Playing mockup): coral title on a raised row.
+li.current {
+  background: var(--surface-input);
+  border-radius: 8px;
+  border-bottom-color: transparent;
+
+  .title {
+    color: var(--accent);
+    font-weight: 600;
+  }
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+}
+
+.row-menu {
+  justify-self: end;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-4);
+
+  &:hover,
+  &:focus-visible,
+  &[aria-expanded='true'] {
+    color: var(--text);
+    background: var(--surface-3);
+  }
 }
 
 // Only missing tracks are marked, so a full album is not a wall of checkmarks.
@@ -308,9 +379,52 @@ li.missing .title {
     font-size: 34px;
   }
 
+  .track-head,
+  li {
+    grid-template-columns: 34px minmax(0, 1fr) 44px 28px;
+  }
+
   .with-status .track-head,
   .with-status li {
-    grid-template-columns: 36px minmax(0, 1fr) 72px;
+    grid-template-columns: 34px minmax(0, 1fr) 64px 44px 28px;
+  }
+
+  // MobilePlaying mockup: the header centers, and Play and Shuffle share the width.
+  header:has(.actions.playable) {
+    align-items: center;
+    text-align: center;
+
+    .text {
+      align-items: center;
+      width: 100%;
+    }
+
+    .art {
+      width: 220px;
+    }
+
+    .artist {
+      color: var(--accent);
+    }
+  }
+
+  .actions.playable {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+
+    .play {
+      justify-content: center;
+      border-radius: 12px;
+      background: var(--surface-3);
+      color: var(--accent);
+    }
+
+    > :not(.play) {
+      grid-column: 1 / -1;
+      justify-content: center;
+      border-radius: 12px;
+    }
   }
 
   .track-head,

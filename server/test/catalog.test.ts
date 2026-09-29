@@ -294,6 +294,19 @@ describe('artist and album pages', () => {
     expect(res.monitored).toBe(true);
   });
 
+  it('gives each track on disk its file and media type, for streaming', async () => {
+    const { app, call, fake } = await setup(safe);
+    await addAlbum(app, call, GEOGADDI.mbid, BOC.mbid);
+    const album = [...fake.library.values()][0]!.albums.find((a) => a.title === 'Geogaddi')!;
+    album.trackFileCount = 2;
+    const detail = (await call('GET', `/albums/${GEOGADDI.mbid}`)).json<AlbumDetail>();
+    expect(detail.tracks.map((t) => [t.title, t.durationMs, t.trackFileId, t.mimeType])).toEqual([
+      ['Track one', 200000, 501, 'audio/flac'],
+      ['Track two', 181000, 502, 'audio/mp4; codecs="alac"'],
+      ['Track three', 95000, null, null],
+    ]);
+  });
+
   it('shows an album page from MusicBrainz for artists not in Lidarr', async () => {
     const { call } = await setup();
     const res = (await call('GET', `/albums/${BOC.albums[0]!.mbid}`)).json<AlbumDetail>();
@@ -301,7 +314,7 @@ describe('artist and album pages', () => {
       title: 'Music Has the Right to Children',
       artistName: 'Boards of Canada',
       artistInLibrary: false,
-      tracks: [{ position: '1', title: 'Wildlife Analysis', durationMs: 77000, hasFile: null }],
+      tracks: [{ position: '1', title: 'Wildlife Analysis', durationMs: 77000, hasFile: null, trackFileId: null, mimeType: null }],
     });
   });
 

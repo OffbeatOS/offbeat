@@ -24,7 +24,8 @@ RUN npm run build && npm prune --omit=dev --no-audit --no-fund
 
 # Runtime stage
 FROM node:${NODE_VERSION}-alpine
-RUN apk add --no-cache su-exec tini
+# ffmpeg converts formats a browser cannot play (ALAC, WMA, and so on) to MP3.
+RUN apk add --no-cache su-exec tini ffmpeg
 
 ENV NODE_ENV=production \
     PORT=3001 \
@@ -44,6 +45,8 @@ COPY --from=build /src/web/dist/web/browser ./web/dist/web/browser
 
 # Fail the build (per architecture) if the SQLite binary cannot load.
 RUN node -e "new (require('better-sqlite3'))(':memory:').prepare('select 1').get()"
+# Likewise if ffmpeg cannot encode the MP3 that transcoded streams use.
+RUN ffmpeg -hide_banner -encoders | grep -q libmp3lame
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 # `docker exec -it offbeat offbeat reset-password <user>` (see the README).
 COPY docker/offbeat.sh /usr/local/bin/offbeat

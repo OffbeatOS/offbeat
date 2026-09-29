@@ -71,6 +71,13 @@
       "when": 1790620643216,
       "tag": "0009_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790698464107,
+      "tag": "0010_stream_permission",
+      "breakpoints": true
     }
   ]
 }

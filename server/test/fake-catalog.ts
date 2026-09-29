@@ -352,6 +352,21 @@ export async function startFakeCatalog(
       }
       return json(res, 201, { id: commands.length });
     }
+    // An album with files on disk: a FLAC, an ALAC in .m4a, and a track still missing.
+    const withFiles = [...library.values()].flatMap((a) => a.albums).find((al) => al.id === Number(url.searchParams.get('albumId')) && al.trackFileCount > 0);
+    if (path === 'track' && withFiles) {
+      return json(res, 200, [
+        { id: 1, trackNumber: '1', title: 'Track one', duration: 200000, hasFile: true, trackFileId: 501 },
+        { id: 2, trackNumber: '2', title: 'Track two', duration: 181000, hasFile: true, trackFileId: 502 },
+        { id: 3, trackNumber: '3', title: 'Track three', duration: 95000, hasFile: false, trackFileId: 0 },
+      ]);
+    }
+    if (path === 'trackfile' && withFiles) {
+      return json(res, 200, [
+        { id: 501, albumId: withFiles.id, path: '/music/Artist/Album/01 Track one.flac', size: 20_000_000, mediaInfo: { audioCodec: 'FLAC' } },
+        { id: 502, albumId: withFiles.id, path: '/music/Artist/Album/02 Track two.m4a', size: 18_000_000, mediaInfo: { audioCodec: 'ALAC' } },
+      ]);
+    }
     if (path === 'track') return json(res, 200, [{ id: 1, trackNumber: '1', title: 'Track one', duration: 200000, hasFile: false }]);
     return json(res, 404, {});
   });

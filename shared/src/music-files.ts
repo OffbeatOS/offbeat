@@ -36,4 +36,6 @@ export interface MusicFilesCheck {
 export interface MusicFilesView {
   folders: MusicFolder[];
   lastCheck: MusicFilesCheck | null;
+  /** ffmpeg's version, for formats the browser cannot play; null when Offbeat cannot find it. */
+  ffmpeg: string | null;
 }

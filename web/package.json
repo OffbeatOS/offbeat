@@ -28,5 +28,8 @@
     "tslib": "^2.3.0",
     "typescript": "~6.0.2",
     "vitest": "^5.0.0"
+  },
+  "dependencies": {
+    "@angular/cdk": "^22.2.0"
   }
 }

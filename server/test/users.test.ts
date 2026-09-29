@@ -165,7 +165,7 @@ describe('permissions', () => {
   it('admins have every permission, whatever is stored', async () => {
     const { call, admin } = await setup();
     const me = await call(admin, 'GET', '/auth/me');
-    expect(me.json().user.permissions).toEqual(['add-artists', 'add-albums', 'change-monitoring', 'delete', 'flows']);
+    expect(me.json().user.permissions).toEqual(['stream', 'add-artists', 'add-albums', 'change-monitoring', 'delete', 'flows']);
   });
 });
 

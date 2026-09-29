@@ -15,6 +15,7 @@ import { lastfmClientFor } from './integrations/lastfm/settings.js';
 import { currentClient } from './integrations/lidarr/settings.js';
 import { Notifier, type NotifierOptions } from './notifications/notifier.js';
 import { MusicFiles } from './library/music-files.js';
+import { Transcoder } from './streaming/transcoder.js';
 import { ListenBrainzClient } from './integrations/listenbrainz/client.js';
 import { MUSICBRAINZ_URL, MusicBrainzClient } from './integrations/musicbrainz/client.js';
 import { Library } from './library/library.js';
@@ -33,13 +34,14 @@ declare module 'fastify' {
     discovery: Discovery;
     notifier: Notifier;
     musicFiles: MusicFiles;
+    transcoder: Transcoder;
     /** Listening and similarity sources. Last.fm is null until an admin connects it. */
     sources: { lastfm: () => LastfmClient | null; listenbrainz: ListenBrainzClient };
   }
 }
 
 export interface AppOptions {
-  config: Pick<Config, 'baseUrl' | 'trustProxy' | 'logLevel'> & Partial<Pick<Config, 'sessionCookie'>>;
+  config: Pick<Config, 'baseUrl' | 'trustProxy' | 'logLevel'> & Partial<Pick<Config, 'sessionCookie' | 'ffmpegPath'>>;
   db: Db;
   /** Contents of `secret.key`; encrypts stored credentials. */
   secretKey: Buffer;
@@ -158,6 +160,7 @@ export async function buildApp({
   // Discord and generic webhooks: fed by Activity (history, blocked imports) and Lidarr's calendar.
   // Audio comes from the music folders Lidarr manages, indexed by Lidarr's track files.
   app.decorate('musicFiles', new MusicFiles(settings, currentClient(settings), app.log));
+  app.decorate('transcoder', new Transcoder(config.ffmpegPath ?? 'ffmpeg', app.log));
 
   app.decorate('notifier', new Notifier(db, settings, app.log, currentClient(settings), notifications));
   app.activity.observe({

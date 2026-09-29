@@ -21,6 +21,7 @@ import { Cover } from '../../shared/catalog/cover';
 import { ReleaseAction } from '../../shared/catalog/release-action';
 import { EmptyState } from '../../shared/empty-state/empty-state';
 import { Icon } from '../../shared/icon/icon';
+import { PlayRelease } from '../../shared/player/play-release';
 import { Session } from '../../core/session';
 
 type SearchState =
@@ -38,7 +39,7 @@ const DEBOUNCE_MS = 300;
  */
 @Component({
   selector: 'ob-search-page',
-  imports: [RouterLink, ArtistCircle, Cover, ReleaseAction, EmptyState, Icon],
+  imports: [RouterLink, ArtistCircle, Cover, ReleaseAction, EmptyState, Icon, PlayRelease],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './search-page.scss',
   templateUrl: './search-page.html',

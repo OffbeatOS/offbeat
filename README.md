@@ -23,11 +23,12 @@ Self-hosted music discovery for Lidarr. Find new artists based on what you alrea
 - **Search, Artist, and Album pages.** Look up anything on MusicBrainz, see what you already have track by track, and add an artist or a single album in one click.
 - **Sensible adds.** Adding an artist monitors all their albums and future releases; adding one album gets just that album. Lidarr searches right away, and everything Offbeat adds is tagged `offbeat`. All of it can be changed in Settings.
 - **Activity.** Searches, downloads, and imports update live, with plain-English reasons when an import is blocked, and Retry or Cancel in one click. The bottom bar shows the current download on every page. Set up Lidarr's webhook (one click in Settings) and Activity updates within seconds.
-- **Multiple users.** Admins and Members, with permissions for what each Member can do: add artists, add albums, change monitoring, delete. Sign in with a password, through a reverse proxy such as Authelia or Authentik, or automatically on your local network. See [Sign-in options](#sign-in-options).
+- **Listening.** Play your library in the browser: FLAC and MP3 play as they are, and anything else is converted on the fly. The player stays put as you browse, with a queue you can reorder, a Now Playing view, lock screen and media key controls, and space and the arrow keys to play, pause, and seek.
+- **Multiple users.** Admins and Members, with permissions for what each Member can do: stream, add artists, add albums, change monitoring, delete. Sign in with a password, through a reverse proxy such as Authelia or Authentik, or automatically on your local network. See [Sign-in options](#sign-in-options).
 - **Notifications.** Discord or any webhook when an album is imported, a download fails, an import is blocked, or a monitored artist has a new release. See [Notifications](#notifications).
 - **One small container.** One process, one port, SQLite. No external database or cache.
 
-Coming next: streaming, in the browser and in Subsonic apps. Flows and playlists come later.
+Coming next: listening history, previews, and streaming to Subsonic apps. Flows and playlists come later.
 
 Offbeat talks to Lidarr for everything in your library; it never writes to your music folders itself.
 
@@ -84,6 +85,8 @@ Offbeat plays music straight from the folders Lidarr manages, and only reads the
 - If Offbeat sees the folder somewhere else, enter where in Settings, Integrations, Lidarr, Music files. Save and Check reads each folder and a sample of files, and says what is wrong in plain words.
 - On Unraid, add a Path to the Offbeat container: container path `/music`, host path the share Lidarr uses (for example `/mnt/user/data/media/music`), access mode Read Only.
 - Offbeat runs as `PUID`:`PGID`, so that user needs read access to the music.
+- Browsers play FLAC, MP3, AAC, and more directly. Anything else (ALAC in Chrome, WMA, APE) is converted to MP3 with ffmpeg as it plays; Settings, Integrations, Lidarr, Music files says whether Offbeat found it.
+- Playing needs the Stream permission, which Members have unless an admin turns it off.
 
 ## Configuration
 
@@ -99,6 +102,7 @@ Integrations and add behavior are configured in the web UI. Environment variable
 | `TRUST_PROXY` | `false` | Trust `X-Forwarded-*` headers (set this behind a reverse proxy) |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, or `error` |
 | `SESSION_COOKIE` | `offbeat_session` | Session cookie name. Give each instance its own when several share a host, since browsers share cookies across ports |
+| `FFMPEG_PATH` | `ffmpeg` | ffmpeg, for formats a browser cannot play. Included in the Docker image; on bare metal, install ffmpeg (4.0 or later, with libmp3lame) or point this at it |
 
 ## Sign-in options
 
@@ -109,7 +113,7 @@ Settings, Users, Sign-in has three ways in. Local accounts (username and passwor
 - List your proxy's address under Trusted proxies. The header is ignored from every other address. In Docker, if the address Offbeat sees for your proxy is one that stands for every visitor (the bridge gateway, or Docker Desktop's 192.168.65.x), Offbeat trusts it only together with the shared secret below.
 - Your proxy must set that header itself on every route to Offbeat, and remove it wherever it does not sign people in. A route that passes on a header the visitor made up would let anyone sign in as anyone.
 - Recommended: generate a shared secret in the same settings and have your proxy send it on every request (in `X-Offbeat-Proxy-Secret` by default). Offbeat then ignores the username unless the secret comes with it, so even a misconfigured route cannot be used to sign in.
-- Usernames Offbeat does not know are refused with a page asking them to see an admin. Turn on "Create accounts for new users" to add them automatically as Members who can add albums. They are never made admins.
+- Usernames Offbeat does not know are refused with a page asking them to see an admin. Turn on "Create accounts for new users" to add them automatically as Members who can stream and add albums. They are never made admins.
 - Set Sign-out page to your proxy's sign-out address; otherwise signing out of Offbeat signs you straight back in.
 
 **Local network auto-login** signs everyone on the addresses you list in as one chosen Member, with no password. It is off by default and never signs in as an admin. Offbeat only trusts the address of the connection itself, or the forwarded address from a trusted proxy; a request with forwarding headers from anywhere else never counts as local. In Docker, the addresses that published ports hand out for every visitor (the bridge gateway, and Docker Desktop's 192.168.65.x) never count as local either, so list your devices' own addresses, or run Offbeat with host networking.

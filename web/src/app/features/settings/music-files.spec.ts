@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import type { MusicFilesCheck, MusicFilesView } from '@offbeat/shared';
 import { MusicFiles } from './music-files';
 
-const UNMAPPED: MusicFilesView = { folders: [{ lidarrPath: '/music', offbeatPath: '/music', mapped: false }], lastCheck: null };
+const UNMAPPED: MusicFilesView = { folders: [{ lidarrPath: '/music', offbeatPath: '/music', mapped: false }], lastCheck: null, ffmpeg: '9.0.2' };
 
 async function render() {
   TestBed.configureTestingModule({ imports: [MusicFiles], providers: [provideHttpClient(), provideHttpClientTesting()] });
@@ -35,7 +35,7 @@ describe('MusicFiles settings', () => {
 
     const save = http.expectOne({ method: 'PUT', url: 'api/v1/settings/music-files' });
     expect(save.request.body).toEqual({ folders: [{ lidarrPath: '/music', offbeatPath: '/mnt/user/music' }] });
-    const mapped: MusicFilesView = { folders: [{ lidarrPath: '/music', offbeatPath: '/mnt/user/music', mapped: true }], lastCheck: null };
+    const mapped: MusicFilesView = { folders: [{ lidarrPath: '/music', offbeatPath: '/mnt/user/music', mapped: true }], lastCheck: null, ffmpeg: '9.0.2' };
     save.flush(mapped);
     await settle();
 

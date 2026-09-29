@@ -56,12 +56,12 @@ export class MusicFiles {
     private readonly log: FastifyBaseLogger,
   ) {}
 
-  async view(): Promise<MusicFilesView> {
+  async view(): Promise<Omit<MusicFilesView, 'ffmpeg'>> {
     return { folders: this.foldersFor(await this.rootFolders()), lastCheck: this.lastCheck() };
   }
 
   /** Saves where each root folder is read. Only Lidarr's current root folders can be mapped. */
-  async save(input: MusicFilesInput): Promise<MusicFilesView> {
+  async save(input: MusicFilesInput): Promise<Omit<MusicFilesView, 'ffmpeg'>> {
     const roots = await this.rootFolders({ fresh: true });
     const folders: { lidarrPath: string; offbeatPath: string }[] = [];
     for (const { lidarrPath, offbeatPath } of input.folders) {
@@ -263,4 +263,45 @@ function reasonFor(error: unknown): string {
   if (code === 'EACCES' || code === 'EPERM') return 'Offbeat is not allowed to read it. Check the folder permissions for PUID and PGID.';
   if (code === 'ENOTDIR') return 'Part of the path is a file, not a folder';
   return error instanceof Error ? error.message : 'Could not read it';
+}
+
+/**
+ * A track file's media type, from its extension and Lidarr's codec, for the
+ * browser's canPlayType: it plays what it can directly, and the rest is
+ * transcoded. Formats no browser plays still get a type, so they are asked
+ * for transcoded.
+ */
+export function mimeTypeFor(file: Pick<LidarrTrackFile, 'path' | 'mediaInfo'>): string {
+  const extension = path.posix.extname(file.path.replace(/\\/g, '/')).toLowerCase();
+  const codec = file.mediaInfo?.audioCodec?.toLowerCase() ?? '';
+  switch (extension) {
+    case '.flac':
+      return 'audio/flac';
+    case '.mp3':
+      return 'audio/mpeg';
+    case '.aac':
+      return 'audio/aac';
+    case '.m4a':
+    case '.m4b':
+    case '.mp4':
+      return codec.includes('alac') ? 'audio/mp4; codecs="alac"' : 'audio/mp4; codecs="mp4a.40.2"';
+    case '.opus':
+      return 'audio/ogg; codecs="opus"';
+    case '.ogg':
+    case '.oga':
+      return codec.includes('opus') ? 'audio/ogg; codecs="opus"' : 'audio/ogg; codecs="vorbis"';
+    case '.wav':
+      return 'audio/wav';
+    case '.aif':
+    case '.aiff':
+      return 'audio/aiff';
+    case '.wma':
+      return 'audio/x-ms-wma';
+    case '.ape':
+      return 'audio/x-ape';
+    case '.wv':
+      return 'audio/x-wavpack';
+    default:
+      return 'application/octet-stream';
+  }
 }

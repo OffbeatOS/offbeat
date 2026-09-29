@@ -173,6 +173,15 @@ import { timeAgo } from '../../shared/format';
         In Docker, mount the music folder read-only (for example -v /mnt/music:/music:ro).
       </span>
 
+      @if (v.ffmpeg) {
+        <p class="hint">Formats a browser cannot play are converted with ffmpeg {{ v.ffmpeg }}.</p>
+      } @else {
+        <p class="error">
+          Offbeat cannot find ffmpeg, so formats a browser cannot play (such as ALAC or WMA) will not play. The Docker image
+          includes it; on bare metal, install ffmpeg or set FFMPEG_PATH.
+        </p>
+      }
+
       <div class="buttons">
         <button class="btn btn-primary" type="button" [disabled]="busy()" (click)="saveAndCheck()">
           {{ busy() === 'save' ? 'Checking' : 'Save and Check' }}

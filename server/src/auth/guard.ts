@@ -67,6 +67,7 @@ const PERMISSION_DENIED: Record<Permission, string> = {
   'change-monitoring': 'Your account cannot change monitoring. Ask an admin.',
   delete: 'Your account cannot remove downloads. Ask an admin.',
   flows: 'Your account cannot use flows. Ask an admin.',
+  stream: 'Your account cannot play music. Ask an admin.',
 };
 
 export const NO_ACCOUNT = 'There is no Offbeat account for this user. Ask an admin.';

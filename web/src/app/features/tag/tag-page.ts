@@ -7,6 +7,7 @@ import { Cover } from '../../shared/catalog/cover';
 import { QuickAdd } from '../../shared/catalog/quick-add';
 import { EmptyState } from '../../shared/empty-state/empty-state';
 import { Icon } from '../../shared/icon/icon';
+import { PlayRelease } from '../../shared/player/play-release';
 import { Toggle } from '../../shared/toggle/toggle';
 
 const HIDE_KEY = 'offbeat.tag.hideLibrary';
@@ -21,7 +22,7 @@ const FIRST = 6;
  */
 @Component({
   selector: 'ob-tag-page',
-  imports: [RouterLink, FormsModule, Cover, QuickAdd, EmptyState, Icon, Toggle],
+  imports: [RouterLink, FormsModule, Cover, QuickAdd, EmptyState, Icon, Toggle, PlayRelease],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './tag-page.scss',
   templateUrl: './tag-page.html',

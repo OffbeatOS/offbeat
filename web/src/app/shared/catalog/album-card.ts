@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { AddResult, ReleaseSummary } from '@offbeat/shared';
+import { PlayRelease } from '../player/play-release';
 import { Cover } from './cover';
 import { ReleaseAction } from './release-action';
 
@@ -8,13 +9,15 @@ export function releaseMeta(release: Pick<ReleaseSummary, 'type' | 'year'>): str
   return release.year ? `${release.type}, ${release.year}` : release.type;
 }
 
-/** Album card from the Artist mockup: square art, title, type and year, then status. */
+/** Album card from the Artist mockup: square art, title, type and year, then status. Albums on disk play from the art. */
 @Component({
   selector: 'ob-album-card',
-  imports: [RouterLink, Cover, ReleaseAction],
+  imports: [RouterLink, Cover, ReleaseAction, PlayRelease],
+  host: { class: 'has-play' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     :host {
+      position: relative;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -59,6 +62,7 @@ export function releaseMeta(release: Pick<ReleaseSummary, 'type' | 'year'>): str
         <span class="meta">{{ meta() }}</span>
       </span>
     </a>
+    <ob-play-release [release]="release()" />
     <ob-release-action [release]="release()" (added)="added.emit($event)" />
   `,
 })

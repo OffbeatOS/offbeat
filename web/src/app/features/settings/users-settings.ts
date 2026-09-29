@@ -19,6 +19,7 @@ import { Icon } from '../../shared/icon/icon';
 import { SignInSettingsPanel } from './sign-in-settings';
 
 export const PERMISSION_LABEL: Record<Permission, string> = {
+  stream: 'Stream music',
   'add-artists': 'Add artists',
   'add-albums': 'Add albums',
   'change-monitoring': 'Change monitoring',

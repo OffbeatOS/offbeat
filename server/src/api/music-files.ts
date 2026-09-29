@@ -15,11 +15,13 @@ const saveBody = z.object({
 export const musicFilesRoutes: FastifyPluginAsync = async (app) => {
   const admin = { config: { role: 'admin' as const } };
 
-  app.get('/settings/music-files', admin, async (): Promise<MusicFilesView> => guarded(() => app.musicFiles.view()));
+  const withFfmpeg = async (view: Omit<MusicFilesView, 'ffmpeg'>): Promise<MusicFilesView> => ({ ...view, ffmpeg: await app.transcoder.version() });
+
+  app.get('/settings/music-files', admin, async (): Promise<MusicFilesView> => withFfmpeg(await guarded(() => app.musicFiles.view())));
 
   app.put('/settings/music-files', admin, async (request): Promise<MusicFilesView> => {
     const body = parse(saveBody, request.body);
-    return guarded(() => app.musicFiles.save(body));
+    return withFfmpeg(await guarded(() => app.musicFiles.save(body)));
   });
 
   app.post('/settings/music-files/check', admin, async (): Promise<MusicFilesCheck> => guarded(() => app.musicFiles.check()));

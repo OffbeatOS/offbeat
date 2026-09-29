@@ -1,6 +1,7 @@
+import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { AddAlbumRequest, AddResult, AlbumDetail, UpdateAlbumRequest } from '@offbeat/shared';
+import type { AddAlbumRequest, AddResult, AlbumDetail, Track, UpdateAlbumRequest } from '@offbeat/shared';
 import { ActivityStore } from '../../core/activity-store';
 import { Api, ApiError } from '../../core/api';
 import { STATE_LABEL, percent, stateTone } from '../../shared/catalog/activity-labels';
@@ -8,7 +9,10 @@ import { AlbumCard } from '../../shared/catalog/album-card';
 import { Cover } from '../../shared/catalog/cover';
 import { EmptyState } from '../../shared/empty-state/empty-state';
 import { Icon } from '../../shared/icon/icon';
+import { Player, albumQueue } from '../../core/player';
 import { Session } from '../../core/session';
+import { formatDuration } from '../../shared/format';
+import { PlayingBars } from '../../shared/player/playing-bars';
 
 /**
  * Album mockup. The layout is shared by every state:
@@ -17,10 +21,13 @@ import { Session } from '../../core/session';
  * - partial: "Partial: 11 of 13 tracks in library", Search Missing, missing tracks marked
  * - complete: no status line, Monitored
  * Downloading progress arrives with queue data in the Activity slice.
+ * Tracks on disk play (Playing mockup): Play or Pause and Shuffle lead the
+ * actions, the track playing shows the coral equalizer, and each playable row
+ * has Play Next and Add to Queue.
  */
 @Component({
   selector: 'ob-album-page',
-  imports: [RouterLink, AlbumCard, Cover, EmptyState, Icon],
+  imports: [RouterLink, CdkMenuTrigger, CdkMenu, CdkMenuItem, AlbumCard, Cover, EmptyState, Icon, PlayingBars],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './album-page.scss',
   templateUrl: './album-page.html',
@@ -30,6 +37,7 @@ export class AlbumPage {
   /** Hides what the server would refuse this user (see Session.can). */
   protected readonly can = inject(Session).can;
   readonly mbid = input.required<string>();
+  protected readonly player = inject(Player);
 
   protected readonly album = signal<AlbumDetail | null>(null);
   protected readonly loadError = signal<{ status: number; message: string } | null>(null);
@@ -75,6 +83,46 @@ export class AlbumPage {
       .filter(Boolean)
       .join(', ');
   });
+
+  /** Tracks on disk, for users who may stream. */
+  protected readonly playable = computed(
+    () => this.can('stream') && (this.album()?.tracks ?? []).some((t) => t.trackFileId !== null),
+  );
+  /** This album is the one playing (its button says Pause). */
+  protected readonly playingThis = computed(() => this.player.playing() && this.player.isPlayingFrom(this.album()?.mbid ?? ''));
+
+  protected playPause() {
+    const album = this.album();
+    if (!album) return;
+    if (this.player.isPlayingFrom(album.mbid)) this.player.toggle();
+    else this.player.playAlbum(album);
+  }
+
+  protected shuffle() {
+    const album = this.album();
+    if (album) this.player.playAlbum(album, { shuffle: true });
+  }
+
+  protected playTrack(track: Track) {
+    const album = this.album();
+    if (album && track.trackFileId) this.player.playTrackOf(album, track.trackFileId);
+  }
+
+  protected queue(track: Track, when: 'next' | 'later') {
+    const album = this.album();
+    if (!album) return;
+    const entries = albumQueue(album).filter((t) => t.trackFileId === track.trackFileId);
+    if (when === 'next') this.player.playNext(entries);
+    else this.player.addToQueue(entries);
+  }
+
+  protected isCurrent(track: Track): boolean {
+    return track.trackFileId !== null && this.player.current()?.trackFileId === track.trackFileId;
+  }
+
+  protected duration(track: Track): string {
+    return track.durationMs ? formatDuration(track.durationMs / 1000) : '';
+  }
 
   private readonly store = inject(ActivityStore);
   /** Whether the activity stream had this album last time, to notice when it leaves. */

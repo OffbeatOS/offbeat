@@ -67,6 +67,13 @@ export interface Track {
   durationMs: number | null;
   /** Null when the album is not in Lidarr. */
   hasFile: boolean | null;
+  /** Lidarr's file for this track, streamed from `/stream/:trackFileId`; null when there is none. */
+  trackFileId: number | null;
+  /**
+   * The file's media type (for example audio/flac, or audio/mp4; codecs="alac"), so the
+   * browser can tell whether it plays it directly or needs it transcoded. Null without a file.
+   */
+  mimeType: string | null;
 }
 
 /** `GET /albums/:mbid` */

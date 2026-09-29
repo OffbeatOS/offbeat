@@ -25,8 +25,8 @@ function album(extra: Partial<AlbumDetail>): AlbumDetail {
     trackCount: null,
     genres: ['Future Garage'],
     tracks: [
-      { position: '1', title: 'Untitled', durationMs: null, hasFile: null },
-      { position: '2', title: 'Archangel', durationMs: null, hasFile: null },
+      { position: '1', title: 'Untitled', durationMs: null, hasFile: null, trackFileId: null, mimeType: null },
+      { position: '2', title: 'Archangel', durationMs: null, hasFile: null, trackFileId: null, mimeType: null },
     ],
     more: [],
     ...extra,
@@ -61,7 +61,7 @@ async function render(detail: AlbumDetail, { configured = false } = {}) {
     status: () => el.querySelector('.status')?.textContent?.trim() ?? null,
     buttons: () => [...el.querySelectorAll('.actions button')].map((b) => b.textContent?.trim()),
     el,
-    statusColumn: () => !!el.querySelector('.track-head .right'),
+    statusColumn: () => [...el.querySelectorAll('.track-head .right')].some((head) => head.textContent?.trim() === 'Status'),
     missingTitles: () => [...el.querySelectorAll('li.missing .title')].map((t) => t.textContent?.trim()),
     meta: () => el.querySelector('.meta')?.textContent?.trim(),
   };
@@ -84,8 +84,8 @@ describe('AlbumPage states', () => {
         trackCount: 2,
         status: { kind: 'partial', missingTracks: 1 },
         tracks: [
-          { position: '1', title: 'Untitled', durationMs: null, hasFile: true },
-          { position: '2', title: 'Archangel', durationMs: null, hasFile: false },
+          { position: '1', title: 'Untitled', durationMs: null, hasFile: true, trackFileId: null, mimeType: null },
+          { position: '2', title: 'Archangel', durationMs: null, hasFile: false, trackFileId: null, mimeType: null },
         ],
       }),
     );
@@ -126,7 +126,7 @@ describe('AlbumPage states', () => {
         monitored: false,
         trackFileCount: 0,
         trackCount: 2,
-        tracks: [{ position: '1', title: 'Untitled', durationMs: null, hasFile: false }],
+        tracks: [{ position: '1', title: 'Untitled', durationMs: null, hasFile: false, trackFileId: null, mimeType: null }],
       }),
     );
     expect(page.buttons()).toEqual(['Add Album']);

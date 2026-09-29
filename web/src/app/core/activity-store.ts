@@ -34,6 +34,9 @@ export class ActivityStore {
     return map;
   });
 
+  /** Downloads and imports in progress, for the badge on Activity. */
+  readonly inProgressCount = computed(() => this.snapshot().inProgress.length);
+
   /** The download to show in the bottom bar, and how many more are queued. */
   readonly current = computed(() => {
     const moving = this.snapshot().inProgress;

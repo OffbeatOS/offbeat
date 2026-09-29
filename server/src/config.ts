@@ -15,6 +15,8 @@ export interface Config {
   logLevel: 'debug' | 'info' | 'warn' | 'error';
   /** Session cookie name, for running several instances on one host. */
   sessionCookie: string;
+  /** ffmpeg, for formats the browser cannot play. Bundled in the Docker image; found on PATH otherwise. */
+  ffmpegPath: string;
 }
 
 const booleanish = z
@@ -32,6 +34,7 @@ const envSchema = z.object({
     .string()
     .regex(/^[A-Za-z0-9_-]{1,64}$/, 'use up to 64 letters, numbers, dashes, or underscores')
     .default('offbeat_session'),
+  FFMPEG_PATH: z.string().min(1).default('ffmpeg'),
 });
 
 export function normalizeBaseUrl(raw: string): string {
@@ -60,5 +63,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     trustProxy: vars.TRUST_PROXY,
     logLevel: vars.LOG_LEVEL,
     sessionCookie: vars.SESSION_COOKIE,
+    ffmpegPath: vars.FFMPEG_PATH,
   };
 }

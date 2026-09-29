@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { filter, map } from 'rxjs';
+import { ActivityStore } from '../../core/activity-store';
 import { MORE_NAV, TAB_NAV } from '../../core/navigation';
 import { Icon } from '../icon/icon';
 
@@ -46,6 +47,21 @@ import { Icon } from '../icon/icon';
       font-size: 10px;
       font-weight: 500;
 
+      .icon {
+        position: relative;
+        display: flex;
+      }
+
+      .dot {
+        position: absolute;
+        top: -2px;
+        right: -6px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--status-progress);
+      }
+
       &.active {
         color: var(--accent);
         font-weight: 600;
@@ -61,7 +77,12 @@ import { Icon } from '../icon/icon';
           ariaCurrentWhenActive="page"
           [class.active]="item.path === '/more' && inMoreSection()"
         >
-          <ob-icon [name]="item.icon" [size]="24" />
+          <span class="icon">
+            <ob-icon [name]="item.icon" [size]="24" />
+            @if (item.path === '/activity' && downloads()) {
+              <span class="dot" role="img" aria-label="Downloads in progress"></span>
+            }
+          </span>
           {{ item.label }}
         </a>
       }
@@ -70,6 +91,8 @@ import { Icon } from '../icon/icon';
 })
 export class TabBar {
   protected readonly items = TAB_NAV;
+  /** Downloads in progress: a blue dot on Activity (MobilePlaying mockup). */
+  protected readonly downloads = inject(ActivityStore).inProgressCount;
 
   private readonly router = inject(Router);
   private readonly url = toSignal(
