@@ -80,7 +80,7 @@ export class TabBar {
     { initialValue: this.router.url },
   );
 
-  /** Keeps More highlighted on the pages it links to (Flows, Settings). */
+  /** Keeps More highlighted on the pages it links to (Settings). */
   protected readonly inMoreSection = computed(() => {
     const url = this.url();
     return MORE_NAV.some((item) => url === item.path || url.startsWith(`${item.path}/`));

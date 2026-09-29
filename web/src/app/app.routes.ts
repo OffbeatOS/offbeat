@@ -92,7 +92,6 @@ export const routes: Routes = [
         title: 'Activity',
         loadComponent: () => import('./features/activity/activity-page').then((m) => m.ActivityPage),
       },
-      placeholder('flows', 'Flows', 'flows', 'No flows yet', 'Scheduled discovery playlists will live here.'),
       {
         path: 'settings',
         loadComponent: () =>
