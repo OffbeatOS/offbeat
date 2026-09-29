@@ -24,6 +24,10 @@ These are standalone HTML files exported from a design tool. They use its small 
 | `SettingsUsers.dc.html` | Settings, Users and sign-in methods | Phase 3 |
 | `SettingsNotifications.dc.html` | Settings, Notifications channels and delivery log | Phase 3 |
 | `SettingsLidarr.dc.html` | Settings, Lidarr connection, defaults and webhook | Phase 3 |
+| `Playing.dc.html` | Album page playing, player bar and queue drawer | Phase 4 |
+| `NowPlaying.dc.html` | Now Playing (desktop) | Phase 4 |
+| `MobilePlaying.dc.html` | Mini player (mobile) | Phase 4 |
+| `MobileNowPlaying.dc.html` | Now Playing (mobile) | Phase 4 |
 
 Empty, loading, and error states are not in the mockups. Build them for every screen in the same style (see `ob-empty-state`).
 

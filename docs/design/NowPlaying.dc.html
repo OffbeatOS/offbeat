@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Offbeat Now Playing</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#111113}
+a{color:#F2F2F2;text-decoration:none}a:hover{color:#FFFFFF}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1024px; background: #141816; color: #F2F2F2; font-family: 'Instrument Sans', -apple-system, 'Helvetica Neue', sans-serif; overflow: hidden; display: grid; grid-template-columns: 1fr 440px; grid-template-rows: 72px 1fr">
+<div style="grid-column: 1 / span 2; display: flex; align-items: center; justify-content: space-between; padding: 0 32px">
+<a href="Playing.dc.html" aria-label="Close Now Playing" style="border: 0; background: transparent; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 20px; background: rgba(255,255,255,0.08); color: #F2F2F2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></a>
+<span style="font-size: 13px; color: #A9B1AC">Playing from <a href="Album.dc.html" style="font-weight: 600; color: #F2F2F2">Untrue</a></span>
+<button aria-label="More" style="border: 0; background: transparent; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 20px; background: rgba(255,255,255,0.08); color: #F2F2F2"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+</div>
+
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; padding-bottom: 48px">
+<div style="width: 520px; height: 520px; border-radius: 14px; background: #2F3A33; box-shadow: 0 30px 80px rgba(0,0,0,0.45)"></div>
+<div style="width: 520px; display: flex; flex-direction: column; gap: 22px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 28px; font-weight: 700; letter-spacing: -0.02em">Archangel</span>
+<a href="Artist.dc.html" style="font-size: 18px; color: #A9B1AC">Burial</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="position: relative; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.14)"><div style="width: 38%; height: 5px; border-radius: 3px; background: #F2F2F2"></div><div style="position: absolute; left: 38%; top: -5px; width: 15px; height: 15px; margin-left: -7px; border-radius: 50%; background: #FFFFFF"></div></div>
+<div style="display: flex; justify-content: space-between; font-size: 12px; color: #A9B1AC"><span>1:32</span><span>-2:31</span></div>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between">
+<button aria-label="Shuffle" style="border: 0; background: transparent; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #A9B1AC"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3c4 0 6 10 10 10h3M17 14l3 3-3 3M4 17h3c1.5 0 2.7-1.4 3.7-3M13.3 10c1-1.6 2.2-3 3.7-3h3M17 4l3 3-3 3"></path></svg></button>
+<button aria-label="Previous" style="border: 0; background: transparent; display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; color: #F2F2F2"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="6" width="2.2" height="12" rx="1"></rect><path d="M19 6.5v11l-9-5.5z"></path></svg></button>
+<button aria-label="Pause" style="border: 0; background: transparent; display: flex; align-items: center; justify-content: center; width: 72px; height: 72px; border-radius: 50%; background: #F2F2F2; color: #111113"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg></button>
+<button aria-label="Next" style="border: 0; background: transparent; display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; color: #F2F2F2"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><rect x="16.8" y="6" width="2.2" height="12" rx="1"></rect><path d="M5 6.5v11l9-5.5z"></path></svg></button>
+<button aria-label="Repeat" style="border: 0; background: transparent; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #A9B1AC"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11V9a3 3 0 0 1 3-3h12M16 3l3 3-3 3M20 13v2a3 3 0 0 1-3 3H5M8 21l-3-3 3-3"></path></svg></button>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; color: #A9B1AC"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.5l4.5 3.8V5.7L7.5 9.5z"></path><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"></path></svg><span style="flex-grow: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.14); display: block"><span style="display: block; width: 70%; height: 4px; border-radius: 2px; background: #A9B1AC"></span></span></div>
+</div>
+</div>
+
+<aside aria-label="Up Next" style="border-left: 1px solid rgba(255,255,255,0.06); padding: 8px 32px 0; display: flex; flex-direction: column; gap: 16px; overflow: hidden">
+<div role="group" aria-label="Panel" style="display: flex; gap: 2px; padding: 3px; background: rgba(255,255,255,0.06); border-radius: 10px; align-self: flex-start">
+<button aria-pressed="true" style="height: 32px; padding: 0 16px; border: 0; border-radius: 8px; background: rgba(255,255,255,0.14); color: #F2F2F2; font-size: 13px; font-weight: 600">Up Next</button>
+<button style="height: 32px; padding: 0 16px; border: 0; border-radius: 8px; background: transparent; color: #A9B1AC; font-size: 13px; font-weight: 500">History</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px 4px"><div style="width: 40px; height: 40px; border-radius: 5px; background: #2F3A33; flex-shrink: 0"></div><div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 14px; font-weight: 500">Near Dark</span><span style="font-size: 12px; color: #9A9AA0">Burial</span></div><span style="color: #5E5E65; display: flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"></circle><circle cx="15" cy="6" r="1.5"></circle><circle cx="9" cy="12" r="1.5"></circle><circle cx="15" cy="12" r="1.5"></circle><circle cx="9" cy="18" r="1.5"></circle><circle cx="15" cy="18" r="1.5"></circle></svg></span></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px 4px"><div style="width: 40px; height: 40px; border-radius: 5px; background: #2F3A33; flex-shrink: 0"></div><div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 14px; font-weight: 500">Ghost Hardware</span><span style="font-size: 12px; color: #9A9AA0">Burial</span></div><span style="color: #5E5E65; display: flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"></circle><circle cx="15" cy="6" r="1.5"></circle><circle cx="9" cy="12" r="1.5"></circle><circle cx="15" cy="12" r="1.5"></circle><circle cx="9" cy="18" r="1.5"></circle><circle cx="15" cy="18" r="1.5"></circle></svg></span></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px 4px"><div style="width: 40px; height: 40px; border-radius: 5px; background: #2F3A33; flex-shrink: 0"></div><div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 14px; font-weight: 500">Endorphin</span><span style="font-size: 12px; color: #9A9AA0">Burial</span></div><span style="color: #5E5E65; display: flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"></circle><circle cx="15" cy="6" r="1.5"></circle><circle cx="9" cy="12" r="1.5"></circle><circle cx="15" cy="12" r="1.5"></circle><circle cx="9" cy="18" r="1.5"></circle><circle cx="15" cy="18" r="1.5"></circle></svg></span></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px 4px"><div style="width: 40px; height: 40px; border-radius: 5px; background: #2F3A33; flex-shrink: 0"></div><div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 14px; font-weight: 500">Etched Headplate</span><span style="font-size: 12px; color: #9A9AA0">Burial</span></div><span style="color: #5E5E65; display: flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"></circle><circle cx="15" cy="6" r="1.5"></circle><circle cx="9" cy="12" r="1.5"></circle><circle cx="15" cy="12" r="1.5"></circle><circle cx="9" cy="18" r="1.5"></circle><circle cx="15" cy="18" r="1.5"></circle></svg></span></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px 4px"><div style="width: 40px; height: 40px; border-radius: 5px; background: #2F3A33; flex-shrink: 0"></div><div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 14px; font-weight: 500">In McDonalds</span><span style="font-size: 12px; color: #9A9AA0">Burial</span></div><span style="color: #5E5E65; display: flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"></circle><circle cx="15" cy="6" r="1.5"></circle><circle cx="9" cy="12" r="1.5"></circle><circle cx="15" cy="12" r="1.5"></circle><circle cx="9" cy="18" r="1.5"></circle><circle cx="15" cy="18" r="1.5"></circle></svg></span></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px 4px"><div style="width: 40px; height: 40px; border-radius: 5px; background: #2F3A33; flex-shrink: 0"></div><div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 14px; font-weight: 500">Untrue</span><span style="font-size: 12px; color: #9A9AA0">Burial</span></div><span style="color: #5E5E65; display: flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"></circle><circle cx="15" cy="6" r="1.5"></circle><circle cx="9" cy="12" r="1.5"></circle><circle cx="15" cy="12" r="1.5"></circle><circle cx="9" cy="18" r="1.5"></circle><circle cx="15" cy="18" r="1.5"></circle></svg></span></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px 4px"><div style="width: 40px; height: 40px; border-radius: 5px; background: #2F3A33; flex-shrink: 0"></div><div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 14px; font-weight: 500">Shell of Light</span><span style="font-size: 12px; color: #9A9AA0">Burial</span></div><span style="color: #5E5E65; display: flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"></circle><circle cx="15" cy="6" r="1.5"></circle><circle cx="9" cy="12" r="1.5"></circle><circle cx="15" cy="12" r="1.5"></circle><circle cx="9" cy="18" r="1.5"></circle><circle cx="15" cy="18" r="1.5"></circle></svg></span></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px 4px"><div style="width: 40px; height: 40px; border-radius: 5px; background: #2F3A33; flex-shrink: 0"></div><div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 14px; font-weight: 500">Dog Shelter</span><span style="font-size: 12px; color: #9A9AA0">Burial</span></div><span style="color: #5E5E65; display: flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"></circle><circle cx="15" cy="6" r="1.5"></circle><circle cx="9" cy="12" r="1.5"></circle><circle cx="15" cy="12" r="1.5"></circle><circle cx="9" cy="18" r="1.5"></circle><circle cx="15" cy="18" r="1.5"></circle></svg></span></div>
+
+</div>
+</aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1024}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
