@@ -77,6 +77,10 @@ const RESOLVE_LIMIT = 120;
 const MUSICBRAINZ_GENRE_LIMIT = 30;
 /** Albums to Start With: one per top pick, this many per mode. */
 const STARTER_ALBUMS = 12;
+/** A cached starter album (`start:<artist mbid>`). */
+type StarterAlbum = { mbid: string; title: string; year: number | null };
+/** An artist's most listened albums on ListenBrainz to check for a studio album. */
+const STARTER_CANDIDATES = 5;
 /** Explore by Tag: genres shown per mode. */
 const TAGS_SHOWN = 10;
 /** Artists shown on a tag page. */
@@ -232,18 +236,11 @@ export class Discovery {
 
   /**
    * A tag page: artists MusicBrainz tags with this genre, the best known
-   * first (ListenBrainz listeners), with their most played album, and the
-   * genres that go with it in the user's own recommendations.
+   * first (ListenBrainz listeners), and the genres that go with it in the
+   * user's own recommendations. Their albums come separately (tagAlbums).
    */
-  async tag(userId: number, tag: string): Promise<{ artists: TagArtist[]; albums: ReleaseSummary[]; related: string[] }> {
-    const found = await this.cache.get(`mb:tagged:${tag.toLowerCase()}`, MAX_AGE.similar, () =>
-      this.sources.musicbrainz.artistsTagged(tag),
-    );
-    const listeners = await this.popularity(found.map((a) => a.mbid));
-    const ranked = [...found]
-      .filter((a) => a.mbid !== VARIOUS_ARTISTS)
-      .sort((a, b) => (listeners.get(b.mbid) ?? 0) - (listeners.get(a.mbid) ?? 0))
-      .slice(0, TAG_ARTISTS);
+  async tag(userId: number, tag: string): Promise<{ artists: TagArtist[]; related: string[] }> {
+    const ranked = await this.tagArtists(tag);
     const library = new Set(this.library.read().artists.map((a) => a.mbid));
     const recommended = new Set(MODES.flatMap((mode) => this.read(userId, mode).items.map((i) => i.mbid)));
     const artists = await Promise.all(
@@ -259,7 +256,6 @@ export class Discovery {
         };
       }),
     );
-    const albums = await this.starterAlbums(artists.slice(0, STARTER_ALBUMS));
 
     // Related: genres that appear alongside this one on the user's recommendations.
     const wanted = tag.toLowerCase();
@@ -271,7 +267,30 @@ export class Discovery {
       }
     }
     const related = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([g]) => g);
-    return { artists, albums, related };
+    return { artists, related };
+  }
+
+  /**
+   * Top Albums for a tag page: the most played album of each of its best-known
+   * artists. Uncached, this is one MusicBrainz request per artist (about a
+   * second each), so the page loads it after the artists.
+   */
+  async tagAlbums(tag: string): Promise<ReleaseSummary[]> {
+    const ranked = (await this.tagArtists(tag)).slice(0, STARTER_ALBUMS);
+    const named = await Promise.all(ranked.map(async (a) => ({ mbid: a.mbid, name: (await this.lookup(a.mbid))?.artistName ?? a.name })));
+    return this.starterAlbums(named);
+  }
+
+  /** Artists MusicBrainz tags with this genre, the best known first. */
+  private async tagArtists(tag: string) {
+    const found = await this.cache.get(`mb:tagged:${tag.toLowerCase()}`, MAX_AGE.similar, () =>
+      this.sources.musicbrainz.artistsTagged(tag),
+    );
+    const listeners = await this.popularity(found.map((a) => a.mbid));
+    return [...found]
+      .filter((a) => a.mbid !== VARIOUS_ARTISTS)
+      .sort((a, b) => (listeners.get(b.mbid) ?? 0) - (listeners.get(a.mbid) ?? 0))
+      .slice(0, TAG_ARTISTS);
   }
 
   // Feedback and blocklist ----------------------------------------------------
@@ -624,38 +643,78 @@ export class Discovery {
    * studio albums on MusicBrainz, one per artist, in the artists' order.
    */
   private async starterAlbums(artists: { mbid: string; name: string }[]): Promise<ReleaseSummary[]> {
-    const albums: ReleaseSummary[] = [];
-    for (const artist of artists) {
-      const album = await this.cache
-        .get(`start:${artist.mbid}`, MAX_AGE.similar, async () => {
-          const groups = (await this.sources.musicbrainz.releaseGroups(artist.mbid)).filter(
-            (g) => releaseType(g['primary-type'], g['secondary-types']) === 'Album' && g['first-release-date'],
-          );
-          if (!groups.length) return null;
-          const listeners = await this.sources.listenbrainz
-            .releaseGroupPopularity(groups.map((g) => g.id))
-            .catch(() => new Map<string, number>());
-          const best = [...groups].sort(
-            (a, b) =>
-              (listeners.get(b.id) ?? 0) - (listeners.get(a.id) ?? 0) ||
-              (a['first-release-date'] ?? '').localeCompare(b['first-release-date'] ?? ''),
-          )[0]!;
-          return { mbid: best.id, title: best.title, year: yearOf(best['first-release-date']) };
-        })
-        .catch(() => null);
-      if (!album) continue;
-      albums.push({
-        mbid: album.mbid,
-        title: album.title,
-        type: 'Album',
-        year: album.year,
-        coverUrl: this.images.releaseGroupCover(album.mbid),
-        artistMbid: artist.mbid,
-        artistName: artist.name,
-        status: { kind: 'available' },
-      });
-    }
-    return albums;
+    const uncached = artists.filter((a) => this.cache.peek(`start:${a.mbid}`, MAX_AGE.similar) === undefined);
+    const quick = await this.quickStarterAlbums(uncached);
+    const found = await Promise.all(artists.map((artist) => this.starterAlbum(artist, quick)));
+    return artists.flatMap((artist, i): ReleaseSummary[] => {
+      const album = found[i];
+      if (!album) return [];
+      return [
+        {
+          mbid: album.mbid,
+          title: album.title,
+          type: 'Album',
+          year: album.year,
+          coverUrl: this.images.releaseGroupCover(album.mbid),
+          artistMbid: artist.mbid,
+          artistName: artist.name,
+          status: { kind: 'available' },
+        },
+      ];
+    });
+  }
+
+  /**
+   * Starter albums the fast way: each artist's most listened albums on
+   * ListenBrainz (all artists at once), then one MusicBrainz search for their
+   * types, so live albums and compilations are skipped. Browsing each artist
+   * on MusicBrainz instead takes a second or more per artist. Artists this
+   * cannot settle are left out, and starterAlbum browses for them.
+   */
+  private async quickStarterAlbums(artists: { mbid: string }[]): Promise<Map<string, StarterAlbum>> {
+    const result = new Map<string, StarterAlbum>();
+    if (!artists.length) return result;
+    const candidates = await Promise.all(
+      artists.map((artist) =>
+        this.sources.listenbrainz
+          .topReleaseGroups(artist.mbid)
+          .then((groups) => groups.filter((g) => g.type === 'Album').slice(0, STARTER_CANDIDATES).map((g) => g.mbid))
+          .catch(() => [] as string[]),
+      ),
+    );
+    if (!candidates.some((c) => c.length)) return result;
+    const groups = await this.sources.musicbrainz.releaseGroupsById(candidates.flat()).catch(() => []);
+    const byId = new Map(groups.map((g) => [g.id, g]));
+    artists.forEach((artist, i) => {
+      const best = candidates[i]!
+        .map((mbid) => byId.get(mbid))
+        .find((g) => g && releaseType(g['primary-type'], g['secondary-types']) === 'Album' && g['first-release-date']);
+      if (best) result.set(artist.mbid, { mbid: best.id, title: best.title, year: yearOf(best['first-release-date']) });
+    });
+    return result;
+  }
+
+  /** One artist's starter album: from quickStarterAlbums, or by browsing MusicBrainz. */
+  private starterAlbum(artist: { mbid: string }, quick: Map<string, StarterAlbum>) {
+    return this.cache
+      .get(`start:${artist.mbid}`, MAX_AGE.similar, async (): Promise<StarterAlbum | null> => {
+        const known = quick.get(artist.mbid);
+        if (known) return known;
+        const groups = (await this.sources.musicbrainz.releaseGroups(artist.mbid, { albumsOnly: true })).filter(
+          (g) => releaseType(g['primary-type'], g['secondary-types']) === 'Album' && g['first-release-date'],
+        );
+        if (!groups.length) return null;
+        const listeners = await this.sources.listenbrainz
+          .releaseGroupPopularity(groups.map((g) => g.id))
+          .catch(() => new Map<string, number>());
+        const best = [...groups].sort(
+          (a, b) =>
+            (listeners.get(b.id) ?? 0) - (listeners.get(a.id) ?? 0) ||
+            (a['first-release-date'] ?? '').localeCompare(b['first-release-date'] ?? ''),
+        )[0]!;
+        return { mbid: best.id, title: best.title, year: yearOf(best['first-release-date']) };
+      })
+      .catch(() => null);
   }
 
   private async similar(artist: { mbid: string; name: string }, lastfm: LastfmClient | null): Promise<SimilarLists> {

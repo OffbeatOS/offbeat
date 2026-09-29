@@ -39,6 +39,9 @@ const browseSchema = z.object({
   'release-groups': z.array(releaseGroupSchema),
 });
 
+const releaseGroupSearchSchema = z.object({ 'release-groups': z.array(releaseGroupSchema) });
+const MBID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const releasesSchema = z.object({
   releases: z.array(
     z.object({
@@ -88,18 +91,39 @@ export class MusicBrainzClient {
     this.limiter = new Bottleneck({ maxConcurrent: 1, minTime: minTimeMs });
   }
 
-  /** Every release group credited to an artist. */
-  async releaseGroups(artistMbid: string): Promise<MbReleaseGroup[]> {
+  /**
+   * An artist's release groups. `albumsOnly` asks for primary type Album
+   * (live albums and compilations included): usually one page instead of
+   * several for a big artist, each page a second of rate limit.
+   */
+  async releaseGroups(artistMbid: string, { albumsOnly = false } = {}): Promise<MbReleaseGroup[]> {
     const all: MbReleaseGroup[] = [];
+    const type = albumsOnly ? '&type=album' : '';
     for (let offset = 0; offset < 1000; offset += 100) {
       const page = await this.get(
-        `release-group?artist=${encodeURIComponent(artistMbid)}&limit=100&offset=${offset}&fmt=json`,
+        `release-group?artist=${encodeURIComponent(artistMbid)}${type}&limit=100&offset=${offset}&fmt=json`,
         browseSchema,
       );
       all.push(...page['release-groups']);
       if (all.length >= page['release-group-count'] || page['release-groups'].length === 0) break;
     }
     return all;
+  }
+
+  /**
+   * Release groups by MBID, up to 40 in one request (a search on their ids),
+   * for their types and dates. Ones MusicBrainz does not return are left out.
+   */
+  async releaseGroupsById(mbids: string[]): Promise<MbReleaseGroup[]> {
+    const ids = [...new Set(mbids.filter((m) => MBID.test(m)).map((m) => m.toLowerCase()))];
+    const found: MbReleaseGroup[] = [];
+    for (let i = 0; i < ids.length; i += 40) {
+      const batch = ids.slice(i, i + 40);
+      const query = encodeURIComponent(`rgid:(${batch.join(' OR ')})`);
+      const result = await this.get(`release-group?query=${query}&limit=100&fmt=json`, releaseGroupSearchSchema);
+      found.push(...result['release-groups'].filter((g) => batch.includes(g.id)));
+    }
+    return found;
   }
 
   async releaseGroup(mbid: string): Promise<MbReleaseGroup> {

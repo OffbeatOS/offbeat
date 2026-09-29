@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import type { TagArtist, TagPage as TagPageData } from '@offbeat/shared';
+import type { ReleaseSummary, TagAlbums, TagArtist, TagPage as TagPageData } from '@offbeat/shared';
 import { Api, ApiError } from '../../core/api';
 import { Cover } from '../../shared/catalog/cover';
 import { QuickAdd } from '../../shared/catalog/quick-add';
@@ -16,7 +16,8 @@ const FIRST = 6;
 /**
  * Tag page (Tag mockup): the best-known artists with this genre, their
  * most played albums, and genres that go with it in the user's own
- * recommendations. Reached from Explore by Tag.
+ * recommendations. Reached from Explore by Tag. The albums load after the
+ * artists: the first visit to a tag takes several seconds to find them.
  */
 @Component({
   selector: 'ob-tag-page',
@@ -32,7 +33,11 @@ export class TagPage {
   readonly tag = input.required<string>();
 
   protected readonly data = signal<TagPageData | null>(null);
+  /** Null while loading. */
+  protected readonly topAlbums = signal<ReleaseSummary[] | null>(null);
+  protected readonly albumsError = signal(false);
   protected readonly error = signal('');
+  protected readonly ghosts = [1, 2, 3, 4, 5, 6];
   protected readonly addError = signal('');
   protected readonly hideLibrary = signal(readHide());
   protected readonly allArtists = signal(false);
@@ -51,11 +56,11 @@ export class TagPage {
     () => (this.data()?.artists ?? []).filter((a) => !this.hideLibrary() || !this.libraryArtists().has(a.mbid)).length > FIRST,
   );
   protected readonly albums = computed(() => {
-    const all = (this.data()?.albums ?? []).filter((a) => !this.hideLibrary() || !this.libraryArtists().has(a.artistMbid));
+    const all = (this.topAlbums() ?? []).filter((a) => !this.hideLibrary() || !this.libraryArtists().has(a.artistMbid));
     return this.allAlbums() ? all : all.slice(0, FIRST);
   });
   protected readonly moreAlbums = computed(
-    () => (this.data()?.albums ?? []).filter((a) => !this.hideLibrary() || !this.libraryArtists().has(a.artistMbid)).length > FIRST,
+    () => (this.topAlbums() ?? []).filter((a) => !this.hideLibrary() || !this.libraryArtists().has(a.artistMbid)).length > FIRST,
   );
 
   constructor() {
@@ -85,13 +90,28 @@ export class TagPage {
 
   private async load(tag: string) {
     this.data.set(null);
+    this.topAlbums.set(null);
+    this.albumsError.set(false);
     this.error.set('');
     this.allArtists.set(false);
     this.allAlbums.set(false);
+    const path = `tags/${encodeURIComponent(tag)}`;
+    let page: TagPageData;
     try {
-      this.data.set(await this.api.get<TagPageData>(`tags/${encodeURIComponent(tag)}`));
+      page = await this.api.get<TagPageData>(path);
     } catch (error) {
-      this.error.set(error instanceof ApiError ? error.message : 'Could not load this tag');
+      if (tag === this.tag()) this.error.set(error instanceof ApiError ? error.message : 'Could not load this tag');
+      return;
+    }
+    // Another tag was opened meanwhile: its own load owns the page now.
+    if (tag !== this.tag()) return;
+    this.data.set(page);
+    if (!page.artists.length) return;
+    try {
+      const { albums } = await this.api.get<TagAlbums>(`${path}/albums`);
+      if (tag === this.tag()) this.topAlbums.set(albums);
+    } catch {
+      if (tag === this.tag()) this.albumsError.set(true);
     }
   }
 }

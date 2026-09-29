@@ -98,6 +98,7 @@ const ANY_SIGNED_IN = new Set([
   'POST /blocklist',
   'DELETE /blocklist/:id',
   'GET /tags/:tag',
+  'GET /tags/:tag/albums',
   'GET /account',
   'PUT /account/listening',
   'PUT /account/password',
