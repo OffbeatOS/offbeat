@@ -78,6 +78,13 @@
       "when": 1790698464107,
       "tag": "0010_stream_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1790724769012,
+      "tag": "0011_plays",
+      "breakpoints": true
     }
   ]
 }

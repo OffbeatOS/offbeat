@@ -84,7 +84,25 @@ describe('listening accounts', () => {
       lastfmUsername: null,
       listenbrainzUsername: null,
       lastfmAvailable: false,
+      listenbrainzSubmit: null,
     });
+  });
+
+  it('checks a ListenBrainz token before submitting plays with it, and never shows it again', async () => {
+    const { call, fake } = await setup();
+    const token = '11111111-2222-4333-8444-555555555555';
+    expect((await call('PUT', '/account/listenbrainz-token', { token: 'not a token' })).statusCode).toBe(400);
+    const wrong = await call('PUT', '/account/listenbrainz-token', { token: '99999999-2222-4333-8444-555555555555' });
+    expect(wrong.statusCode).toBe(422);
+    expect(wrong.json<{ message: string }>().message).toContain('did not accept that token');
+
+    const saved = await call('PUT', '/account/listenbrainz-token', { token });
+    expect(saved.json<AccountView>().listenbrainzSubmit).toEqual({ userName: 'sam_lb', lastSubmittedAt: null, pending: 0, error: null });
+    expect(saved.body).not.toContain(token);
+    expect((await call('GET', '/account')).body).not.toContain(token);
+    expect(fake.requests).toContain('/listenbrainz/1/validate-token');
+
+    expect((await call('DELETE', '/account/listenbrainz-token', {})).json<AccountView>().listenbrainzSubmit).toBeNull();
   });
 
   it("checks names with each service and keeps Last.fm's own spelling", async () => {

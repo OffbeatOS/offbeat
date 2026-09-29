@@ -16,6 +16,7 @@ import { currentClient } from './integrations/lidarr/settings.js';
 import { Notifier, type NotifierOptions } from './notifications/notifier.js';
 import { MusicFiles } from './library/music-files.js';
 import { Transcoder } from './streaming/transcoder.js';
+import { Plays, type PlaysOptions } from './listening/plays.js';
 import { ListenBrainzClient } from './integrations/listenbrainz/client.js';
 import { MUSICBRAINZ_URL, MusicBrainzClient } from './integrations/musicbrainz/client.js';
 import { Library } from './library/library.js';
@@ -35,6 +36,7 @@ declare module 'fastify' {
     notifier: Notifier;
     musicFiles: MusicFiles;
     transcoder: Transcoder;
+    plays: Plays;
     /** Listening and similarity sources. Last.fm is null until an admin connects it. */
     sources: { lastfm: () => LastfmClient | null; listenbrainz: ListenBrainzClient };
   }
@@ -64,6 +66,7 @@ export interface AppOptions {
   sources?: { lastfmUrl?: string; listenbrainzUrl?: string; listenbrainzLabsUrl?: string };
   discovery?: DiscoveryOptions;
   notifications?: NotifierOptions;
+  plays?: PlaysOptions;
   /** Filled with every API route and its access config (for tests). */
   routeTable?: ApiRouteInfo[];
 }
@@ -84,6 +87,7 @@ export async function buildApp({
   sources = {},
   discovery = {},
   notifications = {},
+  plays = {},
   routeTable,
 }: AppOptions) {
   const app = Fastify({
@@ -138,6 +142,11 @@ export async function buildApp({
   });
   app.addHook('onClose', async () => app.activity.stop());
 
+  // Plays in Offbeat: History, Discover seeds, and ListenBrainz for users who add their token.
+  app.decorate('plays', new Plays(db, settings, currentClient(settings), imageUrls, app.sources.listenbrainz, app.log, plays));
+  app.addHook('onReady', async () => app.plays.start());
+  app.addHook('onClose', async () => app.plays.stop());
+
   app.decorate(
     'discovery',
     new Discovery(
@@ -148,6 +157,7 @@ export async function buildApp({
         listenbrainz: app.sources.listenbrainz,
         lidarr: currentClient(settings),
         musicbrainz: musicbrainzClient,
+        plays: app.plays,
       },
       imageUrls,
       app.log,

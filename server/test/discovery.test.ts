@@ -110,9 +110,11 @@ function setup({ lastfm = false, listenbrainzFails = false } = {}) {
       ];
     }),
   } as unknown as LidarrClient;
-  const sources: DiscoverySources = { listenbrainz, lastfm: () => (lastfm ? lastfmClient : null), lidarr: () => lidarr, musicbrainz };
+  // Plays in Offbeat: NOFX a dozen times.
+  const localPlays = { listened: vi.fn((_userId: number, _options: { skipSubmitted: boolean }) => [{ mbid: id('NOFX'), name: 'NOFX', plays: 12 }]) };
+  const sources: DiscoverySources = { listenbrainz, lastfm: () => (lastfm ? lastfmClient : null), lidarr: () => lidarr, musicbrainz, plays: localPlays };
   const discovery = new Discovery(db, library, sources, new ImageUrls(randomBytes(32)), silentLog, { schedule: null });
-  return { db, discovery, userId: user.id, listenbrainz, lastfmClient, lookups, musicbrainz };
+  return { db, discovery, userId: user.id, listenbrainz, lastfmClient, lookups, musicbrainz, localPlays };
 }
 
 describe('Discovery', () => {
@@ -205,6 +207,18 @@ describe('Discovery', () => {
       { albumsOnly: true },
       { albumsOnly: true },
     ]);
+  });
+
+  it('counts plays in Offbeat as listening, without counting ListenBrainz ones twice', async () => {
+    const { discovery, userId, localPlays, db } = setup();
+    const nofx = (await discovery.seedsFor(userId)).find((seed) => seed.name === 'NOFX');
+    expect(nofx).toMatchObject({ inLibrary: true, plays: 12 });
+    expect(localPlays.listened).toHaveBeenLastCalledWith(userId, { skipSubmitted: false });
+
+    // With ListenBrainz history in use, plays already submitted there are counted there.
+    db.update(users).set({ listenbrainzUsername: 'sam_lb' }).run();
+    await discovery.seedsFor(userId);
+    expect(localPlays.listened).toHaveBeenLastCalledWith(userId, { skipSubmitted: true });
   });
 
   it('shows Top Picks before Albums to Start With on a first refresh', async () => {

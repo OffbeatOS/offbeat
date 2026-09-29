@@ -1,5 +1,6 @@
-import { Injectable, computed, signal } from '@angular/core';
-import type { AlbumDetail } from '@offbeat/shared';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import type { AlbumDetail, PlayedTrack, RecordPlayRequest } from '@offbeat/shared';
+import { Api } from './api';
 
 /** One entry in the queue. `key` is unique per entry, so the same track can be queued twice. */
 export interface QueueTrack {
@@ -25,7 +26,34 @@ const RESTART_AFTER = 3;
 const CUT_SHORT = 3;
 /** How many times one track picks up again after being cut off before the player moves on. */
 const MAX_RESUMES = 2;
+/** A play counts after half the track or 4 minutes of listening, whichever comes first (as ListenBrainz and Last.fm count). */
+const PLAY_AFTER_MAX = 240;
+/** Tracks shorter than this never count as plays. */
+const PLAY_MIN_LENGTH = 30;
+/** A failed play report is tried once more after this long. */
+const REPORT_RETRY_MS = 15_000;
+
+/** Seconds of listening before a track of this length counts as played. */
+export function playThreshold(durationSeconds: number): number {
+  return durationSeconds >= PLAY_MIN_LENGTH ? Math.min(durationSeconds / 2, PLAY_AFTER_MAX) : Infinity;
+}
 let nextKey = 0;
+
+/** A play from History, as a queue entry. */
+export function playedQueueEntry(played: PlayedTrack): QueueTrack {
+  return {
+    key: `q${++nextKey}`,
+    trackFileId: played.trackFileId,
+    mimeType: played.mimeType,
+    title: played.title,
+    artistName: played.artistName,
+    artistMbid: played.artistMbid ?? '',
+    albumTitle: played.albumTitle,
+    albumMbid: played.albumMbid ?? '',
+    coverUrl: played.coverUrl,
+    durationMs: played.durationMs,
+  };
+}
 
 /** The tracks of an album that have files, as queue entries. */
 export function albumQueue(album: AlbumDetail): QueueTrack[] {
@@ -58,6 +86,7 @@ export function albumQueue(album: AlbumDetail): QueueTrack[] {
  */
 @Injectable({ providedIn: 'root' })
 export class Player {
+  private readonly api = inject(Api);
   readonly current = signal<QueueTrack | null>(null);
   readonly added = signal<readonly QueueTrack[]>([]);
   readonly upNext = signal<readonly QueueTrack[]>([]);
@@ -98,6 +127,14 @@ export class Player {
   private audio: HTMLAudioElement | null = null;
   private triedTranscode = false;
   private resumes = 0;
+  /** Seconds actually listened to of this playthrough (seeking forward does not count). */
+  private listened = 0;
+  /** The animation frame keeping the position smooth while playing. */
+  private frame = 0;
+  private reported = false;
+  private startedAt = new Date();
+  /** Counts plays reported this session, so History knows to look again. */
+  readonly playsReported = signal(0);
 
   /** Starts an album (or its tracks from `startAt`), replacing what was queued from before. */
   playAlbum(album: AlbumDetail, { startAt = 0, shuffle = false }: { startAt?: number; shuffle?: boolean } = {}) {
@@ -305,6 +342,7 @@ export class Player {
     this.mediaDuration.set(0);
     this.triedTranscode = false;
     this.resumes = 0;
+    this.newPlaythrough();
     this.transcoding.set(!canPlay(audio, track.mimeType));
     audio.src = this.streamUrl(track, 0);
     this.updateMediaSession(track);
@@ -326,15 +364,21 @@ export class Player {
       this.playing.set(true);
       this.buffering.set(false);
       this.setPlaybackState('playing');
+      this.followFrames();
     });
     audio.addEventListener('pause', () => {
       this.playing.set(false);
       this.setPlaybackState('paused');
+      cancelAnimationFrame(this.frame);
     });
     audio.addEventListener('waiting', () => this.buffering.set(true));
     audio.addEventListener('canplay', () => this.buffering.set(false));
+    // The browser reports time a few times a second, which makes the bar step; followFrames
+    // smooths it while visible. This still runs in the background and on a locked phone.
     audio.addEventListener('timeupdate', () => {
-      this.position.set(this.offset + audio.currentTime);
+      const position = this.offset + audio.currentTime;
+      this.countListening(position);
+      this.position.set(position);
       this.updatePositionState();
     });
     audio.addEventListener('durationchange', () => {
@@ -350,6 +394,7 @@ export class Player {
         return;
       }
       if (this.repeat() === 'one') {
+        this.newPlaythrough();
         this.seek(0);
         void audio.play().catch(() => undefined);
       } else {
@@ -360,6 +405,48 @@ export class Player {
     this.audio = audio;
     this.registerMediaSession();
     return audio;
+  }
+
+  /** Reads the position every frame while playing, so the progress bar moves smoothly. */
+  private followFrames() {
+    cancelAnimationFrame(this.frame);
+    const step = () => {
+      const audio = this.audio;
+      if (!audio || audio.paused) return;
+      const position = this.offset + audio.currentTime;
+      this.countListening(position);
+      this.position.set(position);
+      this.frame = requestAnimationFrame(step);
+    };
+    this.frame = requestAnimationFrame(step);
+  }
+
+  private newPlaythrough() {
+    this.listened = 0;
+    this.reported = false;
+    this.startedAt = new Date();
+  }
+
+  /** Adds the time played since the last update, and reports the play once it is long enough. */
+  private countListening(position: number) {
+    const step = position - this.position();
+    // Playback moves a fraction of a second between updates; a seek jumps further.
+    if (this.playing() && step > 0 && step < 2) this.listened += step;
+    const track = this.current();
+    if (track && !this.reported && this.listened >= playThreshold(this.duration())) {
+      this.reported = true;
+      void this.report({ trackFileId: track.trackFileId, playedAt: this.startedAt.toISOString() });
+    }
+  }
+
+  private async report(play: RecordPlayRequest, retry = true): Promise<void> {
+    try {
+      await this.api.post('plays', play);
+      this.playsReported.update((n) => n + 1);
+    } catch {
+      // Offline for a moment, or Offbeat restarting: one more try. The server ignores a repeat.
+      if (retry) setTimeout(() => void this.report(play, false), REPORT_RETRY_MS);
+    }
   }
 
   /** Reloads the stream and carries on from `seconds`. */

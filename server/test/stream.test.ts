@@ -231,3 +231,28 @@ describe('Transcoder with a real ffmpeg', () => {
     await expect(transcoder.start('x.flac', 0)).rejects.toThrow(TranscoderUnavailable);
   });
 });
+
+describe('POST /plays and GET /plays', () => {
+  it('records plays for users who may stream, and lists only your own', async () => {
+    const { app, admin, member } = await setup(audioFile());
+    const record = vi.spyOn(app.plays, 'record').mockResolvedValue();
+    const post = (cookie: string, payload: object) => app.inject({ method: 'POST', url: '/api/v1/plays', headers: { cookie }, payload });
+    const playedAt = new Date().toISOString();
+
+    const listener = await member('robin', ['stream']);
+    expect((await post(listener, { trackFileId: 7, playedAt })).statusCode).toBe(204);
+    expect(record).toHaveBeenCalledWith(expect.any(Number), 7, new Date(playedAt));
+
+    const other = await member('sam', ['add-albums']);
+    expect((await post(other, { trackFileId: 7, playedAt })).statusCode).toBe(403);
+    expect((await post(admin, { trackFileId: 'x', playedAt })).statusCode).toBe(400);
+    expect((await post(admin, { trackFileId: 7, playedAt: 'yesterday' })).statusCode).toBe(400);
+    expect(record).toHaveBeenCalledTimes(1);
+
+    const recent = vi.spyOn(app.plays, 'recent').mockReturnValue([]);
+    const mine = await app.inject({ method: 'GET', url: '/api/v1/plays?limit=5', headers: { cookie: other } });
+    expect(mine.statusCode).toBe(200);
+    expect(recent.mock.calls[0]).toEqual([expect.any(Number), 5]);
+    expect(recent.mock.calls[0]![0]).not.toBe(record.mock.calls[0]![0]);
+  });
+});

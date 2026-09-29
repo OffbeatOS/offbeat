@@ -11,6 +11,12 @@ export interface FakeListening {
   lastfmUsers: Map<string, { name: string; playcount: number }>;
   /** ListenBrainz users and their listen counts. */
   listenbrainzUsers: Map<string, number>;
+  /** ListenBrainz user tokens, and whose they are. */
+  listenbrainzTokens: Map<string, string>;
+  /** Bodies of accepted submit-listens requests, with the token used. */
+  submitted: { token: string; body: { listen_type: string; payload: { listened_at: number; track_metadata: Record<string, unknown> }[] } }[];
+  /** What submit-listens answers (200 accepts). */
+  submitStatus: { code: number };
   requests: string[];
   close: () => Promise<void>;
 }
@@ -19,9 +25,12 @@ export interface FakeListening {
 export async function startFakeListening(): Promise<FakeListening> {
   const lastfmUsers = new Map([['sam', { name: 'Sam', playcount: 1200 }]]);
   const listenbrainzUsers = new Map([['sam_lb', 5400]]);
+  const listenbrainzTokens = new Map([['11111111-2222-4333-8444-555555555555', 'sam_lb']]);
+  const submitted: FakeListening['submitted'] = [];
+  const submitStatus = { code: 200 };
   const requests: string[] = [];
 
-  const server: Server = createServer((req, res) => {
+  const server: Server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://fake');
     requests.push(url.pathname + url.search);
     const json = (status: number, body: unknown) => {
@@ -44,6 +53,22 @@ export async function startFakeListening(): Promise<FakeListening> {
       return json(400, { message: 'Invalid Method', error: 3 });
     }
 
+    const token = /^Token (.+)$/.exec(req.headers.authorization ?? '')?.[1] ?? '';
+    if (url.pathname === '/listenbrainz/1/validate-token') {
+      const user = listenbrainzTokens.get(token);
+      return user
+        ? json(200, { code: 200, message: 'Token valid.', valid: true, user_name: user })
+        : json(401, { code: 401, message: 'Invalid token', valid: false });
+    }
+    if (url.pathname === '/listenbrainz/1/submit-listens' && req.method === 'POST') {
+      let raw = '';
+      for await (const chunk of req) raw += chunk;
+      if (!listenbrainzTokens.has(token)) return json(401, { code: 401, error: 'Invalid authorization token.' });
+      if (submitStatus.code !== 200) return json(submitStatus.code, { code: submitStatus.code, error: 'Service unavailable' });
+      submitted.push({ token, body: JSON.parse(raw) });
+      return json(200, { status: 'ok' });
+    }
+
     const count = url.pathname.match(/^\/listenbrainz\/1\/user\/([^/]+)\/listen-count$/);
     if (count) {
       const name = decodeURIComponent(count[1]!);
@@ -62,6 +87,9 @@ export async function startFakeListening(): Promise<FakeListening> {
     listenbrainzUrl: `${base}/listenbrainz/1`,
     lastfmUsers,
     listenbrainzUsers,
+    listenbrainzTokens,
+    submitted,
+    submitStatus,
     requests,
     close: () =>
       new Promise((resolve) => {

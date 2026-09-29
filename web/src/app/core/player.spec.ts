@@ -1,6 +1,8 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import type { AlbumDetail, Track } from '@offbeat/shared';
-import { Player } from './player';
+import { Player, playThreshold } from './player';
 
 const track = (n: number, extra: Partial<Track> = {}): Track => ({
   position: String(n),
@@ -41,6 +43,7 @@ describe('Player', () => {
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
     vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined);
     vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockImplementation(() => canPlay as CanPlayTypeResult);
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     player = TestBed.inject(Player);
   });
 
@@ -161,6 +164,45 @@ describe('Player', () => {
       audio.dispatchEvent(new Event('ended'));
     }
     expect(player.current()?.title).toBe('Track 2');
+  });
+
+  it('counts a play after half the track or 4 minutes, and never for short tracks', () => {
+    expect(playThreshold(200)).toBe(100);
+    expect(playThreshold(600)).toBe(240);
+    expect(playThreshold(20)).toBe(Infinity);
+  });
+
+  it('reports a play once enough has been listened to, not skipped over, once per playthrough', () => {
+    const http = TestBed.inject(HttpTestingController);
+    player.playAlbum(album([track(1), track(2)]));
+    const audio = (player as unknown as { audio: HTMLAudioElement }).audio;
+    let time = 0;
+    Object.defineProperty(audio, 'currentTime', { get: () => time, set: (v: number) => (time = v), configurable: true });
+    const tick = (to: number) => {
+      time = to;
+      audio.dispatchEvent(new Event('timeupdate'));
+    };
+    audio.dispatchEvent(new Event('playing'));
+
+    // Seek to near the end: skipped-over time does not count.
+    tick(1);
+    player.seek(150);
+    for (let t = 151; t <= 199; t++) tick(t);
+    http.expectNone('api/v1/plays');
+
+    player.previous(); // back to the start of the same track, the same playthrough
+    for (let t = 1; t <= 49; t++) tick(t);
+    http.expectNone('api/v1/plays');
+    // 50 seconds before going back, plus 50 here: 100 of 200.
+    tick(50);
+    const report = http.expectOne('api/v1/plays');
+    expect(report.request.method).toBe('POST');
+    expect(report.request.body).toEqual({ trackFileId: 101, playedAt: expect.any(String) });
+    report.flush(null, { status: 204, statusText: 'No Content' });
+
+    for (let t = 51; t <= 190; t++) tick(t);
+    http.expectNone('api/v1/plays');
+    http.verify();
   });
 
   it('forgets everything when stopped (signing out)', () => {

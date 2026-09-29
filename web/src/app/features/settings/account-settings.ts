@@ -9,10 +9,11 @@ import { FormField } from '../../shared/form-field/form-field';
 import { Icon } from '../../shared/icon/icon';
 import { ChangePasswordForm } from '../auth/change-password-form';
 import { SettingsSection } from './settings-section';
+import { ListenBrainzSubmit } from './listenbrainz-submit';
 
 @Component({
   selector: 'ob-account-settings',
-  imports: [ReactiveFormsModule, RouterLink, FormField, Icon, SettingsSection, ChangePasswordForm],
+  imports: [ReactiveFormsModule, RouterLink, FormField, Icon, SettingsSection, ChangePasswordForm, ListenBrainzSubmit],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .password {
@@ -174,6 +175,17 @@ import { SettingsSection } from './settings-section';
         <p class="error" role="alert">{{ error() }}</p>
       }
     </ob-settings-section>
+
+    @if (account(); as a) {
+      @if (session.can('stream')) {
+        <ob-settings-section
+          heading="Plays"
+          description="What you play in Offbeat already counts toward your recommendations. You can send it to ListenBrainz too."
+        >
+          <ob-listenbrainz-submit [account]="a" (changed)="account.set($event)" />
+        </ob-settings-section>
+      }
+    }
   `,
 })
 export class AccountSettings implements OnInit {

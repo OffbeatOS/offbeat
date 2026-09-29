@@ -23,6 +23,7 @@ import type { MusicBrainzClient } from '../integrations/musicbrainz/client.js';
 import { releaseType, yearOf } from '../catalog/releases.js';
 import type { ImageUrls } from '../library/image-urls.js';
 import type { Library } from '../library/library.js';
+import type { Plays } from '../listening/plays.js';
 import {
   type Candidate,
   type DiscoveryMode,
@@ -57,6 +58,8 @@ export interface DiscoverySources {
   lidarr: () => LidarrClient | null;
   /** Curated genres when Last.fm is not connected. */
   musicbrainz: MusicBrainzClient;
+  /** What each user played in Offbeat, counted per artist. */
+  plays?: Pick<Plays, 'listened'>;
 }
 
 /** What one computation used and produced, for storage and for reviewing quality. */
@@ -493,6 +496,8 @@ export class Discovery {
         ...(await this.cache.get(`lf:top:${name}`, MAX_AGE.listening, () => lastfm.userTopArtists(name)).catch(() => [])),
       );
     }
+    // Plays in Offbeat itself. Those already sent to ListenBrainz are counted there when its history is used.
+    listened.push(...(this.sources.plays?.listened(userId, { skipSubmitted: !!user?.listenbrainzUsername }) ?? []));
     // Played artists Last.fm gave no MBID for: resolve by name so they can seed too.
     for (const artist of listened) {
       if (!artist.mbid) artist.mbid = (await this.resolveName(artist.name))?.foreignArtistId ?? null;

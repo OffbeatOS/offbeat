@@ -100,6 +100,9 @@ const ANY_SIGNED_IN = new Set([
   'GET /tags/:tag',
   'GET /tags/:tag/albums',
   'GET /account',
+  'GET /plays',
+  'PUT /account/listenbrainz-token',
+  'DELETE /account/listenbrainz-token',
   'PUT /account/listening',
   'PUT /account/password',
 ]);

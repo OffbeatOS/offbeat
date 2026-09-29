@@ -11,7 +11,9 @@ import {
   viewChild,
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { type QueueTrack, Player } from '../../core/player';
+import type { PlayedTrack } from '@offbeat/shared';
+import { Api } from '../../core/api';
+import { Player, playedQueueEntry } from '../../core/player';
 import { type ArtTint, artTint } from '../art-tint';
 import { Cover } from '../catalog/cover';
 import { formatDuration } from '../format';
@@ -452,7 +454,7 @@ import { Transport } from './transport';
           <ob-queue-list [showCurrent]="false" />
         } @else {
           <ol class="history">
-            @for (played of player.history(); track played.key) {
+            @for (played of history(); track played.playedAt + played.trackFileId) {
               <li>
                 <button type="button" (click)="playAgain(played)" [attr.aria-label]="'Play ' + played.title + ' again'">
                   <ob-cover [src]="played.coverUrl" radius="5px" />
@@ -482,6 +484,9 @@ export class NowPlaying {
   protected readonly panel = signal<'next' | 'history'>('next');
   /** On a phone, Up Next takes the place of the art. */
   protected readonly showingQueue = signal(false);
+  /** What this user played, from any device (saved plays), newest first. */
+  protected readonly history = signal<readonly PlayedTrack[]>([]);
+  private readonly api = inject(Api);
   private readonly closeButton = viewChild<ElementRef<HTMLButtonElement>>('closeButton');
 
   constructor() {
@@ -491,6 +496,16 @@ export class NowPlaying {
       void artTint(cover).then((tint) => {
         if ((this.player.current()?.coverUrl ?? null) === cover) this.tint.set(tint);
       });
+    });
+
+    // History loads when shown, and again after each play is recorded.
+    effect(() => {
+      if (this.panel() !== 'history') return;
+      this.player.playsReported();
+      void this.api
+        .get<PlayedTrack[]>('plays?limit=50')
+        .then((plays) => this.history.set(plays))
+        .catch(() => undefined);
     });
 
     // Focus moves into the dialog, and back to where it was when it closes.
@@ -513,12 +528,12 @@ export class NowPlaying {
     void this.router.navigate(commands);
   }
 
-  protected playAgain(track: QueueTrack) {
-    this.player.playNext([track]);
+  protected playAgain(played: PlayedTrack) {
+    this.player.playNext([playedQueueEntry(played)]);
     this.player.next();
   }
 
-  protected time(track: QueueTrack): string {
+  protected time(track: PlayedTrack): string {
     return formatDuration((track.durationMs ?? 0) / 1000);
   }
 

@@ -23,12 +23,12 @@ Self-hosted music discovery for Lidarr. Find new artists based on what you alrea
 - **Search, Artist, and Album pages.** Look up anything on MusicBrainz, see what you already have track by track, and add an artist or a single album in one click.
 - **Sensible adds.** Adding an artist monitors all their albums and future releases; adding one album gets just that album. Lidarr searches right away, and everything Offbeat adds is tagged `offbeat`. All of it can be changed in Settings.
 - **Activity.** Searches, downloads, and imports update live, with plain-English reasons when an import is blocked, and Retry or Cancel in one click. The bottom bar shows the current download on every page. Set up Lidarr's webhook (one click in Settings) and Activity updates within seconds.
-- **Listening.** Play your library in the browser: FLAC and MP3 play as they are, and anything else is converted on the fly. The player stays put as you browse, with a queue you can reorder, a Now Playing view, lock screen and media key controls, and space and the arrow keys to play, pause, and seek.
+- **Listening.** Play your library in the browser: FLAC and MP3 play as they are, and anything else is converted on the fly. The player stays put as you browse, with a queue you can reorder, a Now Playing view, lock screen and media key controls, and space and the arrow keys to play, pause, and seek. What you play shapes your recommendations, and can be sent to ListenBrainz with your token (Settings, Account).
 - **Multiple users.** Admins and Members, with permissions for what each Member can do: stream, add artists, add albums, change monitoring, delete. Sign in with a password, through a reverse proxy such as Authelia or Authentik, or automatically on your local network. See [Sign-in options](#sign-in-options).
 - **Notifications.** Discord or any webhook when an album is imported, a download fails, an import is blocked, or a monitored artist has a new release. See [Notifications](#notifications).
 - **One small container.** One process, one port, SQLite. No external database or cache.
 
-Coming next: listening history, previews, and streaming to Subsonic apps. Flows and playlists come later.
+Coming next: previews, and streaming to Subsonic apps. Flows and playlists come later.
 
 Offbeat talks to Lidarr for everything in your library; it never writes to your music folders itself.
 

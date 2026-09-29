@@ -1,6 +1,6 @@
 import Bottleneck from 'bottleneck';
 import { z } from 'zod';
-import { USER_AGENT } from '../../version.js';
+import { USER_AGENT, VERSION } from '../../version.js';
 import { fetchBuffered } from '../http.js';
 
 export const LISTENBRAINZ_URL = 'https://api.listenbrainz.org/1';
@@ -14,6 +14,22 @@ const TIMEOUT_MS = 10_000;
 const limiter = new Bottleneck({ maxConcurrent: 2, minTime: 250 });
 
 export class ListenBrainzError extends Error {}
+/** ListenBrainz refused a user token: it was wrong, or has been reset. */
+export class ListenBrainzTokenRejected extends ListenBrainzError {}
+
+const validateTokenSchema = z.object({ valid: z.boolean().optional(), user_name: z.string().nullish() });
+
+/** One play, in ListenBrainz's listen format. */
+export interface Listen {
+  listenedAt: Date;
+  track: string;
+  artist: string;
+  release: string | null;
+  recordingMbid: string | null;
+  releaseGroupMbid: string | null;
+  artistMbid: string | null;
+  durationMs: number | null;
+}
 
 const listenCountSchema = z.object({ payload: z.object({ count: z.number() }) });
 const similarSchema = z.array(z.object({ artist_mbid: z.string(), name: z.string(), score: z.number() }));
@@ -125,6 +141,49 @@ export class ListenBrainzClient {
     const parsed = topReleaseGroupsSchema.safeParse(await response.json().catch(() => undefined));
     if (!parsed.success) throw new ListenBrainzError('ListenBrainz top albums answered in an unexpected format');
     return parsed.data.flatMap((r) => (r.release_group_mbid ? [{ mbid: r.release_group_mbid, type: r.release_group?.type ?? null }] : []));
+  }
+
+  /** The ListenBrainz user a token belongs to. Throws ListenBrainzTokenRejected when it is not valid. */
+  async validateToken(token: string): Promise<string> {
+    const response = await this.send(`${this.url}/validate-token`, { headers: { Authorization: `Token ${token}` } });
+    const parsed = validateTokenSchema.safeParse(await response.json().catch(() => undefined));
+    if (response.status === 401 || (parsed.success && parsed.data.valid === false)) {
+      throw new ListenBrainzTokenRejected('ListenBrainz did not accept that token. Copy it again from your ListenBrainz settings.');
+    }
+    if (!response.ok || !parsed.success || !parsed.data.user_name) {
+      throw new ListenBrainzError(`ListenBrainz could not check the token (HTTP ${response.status}). Try again shortly.`);
+    }
+    return parsed.data.user_name;
+  }
+
+  /** Submits listens for the token's user (up to 100 at a time, as ListenBrainz allows). */
+  async submitListens(token: string, listens: Listen[]): Promise<void> {
+    if (!listens.length) return;
+    if (listens.length > 100) throw new ListenBrainzError('Submit at most 100 listens at a time');
+    const payload = listens.map((l) => ({
+      listened_at: Math.floor(l.listenedAt.getTime() / 1000),
+      track_metadata: {
+        artist_name: l.artist,
+        track_name: l.track,
+        ...(l.release ? { release_name: l.release } : {}),
+        additional_info: {
+          ...(l.recordingMbid ? { recording_mbid: l.recordingMbid } : {}),
+          ...(l.releaseGroupMbid ? { release_group_mbid: l.releaseGroupMbid } : {}),
+          ...(l.artistMbid ? { artist_mbids: [l.artistMbid] } : {}),
+          ...(l.durationMs ? { duration_ms: l.durationMs } : {}),
+          media_player: 'Offbeat',
+          submission_client: 'Offbeat',
+          submission_client_version: VERSION,
+        },
+      },
+    }));
+    const response = await this.send(`${this.url}/submit-listens`, {
+      method: 'POST',
+      body: JSON.stringify({ listen_type: listens.length === 1 ? 'single' : 'import', payload }),
+      headers: { Authorization: `Token ${token}`, 'Content-Type': 'application/json' },
+    });
+    if (response.status === 401) throw new ListenBrainzTokenRejected('ListenBrainz no longer accepts the token. Add it again in Settings, Account.');
+    if (!response.ok) throw new ListenBrainzError(`ListenBrainz did not take the listens (HTTP ${response.status})`);
   }
 
   /** A user's most played artists of all time. Users without stats yet have none. */

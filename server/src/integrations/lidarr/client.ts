@@ -134,6 +134,8 @@ const trackSchema = z.object({
   duration: z.number().nullish(),
   hasFile: z.boolean().nullish(),
   trackFileId: z.number().nullish(),
+  /** MusicBrainz recording, for ListenBrainz. */
+  foreignRecordingId: z.string().nullish(),
 });
 export type LidarrTrack = z.infer<typeof trackSchema>;
 

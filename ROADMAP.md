@@ -61,7 +61,7 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 - [x] Library access: read audio through a read-only music folder mount, indexed by Lidarr's track files (paths, durations, quality), with a path mapping setting and a health check
 - [x] Streaming: direct play with HTTP range requests, and ffmpeg transcoding for formats the browser cannot play
 - [x] Player in the bottom bar, full Now Playing view, queue drawer, play actions on every card and track row, lock screen and media keys, keyboard shortcuts, and a Stream permission
-- [ ] Listening history: plays recorded locally and used as Discover seeds, with optional ListenBrainz submission
+- [x] Listening history: plays recorded locally and used as Discover seeds, with optional ListenBrainz submission
 - [ ] Short previews for artists not yet in the library
 - [ ] Subsonic API (OpenSubsonic), so existing third-party clients (mobile and desktop) can stream from Offbeat too, with per-user app passwords
 
