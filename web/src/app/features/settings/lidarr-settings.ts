@@ -6,12 +6,13 @@ import { Session } from '../../core/session';
 import { Icon } from '../../shared/icon/icon';
 import { LidarrForm } from '../lidarr/lidarr-form';
 import { LidarrWebhook } from './lidarr-webhook';
+import { MusicFiles } from './music-files';
 import { SettingsSection } from './settings-section';
 
 /** Edit the Lidarr connection and defaults after setup. */
 @Component({
   selector: 'ob-lidarr-settings',
-  imports: [RouterLink, Icon, LidarrForm, SettingsSection, LidarrWebhook],
+  imports: [RouterLink, Icon, LidarrForm, SettingsSection, LidarrWebhook, MusicFiles],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .back {
@@ -41,7 +42,8 @@ import { SettingsSection } from './settings-section';
       color: var(--status-failed);
     }
 
-    .webhook {
+    .webhook,
+    .music {
       margin-top: 24px;
       padding-top: 32px;
       border-top: 1px solid var(--divider);
@@ -66,6 +68,7 @@ import { SettingsSection } from './settings-section';
       }
       @if (existing()) {
         <ob-lidarr-webhook class="webhook" />
+        <ob-music-files class="music" />
       }
     </ob-settings-section>
   `,

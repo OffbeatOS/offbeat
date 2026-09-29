@@ -50,6 +50,7 @@ docker run -d --name offbeat --restart unless-stopped \
   -p 3001:3001 \
   -e PUID=1000 -e PGID=1000 -e TZ=Etc/UTC \
   -v "$(pwd)/config:/app/config" \
+  -v /path/to/music:/music:ro \
   ghcr.io/offbeatos/offbeat:0.3
 ```
 
@@ -68,11 +69,21 @@ services:
       - TZ=Etc/UTC
     volumes:
       - ./config:/app/config
+      - /path/to/music:/music:ro
 ```
 
 Open `http://<host>:3001`, create the admin account, and connect Lidarr. Use the Lidarr address Offbeat can reach from its container (often `http://lidarr:8686` on a shared Docker network), not necessarily the one in your browser.
 
 Everything Offbeat stores (database, encryption key, image cache, logs) lives in the config volume, so backing up Offbeat means backing up that folder.
+
+### Your music folder
+
+Offbeat plays music straight from the folders Lidarr manages, and only reads them: mount your music read-only (`:ro`). Lidarr is the index, so Offbeat never scans the disk; it asks Lidarr where each file is.
+
+- Mount the music at the same path Lidarr uses for its root folder (often `/music`), and Offbeat needs no setup.
+- If Offbeat sees the folder somewhere else, enter where in Settings, Integrations, Lidarr, Music files. Save and Check reads each folder and a sample of files, and says what is wrong in plain words.
+- On Unraid, add a Path to the Offbeat container: container path `/music`, host path the share Lidarr uses (for example `/mnt/user/data/media/music`), access mode Read Only.
+- Offbeat runs as `PUID`:`PGID`, so that user needs read access to the music.
 
 ## Configuration
 

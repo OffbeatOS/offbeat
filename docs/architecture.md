@@ -108,6 +108,7 @@ The MusicBrainz ID (MBID) is the join key across every service. Pages are routed
 - `GET /artist/lookup` and `/album/lookup` for search (`lidarr:<mbid>` looks up one artist)
 - `POST /artist` to add, `PUT /album/monitor` to monitor one album, `POST /command` for `AlbumSearch`
 - `GET /album?artistId=` for per-album status. Use `statistics.totalTrackCount`: `trackCount` is 0 for unmonitored artists.
+- `GET /rootfolder`, `GET /trackfile?artistId=`, and `GET /trackfile/:id` for music files (see Music files)
 - `GET /command` to wait for a new artist's refresh and post-add actions before monitoring a single album (they would otherwise reset it), and to show albums Lidarr is searching for
 - A single-album add leaves the artist monitored (Lidarr only searches, re-grabs, and upgrades albums of monitored artists), with future releases off and only that album monitored, whatever "Monitor new artists" says. Lidarr leaves an artist added with no albums to monitor unmonitored, so Offbeat re-applies it after the post-add actions. An artist already in Lidarr but unmonitored becomes monitored with future releases off; one the user already monitors is left as it is. Monitoring an unmonitored artist again also resumes any of its albums still marked monitored, so in that case `POST /albums/:mbid` answers 409 naming those albums, and the add goes ahead only with `resumeMonitoring: true` (the UI asks first: Add anyway or Cancel).
 - Deleting an artist while Lidarr is still refreshing it makes Lidarr add it back ("Adding missing parent artist"). Anything that removes artists must wait until no RefreshArtist is queued or running.
@@ -141,6 +142,15 @@ One server-side poller reads Lidarr's queue, commands, and history, and pushes a
 - **Lidarr webhook** (`server/src/api/webhook.ts`). Lidarr calls `POST /api/v1/webhooks/lidarr` on grab, import, upgrade, and download or import failure. It is a public route that checks only Basic auth (user `offbeat`, a random token as password, compared in constant time), never a token in the URL. The body is not trusted: any event just makes Activity poll Lidarr now, then quickly for a few minutes. Polling on a timer (30 seconds with a browser watching and nothing moving) stays as the fallback. Set Up Automatically asks Lidarr to send its Test event to the callback address first and saves only if Lidarr succeeded and the event reached this Offbeat; it then updates Offbeat's existing webhook in Lidarr (found by id, name, or receiver path) rather than adding another. Lidarr requires unique names even when testing, so a test of the existing webhook carries its id.
 - **Notifications** (`server/src/notifications`). Discord and generic webhook channels, configured by admins, each with its own events. Sources: Lidarr's history, read during Activity polls (album imported and download failed, one message per album download however many history entries it has); Activity's Needs Attention (an import newly blocked or stuck); and Lidarr's calendar every 15 minutes (an album appearing for a monitored artist, skipping artists in their first day). The first look at each source only records where things stand. Sending runs in the background, one message at a time per channel: a 429 from Discord waits as long as Discord says, other failures retry after 30 seconds, 2 minutes, and 10 minutes, and every attempt is logged in `deliveries` (the latest 200). Discord messages disable all mentions. URLs are checked when saved and again before each send: http or https only, never a link-local address (cloud metadata), and redirects are not followed. The Discord token and the webhook secret are stored encrypted and never sent to the browser.
 - **Stuck imports.** Lidarr can leave a finished download in "importing" for good when it will not import it on its own (for example a match below 80%), without saying why on the queue item. After an hour in that state (counted from when Offbeat first saw it, since the queue has no completion time), the item moves to Needs Attention as Import stuck. Offbeat asks Lidarr's Manual Import preview for the rejections once, in the background, and explains them in plain words, with a link to Lidarr's queue, where Manual Import is.
+
+## Music files
+
+Offbeat plays audio from the folders Lidarr manages, read-only (`server/src/library/music-files.ts`). Lidarr is the index: its track files give each file's path (in Lidarr's own paths), size, quality, and codec, and its tracks give durations. Offbeat never scans the disk.
+
+- Each Lidarr root folder is read at the same path, or wherever an admin maps it in Settings, Integrations, Lidarr, Music files (stored unencrypted under `music-files`). Only Lidarr's current root folders can be mapped, and only to a full path.
+- A file is only ever chosen by a Lidarr track file id, never a path from a request. The file's Lidarr path must be inside a root folder with no `.` or `..` segments, and its real path (after following links) must stay inside the mapped folder.
+- Save and Check opens each folder and reads the first bytes of a sample of files (three from each of eight artists, spread across the library), and stores the result with plain-language reasons (not found, not allowed for PUID and PGID).
+- Track files are cached in memory for 10 minutes, root folders for 5.
 
 ## Discovery engine
 
@@ -197,6 +207,7 @@ All routes live under `/api/v1`. Implemented:
 - `GET /tags/:tag` (a tag page), `GET /tags/:tag/albums` (its Top Albums)
 - `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service), `PUT /account/password`
 - `GET`, `PUT`, and `DELETE /settings/lidarr/webhook`, `POST /settings/lidarr/webhook/test`, `POST /settings/lidarr/webhook/token` (admins only); `POST /webhooks/lidarr` (Lidarr, Basic auth)
+- `GET` and `PUT /settings/music-files` (where Offbeat reads each root folder), `POST /settings/music-files/check` (admins only)
 - `GET` and `PUT /settings/notifications` (the link address), `PUT` and `DELETE /settings/notifications/:channel`, `POST /settings/notifications/:channel/test` (admins only)
 - `GET /users`, `POST /users` (answers with a temporary password), `PATCH /users/:id` (role and permissions), `POST /users/:id/password` (a new temporary password), `DELETE /users/:id`: admins only
 - `GET /library`, `POST /library/refresh`

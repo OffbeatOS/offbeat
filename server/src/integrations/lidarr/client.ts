@@ -133,8 +133,29 @@ const trackSchema = z.object({
   title: z.string(),
   duration: z.number().nullish(),
   hasFile: z.boolean().nullish(),
+  trackFileId: z.number().nullish(),
 });
 export type LidarrTrack = z.infer<typeof trackSchema>;
+
+/** A file Lidarr has for a track: where it is (in Lidarr's own paths), and what it is. */
+const trackFileSchema = z.object({
+  id: z.number(),
+  artistId: z.number().nullish(),
+  albumId: z.number().nullish(),
+  path: z.string(),
+  size: z.number().nullish(),
+  quality: z.object({ quality: z.object({ name: z.string() }).nullish() }).nullish(),
+  mediaInfo: z
+    .object({
+      audioCodec: z.string().nullish(),
+      audioBitRate: z.string().nullish(),
+      audioSampleRate: z.string().nullish(),
+      audioBits: z.string().nullish(),
+      audioChannels: z.number().nullish(),
+    })
+    .nullish(),
+});
+export type LidarrTrackFile = z.infer<typeof trackFileSchema>;
 
 const tagSchema = z.object({ id: z.number(), label: z.string() });
 
@@ -278,6 +299,21 @@ export class LidarrClient {
         }),
       ),
     };
+  }
+
+  /** Lidarr's root folders (in Lidarr's own paths). */
+  async rootFolders(): Promise<string[]> {
+    return (await this.get('rootfolder', z.array(rootFolderSchema))).map((folder) => folder.path);
+  }
+
+  /** Lidarr's files for an artist or an album. */
+  trackFiles(query: { artistId: number } | { albumId: number }): Promise<LidarrTrackFile[]> {
+    const param = 'artistId' in query ? `artistId=${query.artistId}` : `albumId=${query.albumId}`;
+    return this.get(`trackfile?${param}`, z.array(trackFileSchema));
+  }
+
+  trackFile(id: number): Promise<LidarrTrackFile> {
+    return this.get(`trackfile/${id}`, trackFileSchema);
   }
 
   /** Every artist in Lidarr. */

@@ -14,6 +14,7 @@ import type { LastfmClient } from './integrations/lastfm/client.js';
 import { lastfmClientFor } from './integrations/lastfm/settings.js';
 import { currentClient } from './integrations/lidarr/settings.js';
 import { Notifier, type NotifierOptions } from './notifications/notifier.js';
+import { MusicFiles } from './library/music-files.js';
 import { ListenBrainzClient } from './integrations/listenbrainz/client.js';
 import { MUSICBRAINZ_URL, MusicBrainzClient } from './integrations/musicbrainz/client.js';
 import { Library } from './library/library.js';
@@ -31,6 +32,7 @@ declare module 'fastify' {
     activity: Activity;
     discovery: Discovery;
     notifier: Notifier;
+    musicFiles: MusicFiles;
     /** Listening and similarity sources. Last.fm is null until an admin connects it. */
     sources: { lastfm: () => LastfmClient | null; listenbrainz: ListenBrainzClient };
   }
@@ -154,6 +156,9 @@ export async function buildApp({
   app.addHook('onReady', async () => app.discovery.start());
 
   // Discord and generic webhooks: fed by Activity (history, blocked imports) and Lidarr's calendar.
+  // Audio comes from the music folders Lidarr manages, indexed by Lidarr's track files.
+  app.decorate('musicFiles', new MusicFiles(settings, currentClient(settings), app.log));
+
   app.decorate('notifier', new Notifier(db, settings, app.log, currentClient(settings), notifications));
   app.activity.observe({
     history: (records) => app.notifier.noticeHistory(records),
