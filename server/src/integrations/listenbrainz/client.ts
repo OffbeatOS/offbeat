@@ -23,6 +23,9 @@ const popularitySchema = z.array(
 const releaseGroupPopularitySchema = z.array(
   z.object({ release_group_mbid: z.string(), total_user_count: z.number().nullish() }),
 );
+const topReleaseGroupsSchema = z.array(
+  z.object({ release_group_mbid: z.string().nullish(), release_group: z.object({ type: z.string().nullish() }).nullish() }),
+);
 const topArtistsSchema = z.object({
   payload: z.object({
     artists: z.array(
@@ -110,6 +113,18 @@ export class ListenBrainzClient {
       for (const row of parsed.data) if (row.total_user_count != null) result.set(row.release_group_mbid, row.total_user_count);
     }
     return result;
+  }
+
+  /**
+   * An artist's release groups, most listened first, with their primary
+   * type. ListenBrainz does not say which are live albums or compilations.
+   */
+  async topReleaseGroups(artistMbid: string): Promise<{ mbid: string; type: string | null }[]> {
+    const response = await this.get(`popularity/top-release-groups-for-artist/${encodeURIComponent(artistMbid)}`);
+    if (!response.ok) throw new ListenBrainzError(`ListenBrainz top albums failed (HTTP ${response.status})`);
+    const parsed = topReleaseGroupsSchema.safeParse(await response.json().catch(() => undefined));
+    if (!parsed.success) throw new ListenBrainzError('ListenBrainz top albums answered in an unexpected format');
+    return parsed.data.flatMap((r) => (r.release_group_mbid ? [{ mbid: r.release_group_mbid, type: r.release_group?.type ?? null }] : []));
   }
 
   /** A user's most played artists of all time. Users without stats yet have none. */

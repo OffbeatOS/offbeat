@@ -162,7 +162,7 @@ Works with no API key: ListenBrainz is always a source, and a Last.fm key adds a
 
 Every upstream answer is cached in `source_cache` (similar artists and popularity 7 days, lookups 30 days, listening stats 1 day) and served stale if a source is down. `server/scripts/discover-sample.ts` prints a sample per mode and source mix for reviewing quality.
 
-Discover sections: Top Picks for You (with quick add), Albums to Start With (each top pick's most played studio album: MusicBrainz release groups ranked by ListenBrainz listeners), Explore by Tag (genres across the recommendations, weighted by score), and later Local Shows. In Settings, Discovery each user can reorder sections (by dragging, or with Move up and Move down for keyboard and touch) and hide them, and choose the default mode: Discover opens with it when the URL names no mode, and a mode in the URL always wins. Refresh Now there shows the running refresh step by step (library and listening, similar artists, artist details, albums). A tag page lists the best-known artists MusicBrainz tags with that genre (ranked by ListenBrainz listeners), their starting albums, and the genres that go with it in the user's recommendations.
+Discover sections: Top Picks for You (with quick add), Albums to Start With (each top pick's most played studio album: the artist's most listened albums on ListenBrainz, then one MusicBrainz search for all their types so live albums and compilations are skipped; an artist ListenBrainz has nothing for is browsed on MusicBrainz instead), Explore by Tag (genres across the recommendations, weighted by score), and later Local Shows. In Settings, Discovery each user can reorder sections (by dragging, or with Move up and Move down for keyboard and touch) and hide them, and choose the default mode: Discover opens with it when the URL names no mode, and a mode in the URL always wins. Refresh Now there shows the running refresh step by step (library and listening, similar artists, artist details, albums). A tag page lists the best-known artists MusicBrainz tags with that genre (ranked by ListenBrainz listeners), and the genres that go with it in the user's recommendations. Their starting albums come from a second request, since a first visit to a tag can take several seconds to find them.
 
 ## Data model
 
@@ -194,7 +194,7 @@ All routes live under `/api/v1`. Implemented:
 - `GET /settings/lastfm`, `PUT /settings/lastfm` (checked with Last.fm), `DELETE /settings/lastfm` (admin)
 - `GET /discover?mode=safer|balanced|deeper` (Top Picks, Albums to Start With, Explore by Tag; no mode means the user's default), `POST /discover/refresh`, `GET /discover/status`, `GET` and `PUT /discover/preferences`, `POST /discover/feedback`
 - `GET /blocklist` (blocked artists and tags, and hidden artists), `POST /blocklist`, `DELETE /blocklist/:id`
-- `GET /tags/:tag` (a tag page)
+- `GET /tags/:tag` (a tag page), `GET /tags/:tag/albums` (its Top Albums)
 - `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service), `PUT /account/password`
 - `GET`, `PUT`, and `DELETE /settings/lidarr/webhook`, `POST /settings/lidarr/webhook/test`, `POST /settings/lidarr/webhook/token` (admins only); `POST /webhooks/lidarr` (Lidarr, Basic auth)
 - `GET` and `PUT /settings/notifications` (the link address), `PUT` and `DELETE /settings/notifications/:channel`, `POST /settings/notifications/:channel/test` (admins only)

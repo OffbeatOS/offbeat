@@ -27,6 +27,16 @@ const NAMES = ['NOFX', 'Lagwagon', 'Rancid', 'No Use for a Name', 'Strung Out', 
 const WRONG_FACE_TO_FACE = '00000000-0000-4000-8000-0000bad0fa11';
 const byId = new Map(NAMES.map((n) => [id(n), n]));
 
+// Each artist: an early album, their best known one, and a live album that never counts.
+function releaseGroupsOf(mbid: string) {
+  const name = byId.get(mbid) ?? 'Someone';
+  return [
+    { id: `${mbid}-rg1`, title: `${name} Debut`, 'primary-type': 'Album', 'secondary-types': [], 'first-release-date': '1991-01-01' },
+    { id: `${mbid}-rg2`, title: `${name} Classic`, 'primary-type': 'Album', 'secondary-types': [], 'first-release-date': '1994-01-01' },
+    { id: `${mbid}-rg3`, title: `${name} Live`, 'primary-type': 'Album', 'secondary-types': ['Live'], 'first-release-date': '1999-01-01' },
+  ];
+}
+
 function setup({ lastfm = false, listenbrainzFails = false } = {}) {
   const db = openDatabase(':memory:');
   const user = db.insert(users).values({ username: 'sam', passwordHash: 'x', role: 'admin', lastfmUsername: lastfm ? 'sam' : null }).returning().get();
@@ -40,6 +50,16 @@ function setup({ lastfm = false, listenbrainzFails = false } = {}) {
     userTopArtists: vi.fn(async () => []),
     // The second album is the one people play.
     releaseGroupPopularity: vi.fn(async (mbids: string[]) => new Map(mbids.map((m, i) => [m, i === 1 ? 5000 : 100]))),
+    // Most listened first: the live album (ListenBrainz calls it an Album too), the classic, the debut, and a single.
+    topReleaseGroups: vi.fn(async (mbid: string) => {
+      const [debut, classic, live] = releaseGroupsOf(mbid);
+      return [
+        { mbid: live!.id, type: 'Album' },
+        { mbid: `${mbid}-rg4`, type: 'Single' },
+        { mbid: classic!.id, type: 'Album' },
+        { mbid: debut!.id, type: 'Album' },
+      ];
+    }),
   } as unknown as ListenBrainzClient;
   const lastfmClient = {
     // Last.fm knows Mad Caddies by name only, and adds weight to Lagwagon.
@@ -65,15 +85,10 @@ function setup({ lastfm = false, listenbrainzFails = false } = {}) {
       { name: 'punk rock', count: 5 },
       { name: 'skate punk', count: 3 },
     ]),
-    // Each artist: an early album, their best known one, and a live album that never counts.
-    releaseGroups: vi.fn(async (mbid: string) => {
-      const name = byId.get(mbid) ?? 'Someone';
-      return [
-        { id: `${mbid.slice(0, 30)}01`, title: `${name} Debut`, 'primary-type': 'Album', 'secondary-types': [], 'first-release-date': '1991-01-01' },
-        { id: `${mbid.slice(0, 30)}02`, title: `${name} Classic`, 'primary-type': 'Album', 'secondary-types': [], 'first-release-date': '1994-01-01' },
-        { id: `${mbid.slice(0, 30)}03`, title: `${name} Live`, 'primary-type': 'Album', 'secondary-types': ['Live'], 'first-release-date': '1999-01-01' },
-      ];
-    }),
+    releaseGroups: vi.fn(async (mbid: string) => releaseGroupsOf(mbid)),
+    releaseGroupsById: vi.fn(async (ids: string[]) =>
+      NAMES.flatMap((name) => releaseGroupsOf(id(name))).filter((g) => ids.includes(g.id)),
+    ),
     artistsTagged: vi.fn(async () =>
       ['Operation Ivy', 'Lagwagon', 'NOFX'].map((name) => ({ mbid: id(name), name, disambiguation: null })),
     ),
@@ -154,7 +169,7 @@ describe('Discovery', () => {
   });
 
   it('builds a tag page: best known first, what is recommended, and related genres from the recommendations', async () => {
-    const { discovery, userId } = setup();
+    const { discovery, userId, musicbrainz } = setup();
     await discovery.refresh(userId);
     const page = await discovery.tag(userId, 'Punk Rock');
     // Rancid is the most popular in this world, but not tagged; NOFX is in the library.
@@ -163,18 +178,43 @@ describe('Discovery', () => {
       ['Lagwagon', true, false],
       ['NOFX', false, true],
     ]);
-    expect(page.albums.map((a) => a.title)).toContain('Operation Ivy Classic');
     expect(page.related).toEqual(['Skate Punk']);
+    vi.mocked(musicbrainz.releaseGroupsById).mockClear();
+    const albums = await discovery.tagAlbums('Punk Rock');
+    expect(albums.map((a) => [a.title, a.artistName])).toEqual([
+      ['Operation Ivy Classic', 'Operation Ivy'],
+      ['Lagwagon Classic', 'Lagwagon'],
+      ['NOFX Classic', 'NOFX'],
+    ]);
+    // ListenBrainz ranks, and one MusicBrainz request (not one per artist) weeds out the live album.
+    expect(musicbrainz.releaseGroupsById).toHaveBeenCalledTimes(1);
+    expect(musicbrainz.releaseGroups).not.toHaveBeenCalled();
+  });
+
+  it('browses MusicBrainz for starter albums when ListenBrainz has none for an artist', async () => {
+    const { discovery, listenbrainz, musicbrainz } = setup();
+    vi.mocked(listenbrainz.topReleaseGroups).mockImplementation(async (mbid: string) => {
+      if (mbid === id('Lagwagon')) throw new Error('ListenBrainz wants a token');
+      return [];
+    });
+    const albums = await discovery.tagAlbums('Punk Rock');
+    expect(albums.map((a) => a.title)).toEqual(['Operation Ivy Classic', 'Lagwagon Classic', 'NOFX Classic']);
+    // Only studio-type release groups: one MusicBrainz page per artist, not the whole catalog.
+    expect(vi.mocked(musicbrainz.releaseGroups).mock.calls.map(([, options]) => options)).toEqual([
+      { albumsOnly: true },
+      { albumsOnly: true },
+      { albumsOnly: true },
+    ]);
   });
 
   it('shows Top Picks before Albums to Start With on a first refresh', async () => {
     const { discovery, userId, musicbrainz } = setup();
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
-    const original = vi.mocked(musicbrainz.releaseGroups).getMockImplementation()!;
-    vi.mocked(musicbrainz.releaseGroups).mockImplementation(async (mbid: string) => {
+    const original = vi.mocked(musicbrainz.releaseGroupsById).getMockImplementation()!;
+    vi.mocked(musicbrainz.releaseGroupsById).mockImplementation(async (ids: string[]) => {
       await gate; // MusicBrainz is slow on a first refresh
-      return original(mbid);
+      return original(ids);
     });
     const refreshing = discovery.refresh(userId);
     for (let i = 0; i < 50 && !discovery.read(userId, 'balanced').generatedAt; i++) await new Promise((r) => setTimeout(r, 10));
@@ -248,6 +288,42 @@ describe('discover routes', () => {
       const resumed = await app.inject({ method: 'GET', url: '/api/v1/discover?mode=balanced', headers });
       expect(resumed.json()).toMatchObject({ refreshing: true, albumsPending: true });
       expect(refresh).toHaveBeenCalledTimes(3);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('answers a tag page without waiting for its albums, which come from their own request', async () => {
+    const { buildApp } = await import('../src/app.js');
+    const { tmpImageDir } = await import('./helpers.js');
+    const app = await buildApp({
+      config: { baseUrl: '', trustProxy: false, logLevel: 'error' },
+      db: openDatabase(':memory:'),
+      secretKey: randomBytes(32),
+      imageCacheDir: tmpImageDir(),
+      webRoot: null,
+      logger: false,
+      activity: { autoStart: false },
+      discovery: { schedule: null },
+    });
+    vi.spyOn(app.discovery, 'tag').mockResolvedValue({ artists: [], related: ['Skate Punk'] });
+    // Albums that never arrive (MusicBrainz is slow on a first visit) must not hold up the page.
+    const albums = vi.spyOn(app.discovery, 'tagAlbums').mockReturnValue(new Promise(() => {}));
+    try {
+      const setup = await app.inject({ method: 'POST', url: '/api/v1/setup/admin', payload: { username: 'sam', password: randomBytes(12).toString('base64url') } });
+      const headers = { cookie: `offbeat_session=${setup.cookies.find((c) => c.name === 'offbeat_session')?.value}` };
+
+      const page = await app.inject({ method: 'GET', url: '/api/v1/tags/Punk%20Rock', headers });
+      expect(page.json()).toEqual({ tag: 'Punk Rock', artists: [], related: ['Skate Punk'] });
+      expect(albums).not.toHaveBeenCalled();
+
+      albums.mockResolvedValue([
+        { mbid: 'rg-1', title: 'Punk in Drublic', type: 'Album', year: 1994, coverUrl: null, artistMbid: 'a-1', artistName: 'NOFX', status: { kind: 'available' } },
+      ]);
+      const found = await app.inject({ method: 'GET', url: '/api/v1/tags/Punk%20Rock/albums', headers });
+      expect(found.json().albums.map((a: { title: string }) => a.title)).toEqual(['Punk in Drublic']);
+      expect(albums).toHaveBeenCalledWith('Punk Rock');
+      expect((await app.inject({ method: 'GET', url: '/api/v1/tags/Punk%20Rock/albums' })).statusCode).toBe(401);
     } finally {
       await app.close();
     }

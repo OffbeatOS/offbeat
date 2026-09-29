@@ -249,8 +249,49 @@ section {
   }
 }
 
+.finding {
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--text-3);
+}
+
 .ghost {
   aspect-ratio: 1;
   border-radius: 50%;
   background: var(--surface);
+}
+
+.album-ghost {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  .square {
+    aspect-ratio: 1;
+    border-radius: var(--radius-art);
+    background: var(--surface);
+  }
+
+  .line {
+    width: 70%;
+    height: 12px;
+    border-radius: 6px;
+    background: var(--surface);
+  }
+}
+
+.pulse {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
 }

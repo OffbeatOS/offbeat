@@ -14,11 +14,14 @@
 @if (error()) {
   <p class="notice" role="alert"><ob-icon name="alert" [size]="15" [strokeWidth]="2" />{{ error() }}</p>
 } @else if (!data()) {
-  <div class="loading" aria-busy="true" aria-label="Loading tag">
-    @for (i of [1, 2, 3, 4, 5, 6]; track i) {
-      <span class="ghost"></span>
-    }
-  </div>
+  <section aria-busy="true">
+    <p class="finding">Finding the best-known {{ tag() }} artists</p>
+    <div class="loading" aria-hidden="true">
+      @for (i of ghosts; track i) {
+        <span class="ghost pulse"></span>
+      }
+    </div>
+  </section>
 } @else if (data(); as d) {
   @if (d.artists.length === 0) {
     <ob-empty-state
@@ -71,7 +74,21 @@
       }
     </section>
 
-    @if (albums().length) {
+    @if (topAlbums() === null && !albumsError()) {
+      <section aria-busy="true" aria-label="Loading top albums">
+        <div class="section-head">
+          <h2>Top Albums</h2>
+        </div>
+        <div class="grid albums" aria-hidden="true">
+          @for (i of ghosts; track i) {
+            <span class="album-ghost">
+              <span class="square pulse"></span>
+              <span class="line pulse"></span>
+            </span>
+          }
+        </div>
+      </section>
+    } @else if (albums().length) {
       <section>
         <div class="section-head">
           <h2>Top Albums</h2>

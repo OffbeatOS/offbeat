@@ -94,9 +94,17 @@ export interface TagArtist {
 export interface TagPage {
   tag: string;
   artists: TagArtist[];
-  albums: ReleaseSummary[];
   /** Genres that go with this one in the user's recommendations. */
   related: string[];
+}
+
+/**
+ * `GET /tags/:tag/albums`: each top artist's most played album. Separate
+ * from the page because the first visit to a tag needs one MusicBrainz
+ * request per artist, which takes several seconds.
+ */
+export interface TagAlbums {
+  albums: ReleaseSummary[];
 }
 
 export type FeedbackValue = 'up' | 'down';

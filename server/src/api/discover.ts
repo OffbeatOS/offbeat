@@ -1,4 +1,4 @@
-import type { BlockedItem, BlocklistResponse, DiscoverPreferences, DiscoverResponse, DiscoverStatus, TagPage } from '@offbeat/shared';
+import type { BlockedItem, BlocklistResponse, DiscoverPreferences, DiscoverResponse, DiscoverStatus, TagAlbums, TagPage } from '@offbeat/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { MBID } from '../catalog/releases.js';
@@ -86,10 +86,14 @@ export const discoverRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/tags/:tag', async (request): Promise<TagPage> => {
     const { tag } = parse(tagParams, request.params);
-    const page = await app.discovery.tag(request.user!.id, tag);
-    const albums = await app.catalog.withStatuses(page.albums);
+    return { tag, ...(await app.discovery.tag(request.user!.id, tag)) };
+  });
+
+  app.get('/tags/:tag/albums', async (request): Promise<TagAlbums> => {
+    const { tag } = parse(tagParams, request.params);
+    const albums = await app.catalog.withStatuses(await app.discovery.tagAlbums(tag));
     warm(albums.map((a) => a.mbid));
-    return { tag, ...page, albums };
+    return { albums };
   });
 
   /** Start fetching the covers the browser is about to ask for (see ArtworkCache.warmAlbums). */
