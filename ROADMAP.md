@@ -43,34 +43,27 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 
 ## Phase 3: Multi-user and extras (done)
 
-- [x] Users and permissions (add artists, add albums, change monitoring, delete, access flows), with temporary passwords for new users and resets
-- [x] Reverse-proxy header auth, optional local-network auto-login
+- [x] Users and permissions (add artists, add albums, change monitoring, delete, and flows, kept for when Flows arrive), with temporary passwords for new users and resets
+- [x] Reverse-proxy header auth (trusted proxies, an optional shared secret, a sign-out page) and optional local-network auto-login
 - [x] Notifications
   - Channels: Discord and generic webhooks (ntfy and Gotify later)
   - Events: album imported, download failed, import blocked, and new release from a monitored artist
   - Each channel chooses which events it receives, with a Send Test button
   - Channels are configured by admins (per-user preferences later)
-  - Messages link back to the album or artist in Offbeat when a base URL is set
+  - Messages link back to the album or artist in Offbeat when "Link back to Offbeat" is set
   - Failed deliveries are retried and logged, and never block the rest of Offbeat
 - [x] Lidarr webhook receiver (Settings, Integrations, Lidarr, Instant updates) for instant Activity updates on grab and import; polling stays as the fallback. Set Up Automatically creates or updates it after a test
 - [x] Admin password reset CLI (`offbeat reset-password`, `list-users`, `make-admin`)
+- [x] Since 0.3.0: adding an artist monitors all their albums by default (0.3.1), and tag pages show their artists in about two seconds, with starting albums found much faster (0.3.2)
 
-## Phase 4: Flows and playlists
+## Phase 4: Streaming (in progress)
 
-- Flow editor (schedule, track count, source mix, focus tags and artists, deep dive, live preview)
-- slskd integration for downloads into a dedicated Offbeat folder, never the main library
-- File reuse from an existing library (hardlink, copy, or download)
-- Playlist import (simple JSON track lists, Spotify-style exports)
-- Navidrome publishing (flow library and smart playlists)
-
-## Phase 5: Streaming
-
-- Audio playback from the library with ffmpeg transcoding
-- Player in the bottom bar, full Now Playing view, queue drawer
-- Play actions on every card and track row
-- Short previews for artists not yet in the library
-- Native streaming API for the Offbeat web app
-- Subsonic API, so existing third-party clients (mobile and desktop) can stream from Offbeat too
+- [ ] Library access: read audio through a read-only music folder mount, indexed by Lidarr's track files (paths, durations, quality), with a path mapping setting and a health check
+- [ ] Streaming: direct play with HTTP range requests, and ffmpeg transcoding for formats the browser cannot play
+- [ ] Player in the bottom bar, full Now Playing view, queue drawer, play actions on every card and track row, lock screen and media keys, keyboard shortcuts, and a Stream permission
+- [ ] Listening history: plays recorded locally and used as Discover seeds, with optional ListenBrainz submission
+- [ ] Short previews for artists not yet in the library
+- [ ] Subsonic API (OpenSubsonic), so existing third-party clients (mobile and desktop) can stream from Offbeat too, with per-user app passwords
 
 ## Distribution (ongoing)
 
@@ -80,11 +73,11 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 
 ## Open decisions
 
-- **Preview source (phase 5).** Which service provides short previews for artists not in the library.
+- **Preview source (phase 4).** Which service provides short previews for artists not in the library: Deezer or iTunes, compared on match rate, wrong-artist matches, and terms of use.
 
 ## Later
 
-Ideas for after Phase 5, roughly grouped. Not scheduled or committed.
+Ideas for after Phase 4, roughly grouped. Not scheduled or committed.
 
 - **Inbox:** a per-user feed of new and upcoming releases from library artists, nearby shows, and personalized discoveries, with read, saved and dismissed states
 - **Artist news:** optional RSS feeds matched against library and recommended artists, shown in the Inbox
@@ -100,6 +93,9 @@ Ideas for after Phase 5, roughly grouped. Not scheduled or committed.
 - **Shows:** nearby concerts for library and recommended artists via Ticketmaster, with location and radius, and a Local Shows section on Discover
 - **More notifications:** ntfy and Gotify channels, and per-user notification preferences
 - **Docs site:** GitHub Pages documentation once the README outgrows itself
+- **Soulseek downloads:** slskd as an optional source for single tracks, if there's demand
+- **Flows:** self-refreshing playlists built from the library and discovery data, with a schedule, source mix and focus tags
+- **Playlists:** importing JSON track lists and Spotify-style exports, and publishing to Navidrome
 
 ## Non-goals
 

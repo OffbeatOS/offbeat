@@ -83,7 +83,7 @@ offbeat/
 
 ## App shell
 
-The shell has three regions: sidebar, main content, and a bottom bar. In phases 1 to 4 the bottom bar shows download activity; in phase 5 it becomes the audio player. It lives outside the router outlet so playback survives navigation. Signed-in pages render inside the shell; onboarding and sign-in are full-page.
+The shell has three regions: sidebar, main content, and a bottom bar. Through phase 3 the bottom bar shows download activity; in phase 4 it becomes the audio player. It lives outside the router outlet so playback survives navigation. Signed-in pages render inside the shell; onboarding and sign-in are full-page.
 
 ## Security model
 
@@ -123,9 +123,9 @@ The MusicBrainz ID (MBID) is the join key across every service. Pages are routed
 
 **Last.fm (optional, preferred when present).** An admin adds an API key in onboarding or Settings, Integrations; it is checked with Last.fm, stored encrypted, and only its last four characters reach the browser. When connected, Last.fm is the preferred source for similar artists and tags, alongside ListenBrainz. Users can add a Last.fm username in Settings, Account (checked with `user.getInfo`). Methods: `artist.getSimilar`, `artist.getTopTags`, `artist.getInfo`, `tag.getTopArtists`, `user.getTopArtists`. Paced at five requests per second.
 
-**Navidrome (phase 4).** Subsonic API for publishing flow libraries and smart playlists.
+**Navidrome (later).** Subsonic API for publishing flow libraries and smart playlists.
 
-**slskd (phase 4).** External Soulseek client, used through its REST API. Offbeat does not embed a Soulseek client.
+**slskd (later, if there is demand).** External Soulseek client, used through its REST API. Offbeat does not embed a Soulseek client.
 
 **Ticketmaster (later, optional).** Nearby shows.
 
@@ -181,7 +181,7 @@ Current tables (see `server/src/db/schema.ts`):
 - `blocklist` (id, user_id, kind, key, name, source, created_at): blocked artists (keyed by MBID) and tags (keyed lowercase)
 - `jobs` (name, last run, last success, error)
 
-Planned: `flows`, `flow_runs`, `flow_tracks`, `playlists`, `playlist_tracks` (phase 4).
+Planned later: `flows`, `flow_runs`, `flow_tracks`, `playlists`, `playlist_tracks`.
 
 ## API
 
@@ -207,7 +207,7 @@ All routes live under `/api/v1`. Implemented:
 - `GET /events` (Server-Sent Events: `activity` snapshots and `add-result`)
 - `GET /images/artist/:id`, `GET /images/album/:mbid`, `GET /images/remote` (signed)
 
-Planned: `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
+Planned later: `/flows` and `/playlists`. An OpenAPI spec generated from the Zod schemas is planned.
 
 ## Details that save pain later
 
