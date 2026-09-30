@@ -4,6 +4,7 @@ import { Api, ApiError } from '../../core/api';
 import { AlbumCard } from '../../shared/catalog/album-card';
 import { EmptyState } from '../../shared/empty-state/empty-state';
 import { Icon } from '../../shared/icon/icon';
+import { PreviewButton } from '../../shared/player/preview-button';
 import { Session } from '../../core/session';
 
 type TypeFilter = 'All' | ReleaseType;
@@ -16,7 +17,7 @@ const FILTER_LABELS: Record<string, string> = { All: 'All', Album: 'Albums', EP:
  */
 @Component({
   selector: 'ob-artist-page',
-  imports: [AlbumCard, EmptyState, Icon],
+  imports: [AlbumCard, EmptyState, Icon, PreviewButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './artist-page.scss',
   templateUrl: './artist-page.html',

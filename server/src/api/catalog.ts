@@ -9,7 +9,7 @@ import { currentClient } from '../integrations/lidarr/settings.js';
 
 /** Album cover URLs as `ImageUrls.releaseGroupCover` writes them. */
 const COVER_URL = /api\/v1\/images\/album\/([0-9a-f-]{36})(?:\?src=(lidarr))?/g;
-const mbidParams = z.object({ mbid: z.string().regex(MBID, 'not a MusicBrainz id') });
+export const mbidParams = z.object({ mbid: z.string().regex(MBID, 'not a MusicBrainz id') });
 const searchQuery = z.object({ q: z.string().trim().min(2, 'type at least 2 characters').max(100) });
 const addAlbumBody = z.object({
   artistMbid: z.string().regex(MBID, 'not a MusicBrainz id'),

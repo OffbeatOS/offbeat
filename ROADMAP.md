@@ -62,7 +62,7 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 - [x] Streaming: direct play with HTTP range requests, and ffmpeg transcoding for formats the browser cannot play
 - [x] Player in the bottom bar, full Now Playing view, queue drawer, play actions on every card and track row, lock screen and media keys, keyboard shortcuts, and a Stream permission
 - [x] Listening history: plays recorded locally and used as Discover seeds, with optional ListenBrainz submission
-- [ ] Short previews for artists not yet in the library
+- [x] Short previews for artists not yet in the library (from Deezer)
 - [ ] Subsonic API (OpenSubsonic), so existing third-party clients (mobile and desktop) can stream from Offbeat too, with per-user app passwords
 
 ## Distribution (ongoing)
@@ -73,7 +73,7 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 
 ## Open decisions
 
-- **Preview source (phase 4).** Which service provides short previews for artists not in the library: Deezer or iTunes, compared on match rate, wrong-artist matches, and terms of use.
+- **Preview source (phase 4, decided).** Deezer: it matched more artists than iTunes (66 of 67 recommended and 18 of 19 lesser-known, against 64 and 16), and its terms fit a non-commercial open source project; iTunes only allows previews that promote sales on Apple's store.
 
 ## Later
 

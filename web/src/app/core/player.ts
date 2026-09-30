@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import type { AlbumDetail, PlayedTrack, RecordPlayRequest } from '@offbeat/shared';
+import type { AlbumDetail, ArtistPreview, PlayedTrack, RecordPlayRequest } from '@offbeat/shared';
 import { Api } from './api';
 
 /** One entry in the queue. `key` is unique per entry, so the same track can be queued twice. */
@@ -14,6 +14,8 @@ export interface QueueTrack {
   albumMbid: string;
   coverUrl: string | null;
   durationMs: number | null;
+  /** A 30-second preview of an artist not in the library: where its audio comes from, and the credit. */
+  preview?: { audioUrl: string; deezerUrl: string };
 }
 
 export type Repeat = 'off' | 'all' | 'one';
@@ -38,6 +40,23 @@ export function playThreshold(durationSeconds: number): number {
   return durationSeconds >= PLAY_MIN_LENGTH ? Math.min(durationSeconds / 2, PLAY_AFTER_MAX) : Infinity;
 }
 let nextKey = 0;
+
+/** An artist's previews as queue entries. Their track file ids are negative, so they never match a file. */
+export function previewQueue(preview: ArtistPreview): QueueTrack[] {
+  return preview.tracks.map((track) => ({
+    key: `q${++nextKey}`,
+    trackFileId: -track.deezerTrackId,
+    mimeType: 'audio/mpeg',
+    title: track.title,
+    artistName: preview.artistName,
+    artistMbid: preview.artistMbid,
+    albumTitle: track.albumTitle,
+    albumMbid: '',
+    coverUrl: track.coverUrl,
+    durationMs: track.durationMs,
+    preview: { audioUrl: track.audioUrl, deezerUrl: preview.deezerUrl },
+  }));
+}
 
 /** A play from History, as a queue entry. */
 export function playedQueueEntry(played: PlayedTrack): QueueTrack {
@@ -90,8 +109,8 @@ export class Player {
   readonly current = signal<QueueTrack | null>(null);
   readonly added = signal<readonly QueueTrack[]>([]);
   readonly upNext = signal<readonly QueueTrack[]>([]);
-  /** What upNext comes from, for "Next from Untrue" and "Playing from Untrue". */
-  readonly context = signal<{ title: string; albumMbid: string } | null>(null);
+  /** What upNext comes from, for "Next from Untrue" and "Playing from Untrue", and where that links. */
+  readonly context = signal<{ title: string; link: string[] } | null>(null);
   /** Played this session, most recent first. */
   readonly history = signal<readonly QueueTrack[]>([]);
 
@@ -141,12 +160,29 @@ export class Player {
     const tracks = albumQueue(album);
     if (!tracks.length) return;
     this.contextOrder = tracks;
-    this.context.set({ title: album.title, albumMbid: album.mbid });
+    this.context.set({ title: album.title, link: ['/album', album.mbid] });
     this.shuffle.set(shuffle);
     const first = shuffle ? Math.floor(Math.random() * tracks.length) : Math.min(Math.max(startAt, 0), tracks.length - 1);
     const rest = tracks.filter((_, i) => i !== first);
     this.upNext.set(shuffle ? shuffled(rest) : tracks.slice(first + 1));
     this.load(tracks[first]!, true);
+  }
+
+  /** Plays an artist's previews (their top tracks on Deezer), replacing what was queued from before. */
+  playPreview(preview: ArtistPreview) {
+    const tracks = previewQueue(preview);
+    if (!tracks.length) return;
+    this.contextOrder = tracks;
+    this.context.set({ title: `${preview.artistName} previews`, link: ['/artist', preview.artistMbid] });
+    this.shuffle.set(false);
+    this.upNext.set(tracks.slice(1));
+    this.load(tracks[0]!, true);
+  }
+
+  /** Whether this artist's previews are what is playing. */
+  isPreviewing(artistMbid: string): boolean {
+    const current = this.current();
+    return !!current?.preview && current.artistMbid === artistMbid;
   }
 
   /** The album's track with this file, from where it is on the album. */
@@ -326,7 +362,11 @@ export class Player {
     const [first, ...rest] = fresh(tracks);
     if (!first) return;
     this.contextOrder = [first, ...rest];
-    this.context.set({ title: first.albumTitle, albumMbid: first.albumMbid });
+    this.context.set(
+      first.preview
+        ? { title: `${first.artistName} previews`, link: ['/artist', first.artistMbid] }
+        : { title: first.albumTitle, link: ['/album', first.albumMbid] },
+    );
     this.upNext.set(rest);
     this.load(first, true);
   }
@@ -343,13 +383,14 @@ export class Player {
     this.triedTranscode = false;
     this.resumes = 0;
     this.newPlaythrough();
-    this.transcoding.set(!canPlay(audio, track.mimeType));
+    this.transcoding.set(!track.preview && !canPlay(audio, track.mimeType));
     audio.src = this.streamUrl(track, 0);
     this.updateMediaSession(track);
     if (autoplay) void audio.play().catch(() => this.playing.set(false));
   }
 
   private streamUrl(track: QueueTrack, from: number): string {
+    if (track.preview) return track.preview.audioUrl;
     const base = `api/v1/stream/${track.trackFileId}`;
     return this.transcoding() ? `${base}?transcode=mp3&t=${from.toFixed(1)}` : base;
   }
@@ -433,7 +474,8 @@ export class Player {
     // Playback moves a fraction of a second between updates; a seek jumps further.
     if (this.playing() && step > 0 && step < 2) this.listened += step;
     const track = this.current();
-    if (track && !this.reported && this.listened >= playThreshold(this.duration())) {
+    // Previews are samples of music not in the library: never plays.
+    if (track && !track.preview && !this.reported && this.listened >= playThreshold(this.duration())) {
       this.reported = true;
       void this.report({ trackFileId: track.trackFileId, playedAt: this.startedAt.toISOString() });
     }
@@ -486,7 +528,7 @@ export class Player {
   private async explain(track: QueueTrack): Promise<string> {
     try {
       // One byte of the file itself: never a transcode, which would start ffmpeg just to answer.
-      const response = await fetch(`api/v1/stream/${track.trackFileId}`, { headers: { Range: 'bytes=0-0' } });
+      const response = await fetch(track.preview?.audioUrl ?? `api/v1/stream/${track.trackFileId}`, { headers: { Range: 'bytes=0-0' } });
       if (response.ok) return 'This track could not be played';
       const body = (await response.json().catch(() => null)) as { message?: string } | null;
       if (response.status === 401) return 'You were signed out. Sign in again to keep listening.';

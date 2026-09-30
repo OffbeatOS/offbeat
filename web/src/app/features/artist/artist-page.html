@@ -34,6 +34,9 @@
             <ob-icon name="plus" [size]="16" [strokeWidth]="2.4" />{{ busy() ? 'Adding' : 'Add Artist' }}
           </button>
         }
+        @if (!a.inLibrary) {
+          <ob-preview-button look="pill" [mbid]="a.mbid" [name]="a.name" />
+        }
       </div>
       @if (actionError()) {
         <p class="error" role="alert">{{ actionError() }}</p>

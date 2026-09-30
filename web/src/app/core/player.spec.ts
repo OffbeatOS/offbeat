@@ -61,7 +61,7 @@ describe('Player', () => {
   it('plays an album from a track, queueing the rest and skipping tracks without files', () => {
     player.playAlbum(album([track(1), track(2, { trackFileId: null, mimeType: null }), track(3), track(4)]), { startAt: 1 });
     expect(titles()).toEqual({ current: 'Track 3', added: [], upNext: ['Track 4'] });
-    expect(player.context()).toEqual({ title: 'Untrue', albumMbid: 'rg-untrue' });
+    expect(player.context()).toEqual({ title: 'Untrue', link: ['/album', 'rg-untrue'] });
     expect(player.active()).toBe(true);
     expect(player.duration()).toBe(200);
   });
@@ -203,6 +203,31 @@ describe('Player', () => {
     for (let t = 51; t <= 190; t++) tick(t);
     http.expectNone('api/v1/plays');
     http.verify();
+  });
+
+  it('plays previews from their own address, and never counts them as plays', () => {
+    const http = TestBed.inject(HttpTestingController);
+    player.playPreview({
+      artistMbid: 'a-pennywise',
+      artistName: 'Pennywise',
+      deezerUrl: 'https://www.deezer.com/artist/3',
+      tracks: [301, 302].map((id) => ({ deezerTrackId: id, title: `Song ${id}`, albumTitle: 'Full Circle', coverUrl: null, durationMs: 30_000, audioUrl: `api/v1/previews/${id}/audio` })),
+    });
+    const audio = (player as unknown as { audio: HTMLAudioElement }).audio;
+    expect(audio.getAttribute('src')).toBe('api/v1/previews/301/audio');
+    expect(player.transcoding()).toBe(false);
+    expect(player.isPreviewing('a-pennywise')).toBe(true);
+    expect(player.context()).toEqual({ title: 'Pennywise previews', link: ['/artist', 'a-pennywise'] });
+    expect(titles().upNext).toEqual(['Song 302']);
+
+    let time = 0;
+    Object.defineProperty(audio, 'currentTime', { get: () => time, configurable: true });
+    audio.dispatchEvent(new Event('playing'));
+    for (let t = 1; t <= 29; t++) {
+      time = t;
+      audio.dispatchEvent(new Event('timeupdate'));
+    }
+    http.expectNone('api/v1/plays');
   });
 
   it('forgets everything when stopped (signing out)', () => {

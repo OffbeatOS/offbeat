@@ -17,6 +17,8 @@ import { Notifier, type NotifierOptions } from './notifications/notifier.js';
 import { MusicFiles } from './library/music-files.js';
 import { Transcoder } from './streaming/transcoder.js';
 import { Plays, type PlaysOptions } from './listening/plays.js';
+import { Previews } from './previews/previews.js';
+import { DeezerClient } from './integrations/deezer/client.js';
 import { ListenBrainzClient } from './integrations/listenbrainz/client.js';
 import { MUSICBRAINZ_URL, MusicBrainzClient } from './integrations/musicbrainz/client.js';
 import { Library } from './library/library.js';
@@ -37,6 +39,7 @@ declare module 'fastify' {
     musicFiles: MusicFiles;
     transcoder: Transcoder;
     plays: Plays;
+    previews: Previews;
     /** Listening and similarity sources. Last.fm is null until an admin connects it. */
     sources: { lastfm: () => LastfmClient | null; listenbrainz: ListenBrainzClient };
   }
@@ -63,7 +66,7 @@ export interface AppOptions {
   catalog?: CatalogOptions;
   activity?: ActivityOptions;
   /** Override in tests to point at fake Last.fm and ListenBrainz servers. */
-  sources?: { lastfmUrl?: string; listenbrainzUrl?: string; listenbrainzLabsUrl?: string };
+  sources?: { lastfmUrl?: string; listenbrainzUrl?: string; listenbrainzLabsUrl?: string; deezerUrl?: string };
   discovery?: DiscoveryOptions;
   notifications?: NotifierOptions;
   plays?: PlaysOptions;
@@ -143,6 +146,9 @@ export async function buildApp({
   app.addHook('onClose', async () => app.activity.stop());
 
   // Plays in Offbeat: History, Discover seeds, and ListenBrainz for users who add their token.
+  // Previews of artists not in the library, from Deezer, matched against MusicBrainz.
+  app.decorate('previews', new Previews(db, new DeezerClient(sources.deezerUrl), musicbrainzClient, imageUrls, app.log));
+
   app.decorate('plays', new Plays(db, settings, currentClient(settings), imageUrls, app.sources.listenbrainz, app.log, plays));
   app.addHook('onReady', async () => app.plays.start());
   app.addHook('onClose', async () => app.plays.stop());

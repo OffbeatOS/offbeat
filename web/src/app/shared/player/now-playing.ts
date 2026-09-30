@@ -148,6 +148,16 @@ import { Transport } from './transport';
         }
       }
 
+      .credit {
+        font-size: 13px;
+        color: var(--tint-text, var(--text-3));
+
+        a {
+          color: var(--text);
+          text-decoration: underline;
+        }
+      }
+
       .error {
         font-size: 14px;
         color: var(--status-failed);
@@ -406,7 +416,7 @@ import { Transport } from './transport';
         @if (player.context(); as from) {
           <span class="from">
             <span class="over">Playing from</span>
-            <span><span class="lead">Playing from </span><a [routerLink]="['/album', from.albumMbid]" (click)="close()">{{ from.title }}</a></span>
+            <span><span class="lead">Playing from </span><a [routerLink]="from.link" (click)="close()">{{ from.title }}</a></span>
           </span>
         }
         <button class="round" type="button" aria-label="More" [cdkMenuTriggerFor]="more">
@@ -426,6 +436,9 @@ import { Transport } from './transport';
           <div class="titles">
             <span class="title">{{ track.title }}</span>
             <a class="artist" [routerLink]="['/artist', track.artistMbid]" (click)="close()">{{ track.artistName }}</a>
+            @if (track.preview; as preview) {
+              <span class="credit">30-second preview from <a [href]="preview.deezerUrl" target="_blank" rel="noopener noreferrer">Deezer</a></span>
+            }
             @if (player.error(); as error) {
               <span class="error" role="alert">{{ error }}</span>
             }

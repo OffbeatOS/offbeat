@@ -194,7 +194,7 @@ import { PlayingBars } from './playing-bars';
                 <ob-cover class="art" [src]="track.coverUrl" radius="5px" />
                 <span class="text">
                   <span class="title">{{ track.title }}</span>
-                  <span class="by">{{ group.section === 'added' ? track.artistName + ', added by you' : track.artistName }}</span>
+                  <span class="by">{{ track.artistName + (track.preview ? ', preview' : '') + (group.section === 'added' ? ', added by you' : '') }}</span>
                 </span>
               </button>
               @if (track.durationMs) {

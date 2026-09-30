@@ -83,6 +83,22 @@ import { Transport } from '../player/transport';
       }
     }
 
+    .by-line {
+      display: flex;
+      min-width: 0;
+      white-space: nowrap;
+    }
+
+    .credit {
+      font-size: 13px;
+      color: var(--text-3);
+
+      a {
+        color: var(--text-2);
+        text-decoration: underline;
+      }
+    }
+
     .error {
       font-size: 13px;
       color: var(--status-failed);
@@ -232,7 +248,12 @@ import { Transport } from '../player/transport';
             @if (player.error(); as error) {
               <span class="error" role="alert">{{ error }}</span>
             } @else {
-              <a class="artist" [routerLink]="['/artist', track.artistMbid]">{{ track.artistName }}</a>
+              <span class="by-line">
+                <a class="artist" [routerLink]="['/artist', track.artistMbid]">{{ track.artistName }}</a>
+                @if (track.preview; as preview) {
+                  <span class="credit">, preview from <a [href]="preview.deezerUrl" target="_blank" rel="noopener noreferrer">Deezer</a></span>
+                }
+              </span>
             }
           </div>
         </div>
@@ -261,7 +282,7 @@ import { Transport } from '../player/transport';
           <ob-cover class="art" [src]="track.coverUrl" radius="6px" />
           <span class="titles">
             <span class="name">{{ track.title }}</span>
-            <span class="by" [class.error]="!!player.error()">{{ player.error() || track.artistName }}</span>
+            <span class="by" [class.error]="!!player.error()">{{ player.error() || (track.preview ? track.artistName + ', preview' : track.artistName) }}</span>
           </span>
         </button>
         <button class="icon-button" type="button" [attr.aria-label]="player.playing() ? 'Pause' : 'Play'" (click)="player.toggle()">

@@ -249,7 +249,8 @@ section {
   }
 
   // Over the artwork's bottom right corner; shown on hover or focus where there is a pointer.
-  .add {
+  .add,
+  .preview {
     position: absolute;
     top: calc(230px - 54px);
     right: 14px;
@@ -258,7 +259,14 @@ section {
       top: calc(190px - 56px);
       right: 12px;
       --quick-add-size: 44px;
+      --preview-size: 44px;
     }
+  }
+
+  // Preview on the left, add on the right.
+  .preview {
+    right: auto;
+    left: 14px;
   }
 
   // Rating controls over the artwork's top right corner.

@@ -110,3 +110,24 @@ export interface AddAlbumRequest {
 export interface UpdateArtistRequest {
   monitored: boolean;
 }
+
+/** One 30-second preview of an artist not in the library, from Deezer. */
+export interface PreviewTrack {
+  deezerTrackId: number;
+  title: string;
+  albumTitle: string;
+  /** Proxied cover URL, or null. */
+  coverUrl: string | null;
+  durationMs: number;
+  /** `GET /previews/:deezerTrackId/audio`, relative to the base href. */
+  audioUrl: string;
+}
+
+/** `GET /artists/:mbid/preview`: an artist's top tracks as previews, credited to Deezer. */
+export interface ArtistPreview {
+  artistMbid: string;
+  artistName: string;
+  /** The artist on deezer.com, for the credit. */
+  deezerUrl: string;
+  tracks: PreviewTrack[];
+}
