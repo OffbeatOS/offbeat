@@ -67,9 +67,12 @@
                   <p class="error" role="alert">{{ addError() }}</p>
                 }
               } @else {
-                <a class="square" [routerLink]="['/album', top.album.mbid]">
-                  <ob-cover [src]="top.album.coverUrl" />
-                </a>
+                <span class="square-slot has-play">
+                  <a class="square" [routerLink]="['/album', top.album.mbid]">
+                    <ob-cover [src]="top.album.coverUrl" />
+                  </a>
+                  <ob-play-release [release]="top.album" />
+                </span>
                 <div class="top-text">
                   <a class="top-name" [routerLink]="['/album', top.album.mbid]">{{ top.album.title }}</a>
                   <span class="top-meta">{{ meta(top.album) }} by {{ top.album.artistName }}</span>

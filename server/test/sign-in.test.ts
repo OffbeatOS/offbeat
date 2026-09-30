@@ -146,7 +146,7 @@ describe('reverse proxy header', () => {
     expect(app.db.select().from(users).all().map((u) => u.username)).toEqual(['boss']);
 
     await configure((s) => (s.proxy.autoCreate = true));
-    expect(await me(eve('GET', '/auth/me'))).toMatchObject({ user: { username: 'eve', role: 'user', permissions: ['add-albums'] }, via: 'proxy' });
+    expect(await me(eve('GET', '/auth/me'))).toMatchObject({ user: { username: 'eve', role: 'user', permissions: ['stream', 'add-albums'] }, via: 'proxy' });
     expect((await eve('GET', '/users')).statusCode).toBe(403);
     // A name Offbeat could not use as a username is not created.
     expect((await me(as({ from: PROXY, headers: { 'remote-user': 'no spaces allowed' } })('GET', '/auth/me'))).user).toBeNull();

@@ -7,6 +7,8 @@ import { Cover } from '../../shared/catalog/cover';
 import { QuickAdd } from '../../shared/catalog/quick-add';
 import { EmptyState } from '../../shared/empty-state/empty-state';
 import { Icon } from '../../shared/icon/icon';
+import { PlayRelease } from '../../shared/player/play-release';
+import { PreviewButton } from '../../shared/player/preview-button';
 import { refreshedLabel } from './refreshed-label';
 
 const MODES: { id: DiscoveryMode; label: string }[] = [
@@ -30,7 +32,7 @@ const MAX_RETRY_MS = 30_000;
  */
 @Component({
   selector: 'ob-discover-page',
-  imports: [RouterLink, Cover, QuickAdd, EmptyState, Icon],
+  imports: [RouterLink, Cover, QuickAdd, EmptyState, Icon, PlayRelease, PreviewButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './discover-page.scss',
   templateUrl: './discover-page.html',

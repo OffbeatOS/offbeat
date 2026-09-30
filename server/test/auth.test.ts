@@ -52,7 +52,7 @@ describe('first-run setup', () => {
         id: 1,
         username: 'Admin',
         role: 'admin',
-        permissions: ['add-artists', 'add-albums', 'change-monitoring', 'delete', 'flows'],
+        permissions: ['stream', 'add-artists', 'add-albums', 'change-monitoring', 'delete', 'flows'],
         mustChangePassword: false,
       },
       via: 'password',

@@ -16,3 +16,6 @@ services:
       # - LOG_LEVEL=info
     volumes:
       - ./config:/app/config
+      # Your music, read-only. Mount it at the path Lidarr uses for its root
+      # folder (often /music) and Offbeat needs no mapping.
+      - /path/to/music:/music:ro

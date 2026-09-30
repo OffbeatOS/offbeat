@@ -30,6 +30,13 @@ const username = z
   .regex(/^[^\u0000-\u001f\u007f]*$/, 'that username has characters no service allows')
   .nullish();
 const listeningBody = z.object({ lastfmUsername: username, listenbrainzUsername: username });
+// ListenBrainz user tokens are UUIDs; anything else is a paste mistake.
+const tokenBody = z.object({
+  token: z
+    .string()
+    .trim()
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, 'a ListenBrainz token looks like 8-4-4-4-12 letters and numbers'),
+});
 
 /**
  * Last.fm connection (admins) and each user's listening accounts. Upstream
@@ -91,6 +98,22 @@ export const listeningRoutes: FastifyPluginAsync<ListeningRoutesOptions> = async
     return account(request);
   });
 
+  /**
+   * Submit plays to ListenBrainz: the token (from ListenBrainz's settings
+   * page) is checked with ListenBrainz, stored encrypted, and never sent back.
+   * Plays from now on are submitted; earlier ones are not.
+   */
+  app.put('/account/listenbrainz-token', async (request): Promise<AccountView> => {
+    const { token } = parse(tokenBody, request.body);
+    await upstream(() => app.plays.connect(request.user!.id, token));
+    return account(request);
+  });
+
+  app.delete('/account/listenbrainz-token', async (request): Promise<AccountView> => {
+    app.plays.disconnect(request.user!.id);
+    return account(request);
+  });
+
   function account(request: FastifyRequest): AccountView {
     const row = app.db.select().from(users).where(eq(users.id, request.user!.id)).get();
     if (!row) throw new HttpError(401, 'Sign in to continue');
@@ -100,6 +123,7 @@ export const listeningRoutes: FastifyPluginAsync<ListeningRoutesOptions> = async
       lastfmUsername: row.lastfmUsername,
       listenbrainzUsername: row.listenbrainzUsername,
       lastfmAvailable: !!loadLastfm(app.settings),
+      listenbrainzSubmit: app.plays.submitView(row.id),
     };
   }
 };

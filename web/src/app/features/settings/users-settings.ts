@@ -19,6 +19,7 @@ import { Icon } from '../../shared/icon/icon';
 import { SignInSettingsPanel } from './sign-in-settings';
 
 export const PERMISSION_LABEL: Record<Permission, string> = {
+  stream: 'Stream music',
   'add-artists': 'Add artists',
   'add-albums': 'Add albums',
   'change-monitoring': 'Change monitoring',
@@ -71,7 +72,8 @@ export class UsersSettings implements OnInit {
   protected readonly session = inject(Session);
 
   protected readonly days = TEMPORARY_PASSWORD_DAYS;
-  protected readonly permissions = PERMISSIONS;
+  // Flows is not built yet (see ROADMAP, Later). The permission stays in each user's data, just not on screen.
+  protected readonly permissions = PERMISSIONS.filter((p) => p !== 'flows');
   protected readonly label = PERMISSION_LABEL;
   protected readonly color = avatarColor;
   protected readonly users = signal<UserSummary[] | null>(null);

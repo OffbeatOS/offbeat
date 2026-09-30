@@ -14,6 +14,11 @@ import type { LastfmClient } from './integrations/lastfm/client.js';
 import { lastfmClientFor } from './integrations/lastfm/settings.js';
 import { currentClient } from './integrations/lidarr/settings.js';
 import { Notifier, type NotifierOptions } from './notifications/notifier.js';
+import { MusicFiles } from './library/music-files.js';
+import { Transcoder } from './streaming/transcoder.js';
+import { Plays, type PlaysOptions } from './listening/plays.js';
+import { Previews } from './previews/previews.js';
+import { DeezerClient } from './integrations/deezer/client.js';
 import { ListenBrainzClient } from './integrations/listenbrainz/client.js';
 import { MUSICBRAINZ_URL, MusicBrainzClient } from './integrations/musicbrainz/client.js';
 import { Library } from './library/library.js';
@@ -31,13 +36,17 @@ declare module 'fastify' {
     activity: Activity;
     discovery: Discovery;
     notifier: Notifier;
+    musicFiles: MusicFiles;
+    transcoder: Transcoder;
+    plays: Plays;
+    previews: Previews;
     /** Listening and similarity sources. Last.fm is null until an admin connects it. */
     sources: { lastfm: () => LastfmClient | null; listenbrainz: ListenBrainzClient };
   }
 }
 
 export interface AppOptions {
-  config: Pick<Config, 'baseUrl' | 'trustProxy' | 'logLevel'> & Partial<Pick<Config, 'sessionCookie'>>;
+  config: Pick<Config, 'baseUrl' | 'trustProxy' | 'logLevel'> & Partial<Pick<Config, 'sessionCookie' | 'ffmpegPath'>>;
   db: Db;
   /** Contents of `secret.key`; encrypts stored credentials. */
   secretKey: Buffer;
@@ -57,9 +66,10 @@ export interface AppOptions {
   catalog?: CatalogOptions;
   activity?: ActivityOptions;
   /** Override in tests to point at fake Last.fm and ListenBrainz servers. */
-  sources?: { lastfmUrl?: string; listenbrainzUrl?: string; listenbrainzLabsUrl?: string };
+  sources?: { lastfmUrl?: string; listenbrainzUrl?: string; listenbrainzLabsUrl?: string; deezerUrl?: string };
   discovery?: DiscoveryOptions;
   notifications?: NotifierOptions;
+  plays?: PlaysOptions;
   /** Filled with every API route and its access config (for tests). */
   routeTable?: ApiRouteInfo[];
 }
@@ -80,6 +90,7 @@ export async function buildApp({
   sources = {},
   discovery = {},
   notifications = {},
+  plays = {},
   routeTable,
 }: AppOptions) {
   const app = Fastify({
@@ -134,6 +145,14 @@ export async function buildApp({
   });
   app.addHook('onClose', async () => app.activity.stop());
 
+  // Plays in Offbeat: History, Discover seeds, and ListenBrainz for users who add their token.
+  // Previews of artists not in the library, from Deezer, matched against MusicBrainz.
+  app.decorate('previews', new Previews(db, new DeezerClient(sources.deezerUrl), musicbrainzClient, imageUrls, app.log));
+
+  app.decorate('plays', new Plays(db, settings, currentClient(settings), imageUrls, app.sources.listenbrainz, app.log, plays));
+  app.addHook('onReady', async () => app.plays.start());
+  app.addHook('onClose', async () => app.plays.stop());
+
   app.decorate(
     'discovery',
     new Discovery(
@@ -144,6 +163,7 @@ export async function buildApp({
         listenbrainz: app.sources.listenbrainz,
         lidarr: currentClient(settings),
         musicbrainz: musicbrainzClient,
+        plays: app.plays,
       },
       imageUrls,
       app.log,
@@ -154,6 +174,10 @@ export async function buildApp({
   app.addHook('onReady', async () => app.discovery.start());
 
   // Discord and generic webhooks: fed by Activity (history, blocked imports) and Lidarr's calendar.
+  // Audio comes from the music folders Lidarr manages, indexed by Lidarr's track files.
+  app.decorate('musicFiles', new MusicFiles(settings, currentClient(settings), app.log));
+  app.decorate('transcoder', new Transcoder(config.ffmpegPath ?? 'ffmpeg', app.log));
+
   app.decorate('notifier', new Notifier(db, settings, app.log, currentClient(settings), notifications));
   app.activity.observe({
     history: (records) => app.notifier.noticeHistory(records),

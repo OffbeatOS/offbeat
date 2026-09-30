@@ -20,7 +20,18 @@ export type IconName =
   | 'close'
   | 'thumbs-up'
   | 'thumbs-down'
-  | 'block';
+  | 'block'
+  | 'play'
+  | 'pause'
+  | 'previous'
+  | 'next'
+  | 'shuffle'
+  | 'repeat'
+  | 'repeat-one'
+  | 'queue'
+  | 'volume'
+  | 'volume-off'
+  | 'expand';
 
 /** 24px viewBox stroke icons at 1.8px, drawn in `currentColor` (Lucide style). */
 @Component({
@@ -123,6 +134,53 @@ export type IconName =
         @case ('block') {
           <circle cx="12" cy="12" r="9" />
           <path d="M5.6 5.6l12.8 12.8" />
+        }
+        <!-- Player controls (Playing mockup). The filled ones ignore strokeWidth. -->
+        @case ('play') {
+          <path d="M7 5.5v13l11-6.5z" fill="currentColor" stroke="none" />
+        }
+        @case ('pause') {
+          <g fill="currentColor" stroke="none">
+            <rect x="6" y="5" width="4" height="14" rx="1" />
+            <rect x="14" y="5" width="4" height="14" rx="1" />
+          </g>
+        }
+        @case ('previous') {
+          <g fill="currentColor" stroke="none">
+            <rect x="5" y="6" width="2.2" height="12" rx="1" />
+            <path d="M19 6.5v11l-9-5.5z" />
+          </g>
+        }
+        @case ('next') {
+          <g fill="currentColor" stroke="none">
+            <rect x="16.8" y="6" width="2.2" height="12" rx="1" />
+            <path d="M5 6.5v11l9-5.5z" />
+          </g>
+        }
+        @case ('shuffle') {
+          <path d="M4 7h3c4 0 6 10 10 10h3M17 14l3 3-3 3M4 17h3c1.5 0 2.7-1.4 3.7-3M13.3 10c1-1.6 2.2-3 3.7-3h3M17 4l3 3-3 3" />
+        }
+        @case ('repeat') {
+          <path d="M4 11V9a3 3 0 0 1 3-3h12M16 3l3 3-3 3M20 13v2a3 3 0 0 1-3 3H5M8 21l-3-3 3-3" />
+        }
+        @case ('repeat-one') {
+          <path d="M4 11V9a3 3 0 0 1 3-3h12M16 3l3 3-3 3M20 13v2a3 3 0 0 1-3 3H5M8 21l-3-3 3-3M11.5 10.5l1-1v5" />
+        }
+        @case ('queue') {
+          <path d="M4 6h11M4 11h11M4 16h6" />
+          <circle cx="16" cy="17" r="2.5" />
+          <path d="M18.5 17V9.5l2.5-1" />
+        }
+        @case ('volume') {
+          <path d="M4 9.5v5h3.5l4.5 3.8V5.7L7.5 9.5z" />
+          <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
+        }
+        @case ('volume-off') {
+          <path d="M4 9.5v5h3.5l4.5 3.8V5.7L7.5 9.5z" />
+          <path d="M16 9.5l5 5M21 9.5l-5 5" />
+        }
+        @case ('expand') {
+          <path d="M14 4h6v6M10 20H4v-6M20 4l-6.5 6.5M4 20l6.5-6.5" />
         }
       }
     </svg>

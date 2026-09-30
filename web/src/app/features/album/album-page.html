@@ -28,7 +28,15 @@
       } @else if (statusLine()) {
         <span class="status" [class.wanted]="statusLine() === 'Wanted'">{{ statusLine() }}</span>
       }
-      <div class="actions">
+      <div class="actions" [class.playable]="playable()">
+        @if (playable()) {
+          <button class="accent play" type="button" (click)="playPause()">
+            <ob-icon [name]="playingThis() ? 'pause' : 'play'" [size]="16" />{{ playingThis() ? 'Pause' : 'Play' }}
+          </button>
+          <button class="secondary play" type="button" (click)="shuffle()">
+            <ob-icon name="shuffle" [size]="16" />Shuffle
+          </button>
+        }
         @if (canAdd()) {
           @if (can('add-albums')) {
             <button class="accent" type="button" [disabled]="!!busy() || adding()" (click)="add()">
@@ -40,6 +48,7 @@
             class="primary"
             type="button"
             [class.off]="!a.monitored"
+            [class.quiet]="playable()"
             [attr.aria-pressed]="a.monitored"
             [disabled]="!!busy() || !can('change-monitoring')"
             [title]="can('change-monitoring') ? '' : 'Your account cannot change monitoring'"
@@ -78,18 +87,51 @@
         @if (showTrackStatus()) {
           <span class="right">Status</span>
         }
+        <span class="right">Time</span>
+        <span></span>
       </div>
       <ol>
         @for (track of a.tracks; track $index) {
-          <li [class.missing]="showTrackStatus() && track.hasFile === false">
-            <span class="n">{{ track.position }}</span>
-            <span class="title">{{ track.title }}</span>
-            @if (showTrackStatus() && track.hasFile === false) {
-              <span class="right">Missing</span>
+          <li
+            [class.missing]="showTrackStatus() && track.hasFile === false"
+            [class.current]="isCurrent(track)"
+            [class.can-play]="playable() && track.trackFileId !== null"
+          >
+            <span class="n">
+              @if (isCurrent(track)) {
+                <ob-playing-bars [moving]="player.playing()" />
+              } @else {
+                <span class="number">{{ track.position }}</span>
+                @if (playable() && track.trackFileId !== null) {
+                  <ob-icon class="play-mark" name="play" [size]="14" />
+                }
+              }
+            </span>
+            @if (playable() && track.trackFileId !== null) {
+              <button class="title" type="button" (click)="playTrack(track)" [attr.aria-label]="'Play ' + track.title">{{ track.title }}</button>
+            } @else {
+              <span class="title">{{ track.title }}</span>
+            }
+            @if (showTrackStatus()) {
+              <span class="right">{{ track.hasFile === false ? 'Missing' : '' }}</span>
+            }
+            <span class="right time">{{ duration(track) }}</span>
+            @if (playable() && track.trackFileId !== null) {
+              <button class="row-menu" type="button" [attr.aria-label]="'More for ' + track.title" [cdkMenuTriggerFor]="rowMenu" [cdkMenuTriggerData]="{ $implicit: track }">
+                <ob-icon name="more" [size]="16" />
+              </button>
+            } @else {
+              <span></span>
             }
           </li>
         }
       </ol>
+      <ng-template #rowMenu let-track>
+        <div class="ob-menu" cdkMenu>
+          <button class="ob-menu-item" type="button" cdkMenuItem (cdkMenuItemTriggered)="queue(track, 'next')">Play Next</button>
+          <button class="ob-menu-item" type="button" cdkMenuItem (cdkMenuItemTriggered)="queue(track, 'later')">Add to Queue</button>
+        </div>
+      </ng-template>
     </section>
   } @else {
     <ob-empty-state icon="library" heading="No track list yet" message="MusicBrainz has no official release with tracks for this album." />

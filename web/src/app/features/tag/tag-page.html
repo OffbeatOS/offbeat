@@ -53,6 +53,7 @@
                     <img [src]="artist.imageUrl" alt="" loading="lazy" decoding="async" />
                   }
                 </a>
+                <ob-preview-button class="preview" [mbid]="artist.mbid" [name]="artist.name" [inLibrary]="isInLibrary(artist)" />
                 <ob-quick-add
                   class="add"
                   [mbid]="artist.mbid"
@@ -100,13 +101,16 @@
         </div>
         <div class="grid albums">
           @for (album of albums(); track album.mbid) {
-            <a class="album" [routerLink]="['/album', album.mbid]">
-              <ob-cover [src]="album.coverUrl" />
-              <span class="text">
-                <span class="title">{{ album.title }}</span>
-                <span class="by">{{ album.artistName }}</span>
-              </span>
-            </a>
+            <div class="album-slot has-play">
+              <a class="album" [routerLink]="['/album', album.mbid]">
+                <ob-cover [src]="album.coverUrl" />
+                <span class="text">
+                  <span class="title">{{ album.title }}</span>
+                  <span class="by">{{ album.artistName }}</span>
+                </span>
+              </a>
+              <ob-play-release [release]="album" />
+            </div>
           }
         </div>
       </section>

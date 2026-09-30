@@ -2,12 +2,12 @@
 export type UserRole = 'admin' | 'user';
 
 /** What a Member may do beyond browsing; admins can do everything. */
-export type Permission = 'add-artists' | 'add-albums' | 'change-monitoring' | 'delete' | 'flows';
+export type Permission = 'add-artists' | 'add-albums' | 'change-monitoring' | 'delete' | 'flows' | 'stream';
 
-export const PERMISSIONS: readonly Permission[] = ['add-artists', 'add-albums', 'change-monitoring', 'delete', 'flows'];
+export const PERMISSIONS: readonly Permission[] = ['stream', 'add-artists', 'add-albums', 'change-monitoring', 'delete', 'flows'];
 
 /** What a new Member gets unless the admin chooses otherwise. */
-export const DEFAULT_MEMBER_PERMISSIONS: readonly Permission[] = ['add-albums'];
+export const DEFAULT_MEMBER_PERMISSIONS: readonly Permission[] = ['stream', 'add-albums'];
 
 /** The signed-in user, from `GET /auth/me`, login, and admin setup. */
 export interface CurrentUser {

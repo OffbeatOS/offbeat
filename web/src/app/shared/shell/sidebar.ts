@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { ActivityStore } from '../../core/activity-store';
 import { PRIMARY_NAV, SECONDARY_NAV } from '../../core/navigation';
 import { Wordmark } from '../wordmark/wordmark';
 import { NavItem } from './nav-item';
@@ -44,7 +45,11 @@ import { NavItem } from './nav-item';
 
       <div class="group">
         @for (item of primary; track item.path) {
-          <ob-nav-item [item]="item" />
+          @if (item.path === '/activity') {
+            <ob-nav-item [item]="item" [badge]="downloads()" [badgeLabel]="downloadsLabel()" />
+          } @else {
+            <ob-nav-item [item]="item" />
+          }
         }
       </div>
 
@@ -59,6 +64,9 @@ import { NavItem } from './nav-item';
   `,
 })
 export class Sidebar {
+  /** Downloads in progress, on the Activity item (the bottom bar may be the player). */
+  protected readonly downloads = inject(ActivityStore).inProgressCount;
+  protected readonly downloadsLabel = computed(() => `${this.downloads()} ${this.downloads() === 1 ? 'download' : 'downloads'} in progress`);
   protected readonly primary = PRIMARY_NAV;
   protected readonly secondary = SECONDARY_NAV;
 }

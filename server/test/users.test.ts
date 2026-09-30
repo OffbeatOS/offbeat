@@ -100,6 +100,9 @@ const ANY_SIGNED_IN = new Set([
   'GET /tags/:tag',
   'GET /tags/:tag/albums',
   'GET /account',
+  'GET /plays',
+  'PUT /account/listenbrainz-token',
+  'DELETE /account/listenbrainz-token',
   'PUT /account/listening',
   'PUT /account/password',
 ]);
@@ -165,7 +168,7 @@ describe('permissions', () => {
   it('admins have every permission, whatever is stored', async () => {
     const { call, admin } = await setup();
     const me = await call(admin, 'GET', '/auth/me');
-    expect(me.json().user.permissions).toEqual(['add-artists', 'add-albums', 'change-monitoring', 'delete', 'flows']);
+    expect(me.json().user.permissions).toEqual(['stream', 'add-artists', 'add-albums', 'change-monitoring', 'delete', 'flows']);
   });
 });
 

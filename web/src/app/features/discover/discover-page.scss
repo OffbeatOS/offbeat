@@ -147,8 +147,14 @@ section {
   }
 }
 
+// How many show at once comes from tokens.scss: wider windows show more rather than stretching them.
+.picks,
+.albums {
+  grid-auto-columns: calc((100% - (var(--n) - 1) * var(--grid-gap)) / var(--n));
+}
+
 .picks {
-  grid-auto-columns: calc((100% - 2 * var(--grid-gap)) / 3);
+  --n: var(--picks-per-row);
 
   @include mixins.mobile {
     grid-auto-columns: 290px;
@@ -156,7 +162,7 @@ section {
 }
 
 .albums {
-  grid-auto-columns: calc((100% - 5 * var(--grid-gap)) / 6);
+  --n: var(--albums-per-row);
 
   @include mixins.mobile {
     grid-auto-columns: 140px;
@@ -243,7 +249,8 @@ section {
   }
 
   // Over the artwork's bottom right corner; shown on hover or focus where there is a pointer.
-  .add {
+  .add,
+  .preview {
     position: absolute;
     top: calc(230px - 54px);
     right: 14px;
@@ -252,7 +259,14 @@ section {
       top: calc(190px - 56px);
       right: 12px;
       --quick-add-size: 44px;
+      --preview-size: 44px;
     }
+  }
+
+  // Preview on the left, add on the right.
+  .preview {
+    right: auto;
+    left: 14px;
   }
 
   // Rating controls over the artwork's top right corner.

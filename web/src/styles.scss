@@ -167,3 +167,42 @@ p {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+// Menus opened from "..." buttons (CDK menu): Now Playing, and track rows.
+.ob-menu {
+  min-width: 190px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-button);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.ob-menu-item {
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible,
+  &.cdk-menu-item:focus {
+    background: var(--surface-4);
+    outline: none;
+  }
+}
+
+// An album card with a play button over its art (ob-play-release): the button sits
+// beside the card's link, since a button cannot go inside a link.
+.has-play {
+  position: relative;
+  min-width: 0;
+}

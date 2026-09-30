@@ -4,7 +4,7 @@ import { ResponseTooLarge, fetchBuffered } from '../integrations/http.js';
  * Public artwork hosts Offbeat may fetch from on the browser's behalf. Anything
  * else is refused, so the image proxy cannot be used to reach arbitrary URLs.
  */
-const ALLOWED_HOSTS = ['images.lidarr.audio', 'assets.fanart.tv', 'coverartarchive.org', 'archive.org'];
+const ALLOWED_HOSTS = ['images.lidarr.audio', 'assets.fanart.tv', 'coverartarchive.org', 'archive.org', 'cdn-images.dzcdn.net'];
 
 export function isAllowedImageUrl(raw: string): boolean {
   let url: URL;

@@ -67,6 +67,13 @@ export interface Track {
   durationMs: number | null;
   /** Null when the album is not in Lidarr. */
   hasFile: boolean | null;
+  /** Lidarr's file for this track, streamed from `/stream/:trackFileId`; null when there is none. */
+  trackFileId: number | null;
+  /**
+   * The file's media type (for example audio/flac, or audio/mp4; codecs="alac"), so the
+   * browser can tell whether it plays it directly or needs it transcoded. Null without a file.
+   */
+  mimeType: string | null;
 }
 
 /** `GET /albums/:mbid` */
@@ -102,4 +109,25 @@ export interface AddAlbumRequest {
 /** `PATCH /artists/:mbid` */
 export interface UpdateArtistRequest {
   monitored: boolean;
+}
+
+/** One 30-second preview of an artist not in the library, from Deezer. */
+export interface PreviewTrack {
+  deezerTrackId: number;
+  title: string;
+  albumTitle: string;
+  /** Proxied cover URL, or null. */
+  coverUrl: string | null;
+  durationMs: number;
+  /** `GET /previews/:deezerTrackId/audio`, relative to the base href. */
+  audioUrl: string;
+}
+
+/** `GET /artists/:mbid/preview`: an artist's top tracks as previews, credited to Deezer. */
+export interface ArtistPreview {
+  artistMbid: string;
+  artistName: string;
+  /** The artist on deezer.com, for the credit. */
+  deezerUrl: string;
+  tracks: PreviewTrack[];
 }

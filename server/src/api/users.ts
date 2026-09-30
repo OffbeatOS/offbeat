@@ -133,6 +133,8 @@ export const userRoutes: FastifyPluginAsync<{ cookie: SessionCookieOptions }> = 
       if (user.role === 'admin' && adminCount(tx as unknown as Db) <= 1) throw new HttpError(409, LAST_ADMIN);
       tx.delete(users).where(eq(users.id, id)).run();
     });
+    // Their plays go with them (the table cascades); so does their ListenBrainz token.
+    app.plays.disconnect(id);
     return reply.code(204).send();
   });
 

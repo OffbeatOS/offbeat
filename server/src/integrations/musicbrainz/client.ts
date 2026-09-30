@@ -95,11 +95,12 @@ export class MusicBrainzClient {
    * An artist's release groups. `albumsOnly` asks for primary type Album
    * (live albums and compilations included): usually one page instead of
    * several for a big artist, each page a second of rate limit.
+   * `firstPageOnly` stops at 100, for callers that only need a sample.
    */
-  async releaseGroups(artistMbid: string, { albumsOnly = false } = {}): Promise<MbReleaseGroup[]> {
+  async releaseGroups(artistMbid: string, { albumsOnly = false, firstPageOnly = false } = {}): Promise<MbReleaseGroup[]> {
     const all: MbReleaseGroup[] = [];
     const type = albumsOnly ? '&type=album' : '';
-    for (let offset = 0; offset < 1000; offset += 100) {
+    for (let offset = 0; offset < (firstPageOnly ? 100 : 1000); offset += 100) {
       const page = await this.get(
         `release-group?artist=${encodeURIComponent(artistMbid)}${type}&limit=100&offset=${offset}&fmt=json`,
         browseSchema,

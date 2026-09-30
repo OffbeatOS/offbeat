@@ -26,3 +26,12 @@ export function formatBytes(bytes: number): string {
   }
   return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
 }
+
+/** "3:07", or "1:02:05" past an hour, for track lengths and the player's clock. */
+export function formatDuration(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = String(total % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+}

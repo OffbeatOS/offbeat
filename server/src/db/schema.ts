@@ -209,3 +209,32 @@ export const deliveries = sqliteTable(
   },
   (table) => [index('deliveries_created_idx').on(table.createdAt)],
 );
+
+/**
+ * What each user played in Offbeat, for Discover seeds, Now Playing's
+ * History, and ListenBrainz. Recorded once a track has been listened to for
+ * half its length or 4 minutes; details come from Lidarr, not the browser.
+ */
+export const plays = sqliteTable(
+  'plays',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    trackFileId: integer('track_file_id').notNull(),
+    title: text('title').notNull(),
+    artistName: text('artist_name').notNull(),
+    artistMbid: text('artist_mbid'),
+    albumTitle: text('album_title').notNull(),
+    /** Release group MBID. */
+    albumMbid: text('album_mbid'),
+    recordingMbid: text('recording_mbid'),
+    durationMs: integer('duration_ms'),
+    mimeType: text('mime_type').notNull(),
+    playedAt: integer('played_at', { mode: 'timestamp' }).notNull(),
+    /** When ListenBrainz accepted it; null when not submitted (or not yet). */
+    listenbrainzAt: integer('listenbrainz_at', { mode: 'timestamp' }),
+  },
+  (table) => [index('plays_user_played_idx').on(table.userId, table.playedAt)],
+);

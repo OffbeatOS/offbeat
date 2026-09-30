@@ -83,12 +83,12 @@ offbeat/
 
 ## App shell
 
-The shell has three regions: sidebar, main content, and a bottom bar. In phases 1 to 4 the bottom bar shows download activity; in phase 5 it becomes the audio player. It lives outside the router outlet so playback survives navigation. Signed-in pages render inside the shell; onboarding and sign-in are full-page.
+The shell has three regions: sidebar, main content, and a bottom bar (88px). The bottom bar shows download activity until something is queued, then becomes the player (Playing mockup); download activity then shows as a count on Activity in the sidebar and a dot on the phone's Activity tab. It lives outside the router outlet so playback survives navigation, and the queue drawer and Now Playing open over the page from the shell. Signed-in pages render inside the shell; onboarding and sign-in are full-page.
 
 ## Security model
 
 - Every API route requires a session unless it is explicitly public (`status`, `setup/state`, `setup/admin` before an admin exists, `auth/*`). Admin-only routes are marked by role.
-- **Roles and permissions.** Admins can do everything. Members can browse and use their own Discover, feedback, and blocklist, plus what an admin grants: add artists, add albums (also Search Missing and Retry), change monitoring, delete from Lidarr (removing downloads), and use Flows. A route declares its permission and the guard enforces it on the server; the web app only hides what would be refused. A test lists every API route and fails if one is not public, admin only, permission gated, or on an explicit list open to any signed-in user.
+- **Roles and permissions.** Admins can do everything. Members can browse and use their own Discover, feedback, and blocklist, plus what an admin grants: stream (on by default, and turned on for existing Members by migration 0010), add artists, add albums (also Search Missing and Retry), change monitoring, delete from Lidarr (removing downloads), and use Flows (kept for later, not shown). A route declares its permission and the guard enforces it on the server; the web app only hides what would be refused. A test lists every API route and fails if one is not public, admin only, permission gated, or on an explicit list open to any signed-in user.
 - **Accounts.** Admins add users and reset passwords, but never choose them: Offbeat makes a temporary password (shown once), and until the user replaces it every route except changing it answers 403. A temporary password works for 7 days. A reset signs the user out everywhere; removing a user does too, and their requests then read "requested by sam (removed)" (user ids are never reused, so a new account with the same name is never credited). The last admin can never be demoted or removed, and nobody removes themselves. Role and permission changes apply on the next request, without signing in again: the server rereads the user every time, and the web app refreshes who is signed in after any 403 and when the tab regains focus, leaving admin pages and hiding buttons as needed.
 - **Sign-in methods** (`server/src/auth/sign-in.ts`, `network.ts`). Each request is identified by, in order: the proxy header, but only when the TCP connection comes from a configured trusted proxy (addresses or CIDR ranges, empty by default); then the session cookie; then local network auto-login. The real client address is the socket address, or through trusted proxies the nearest `X-Forwarded-For` entry that is not one of them; forwarding headers from anything else make a request unverifiable, so never local. Inside Docker, the bridge gateway and Docker Desktop's gateway (found at startup from the routing table and `gateway.docker.internal`) can stand for any visitor, so they never count as local and cannot be saved in a local network range. An optional shared secret (a header the proxy adds, compared in constant time) makes the username count only when the secret comes with it, so a proxy route that passes on a visitor's own header cannot sign anyone in; the secret is stored encrypted and never sent to the browser. A trusted proxy range that contains a Docker stand-in address (or is `/0`) cannot be saved without the shared secret, and the header from a stand-in is ignored at request time when no secret is set. Auto-login also requires the Host header to be a local name (an IP address, a single-label name, `.local`, `.lan`, `.home.arpa`, or the host of the link-back address), so a DNS rebinding page, which always sends its own domain, cannot use it. Auto-login and auto-created proxy users are always Members. Unknown proxy usernames get a "no Offbeat account" answer unless auto-create is on, and a sign-out URL sends Sign out to the proxy. Public routes (such as the Lidarr webhook) skip all of this and check their own token.
 - **Admin CLI.** `offbeat reset-password`, `list-users`, and `make-admin` (`server/src/cli.ts`; `docker exec -it offbeat offbeat ...` in the container, which drops to PUID:PGID) recover access when no admin can sign in. They work while the server runs, since SQLite is in WAL mode with a busy timeout, and refuse to run when there is no database at `CONFIG_DIR` rather than creating an empty one.
@@ -108,6 +108,7 @@ The MusicBrainz ID (MBID) is the join key across every service. Pages are routed
 - `GET /artist/lookup` and `/album/lookup` for search (`lidarr:<mbid>` looks up one artist)
 - `POST /artist` to add, `PUT /album/monitor` to monitor one album, `POST /command` for `AlbumSearch`
 - `GET /album?artistId=` for per-album status. Use `statistics.totalTrackCount`: `trackCount` is 0 for unmonitored artists.
+- `GET /rootfolder`, `GET /trackfile?artistId=`, and `GET /trackfile/:id` for music files (see Music files)
 - `GET /command` to wait for a new artist's refresh and post-add actions before monitoring a single album (they would otherwise reset it), and to show albums Lidarr is searching for
 - A single-album add leaves the artist monitored (Lidarr only searches, re-grabs, and upgrades albums of monitored artists), with future releases off and only that album monitored, whatever "Monitor new artists" says. Lidarr leaves an artist added with no albums to monitor unmonitored, so Offbeat re-applies it after the post-add actions. An artist already in Lidarr but unmonitored becomes monitored with future releases off; one the user already monitors is left as it is. Monitoring an unmonitored artist again also resumes any of its albums still marked monitored, so in that case `POST /albums/:mbid` answers 409 naming those albums, and the add goes ahead only with `resumeMonitoring: true` (the UI asks first: Add anyway or Cancel).
 - Deleting an artist while Lidarr is still refreshing it makes Lidarr add it back ("Adding missing parent artist"). Anything that removes artists must wait until no RefreshArtist is queued or running.
@@ -123,9 +124,9 @@ The MusicBrainz ID (MBID) is the join key across every service. Pages are routed
 
 **Last.fm (optional, preferred when present).** An admin adds an API key in onboarding or Settings, Integrations; it is checked with Last.fm, stored encrypted, and only its last four characters reach the browser. When connected, Last.fm is the preferred source for similar artists and tags, alongside ListenBrainz. Users can add a Last.fm username in Settings, Account (checked with `user.getInfo`). Methods: `artist.getSimilar`, `artist.getTopTags`, `artist.getInfo`, `tag.getTopArtists`, `user.getTopArtists`. Paced at five requests per second.
 
-**Navidrome (phase 4).** Subsonic API for publishing flow libraries and smart playlists.
+**Navidrome (later).** Subsonic API for publishing flow libraries and smart playlists.
 
-**slskd (phase 4).** External Soulseek client, used through its REST API. Offbeat does not embed a Soulseek client.
+**slskd (later, if there is demand).** External Soulseek client, used through its REST API. Offbeat does not embed a Soulseek client.
 
 **Ticketmaster (later, optional).** Nearby shows.
 
@@ -141,6 +142,26 @@ One server-side poller reads Lidarr's queue, commands, and history, and pushes a
 - **Lidarr webhook** (`server/src/api/webhook.ts`). Lidarr calls `POST /api/v1/webhooks/lidarr` on grab, import, upgrade, and download or import failure. It is a public route that checks only Basic auth (user `offbeat`, a random token as password, compared in constant time), never a token in the URL. The body is not trusted: any event just makes Activity poll Lidarr now, then quickly for a few minutes. Polling on a timer (30 seconds with a browser watching and nothing moving) stays as the fallback. Set Up Automatically asks Lidarr to send its Test event to the callback address first and saves only if Lidarr succeeded and the event reached this Offbeat; it then updates Offbeat's existing webhook in Lidarr (found by id, name, or receiver path) rather than adding another. Lidarr requires unique names even when testing, so a test of the existing webhook carries its id.
 - **Notifications** (`server/src/notifications`). Discord and generic webhook channels, configured by admins, each with its own events. Sources: Lidarr's history, read during Activity polls (album imported and download failed, one message per album download however many history entries it has); Activity's Needs Attention (an import newly blocked or stuck); and Lidarr's calendar every 15 minutes (an album appearing for a monitored artist, skipping artists in their first day). The first look at each source only records where things stand. Sending runs in the background, one message at a time per channel: a 429 from Discord waits as long as Discord says, other failures retry after 30 seconds, 2 minutes, and 10 minutes, and every attempt is logged in `deliveries` (the latest 200). Discord messages disable all mentions. URLs are checked when saved and again before each send: http or https only, never a link-local address (cloud metadata), and redirects are not followed. The Discord token and the webhook secret are stored encrypted and never sent to the browser.
 - **Stuck imports.** Lidarr can leave a finished download in "importing" for good when it will not import it on its own (for example a match below 80%), without saying why on the queue item. After an hour in that state (counted from when Offbeat first saw it, since the queue has no completion time), the item moves to Needs Attention as Import stuck. Offbeat asks Lidarr's Manual Import preview for the rejections once, in the background, and explains them in plain words, with a link to Lidarr's queue, where Manual Import is.
+
+## Music files
+
+Offbeat plays audio from the folders Lidarr manages, read-only (`server/src/library/music-files.ts`). Lidarr is the index: its track files give each file's path (in Lidarr's own paths), size, quality, and codec, and its tracks give durations. Offbeat never scans the disk.
+
+- Each Lidarr root folder is read at the same path, or wherever an admin maps it in Settings, Integrations, Lidarr, Music files (stored unencrypted under `music-files`). Only Lidarr's current root folders can be mapped, and only to a full path.
+- A file is only ever chosen by a Lidarr track file id, never a path from a request. The file's Lidarr path must be inside a root folder with no `.` or `..` segments, and its real path (after following links) must stay inside the mapped folder.
+- Save and Check opens each folder and reads the first bytes of a sample of files (three from each of eight artists, spread across the library), and stores the result with plain-language reasons (not found, not allowed for PUID and PGID).
+- Track files are cached in memory for 10 minutes, root folders for 5.
+
+## Streaming and the player
+
+- **Stream** (`GET /api/v1/stream/:trackFileId`, `server/src/api/stream.ts`): needs a signed-in user with the Stream permission, like every API route through the guard (the audio element sends the session cookie). The file is chosen only by Lidarr track file id through MusicFiles.file (see Music files). Directly, it answers HTTP ranges (206, one range at a time; 416 past the end), so the browser seeks by asking for bytes. With `?transcode=mp3&t=<seconds>` it runs ffmpeg (`FFMPEG_PATH`, bundled in the image) from that second, writing 256 kbps MP3 to the response; the process is killed when the listener goes away, so each seek of a transcoded track is a new stream from there.
+- **Direct or transcoded.** Album tracks carry their track file id and a media type from the file's extension and Lidarr's codec (`audio/flac`, `audio/mp4; codecs="alac"`). The player asks the browser (`canPlayType`) and streams directly when it says it can, otherwise transcoded; if a direct stream then fails as unsupported, it switches to transcoding once.
+- **Player** (`web/src/app/core/player.ts`): one audio element for the app. The queue is the track playing, "Added by you" (Play Next puts tracks first, Add to Queue last), and the rest of the album it was started from ("Next from"); history is kept for the session. Shuffle, repeat all or one, previous (restarts after 3 seconds in), reorder by dragging or with the arrow keys on a row's handle. A track that ends more than 3 seconds short of its length was cut off by the network, so the player picks it up again from there (twice at most) instead of skipping ahead. Sign-out stops it.
+- **Plays** (`server/src/listening/plays.ts`): the player counts time actually listened to (seeking forward does not count) and reports a play at half the track or 4 minutes, whichever comes first, never for tracks under 30 seconds (`POST /plays`, Stream permission). The request carries only the track file id and when it started; title, artist, album, and MusicBrainz ids come from Lidarr. A repeat within 30 seconds is the same play, and plays from the future or over a week ago are refused. Plays feed Now Playing's History (`GET /plays`) and Discover: the last year's plays per artist join the library and Last.fm or ListenBrainz history as seed weight, leaving out plays already sent to ListenBrainz when its history is used, so nothing counts twice.
+- **ListenBrainz submission**: a user adds their ListenBrainz user token in Settings, Account; it is checked with `/1/validate-token`, stored encrypted per user, and never sent back. Plays recorded after that are sent with `/1/submit-listens` (single, or import batches of up to 100) with recording, release group, and artist MBIDs, straight away and every 5 minutes for anything that failed. A rejected token stops sending until it is added again; other failures keep the plays waiting and show why.
+- **Previews** (`server/src/previews/previews.ts`) for artists not in the library: 30-second clips of the artist's top 5 tracks on Deezer (public API, no key; the project is and stays non-commercial, as Deezer's terms require). Deezer was chosen over the iTunes Search API after comparing both on 67 recommended and 19 lesser-known artists: Deezer found 66 and 18, iTunes 64 and 16, and iTunes' terms only allow previews that promote sales on Apple's store. An artist is matched by exact name (Deezer's search puts "Penny Wise" above Pennywise), and only when one of the Deezer artist's albums is one of the artist's MusicBrainz release groups; otherwise there is no preview rather than a wrong one. The match (or its absence) is cached 30 days, the top tracks a day. Clip addresses expire in minutes, so `GET /previews/:deezerTrackId/audio` asks Deezer for a fresh one each time (reused for 5 minutes), accepts only https on `*.dzcdn.net`, and passes the audio through with the browser's Range, never storing it. Covers go through the image proxy (`cdn-images.dzcdn.net` is allowlisted). Previews need the Stream permission, play in the player marked as previews with a credit linking to Deezer, and never count as plays.
+- **Media Session**: title, artist, album, and cover for lock screens, play and pause state, position, and play, pause, previous, next, and seek actions. Space plays and pauses and the left and right arrows seek 10 seconds, except while typing or on a control.
+- **Now Playing** uses a flat tint from the cover (`web/src/app/shared/art-tint.ts`): the main color of a 24 by 24 sample, weighted toward colorful, mid-bright pixels, as a dark background and a muted light text color.
 
 ## Discovery engine
 
@@ -174,6 +195,7 @@ Current tables (see `server/src/db/schema.ts`):
 - `library_artists` (cached Lidarr artists: ids, names, sort name, monitoring, stats, missing albums, artwork paths)
 - `musicbrainz_cache` (request path, body, fetched_at)
 - `deliveries` (channel, event, title, message, status, attempts, error, created_at, updated_at): recent notification sends
+- `plays` (user_id, track_file_id, title, artist and album names and MBIDs, recording MBID, duration, media type, played_at, listenbrainz_at): what each user played in Offbeat; removed with the user
 - `requests` (user_id, requested_by, artist and album MBIDs, Lidarr ids) to attribute adds to users; `requested_by` keeps the username after the user is removed
 - `source_cache` (key, body, fetched_at): discovery's upstream answers
 - `recommendations` (user_id, mode, payload, generated_at): each user's latest recommendations per mode
@@ -181,7 +203,7 @@ Current tables (see `server/src/db/schema.ts`):
 - `blocklist` (id, user_id, kind, key, name, source, created_at): blocked artists (keyed by MBID) and tags (keyed lowercase)
 - `jobs` (name, last run, last success, error)
 
-Planned: `flows`, `flow_runs`, `flow_tracks`, `playlists`, `playlist_tracks` (phase 4).
+Planned later: `flows`, `flow_runs`, `flow_tracks`, `playlists`, `playlist_tracks`.
 
 ## API
 
@@ -197,6 +219,11 @@ All routes live under `/api/v1`. Implemented:
 - `GET /tags/:tag` (a tag page), `GET /tags/:tag/albums` (its Top Albums)
 - `GET /account`, `PUT /account/listening` (each user's Last.fm and ListenBrainz usernames, checked with each service), `PUT /account/password`
 - `GET`, `PUT`, and `DELETE /settings/lidarr/webhook`, `POST /settings/lidarr/webhook/test`, `POST /settings/lidarr/webhook/token` (admins only); `POST /webhooks/lidarr` (Lidarr, Basic auth)
+- `GET` and `PUT /settings/music-files` (where Offbeat reads each root folder, and whether ffmpeg was found), `POST /settings/music-files/check` (admins only)
+- `GET /artists/:mbid/preview?name=` and `GET /previews/:deezerTrackId/audio` (Stream permission)
+- `POST /plays` (Stream permission), `GET /plays` (the signed-in user's own)
+- `PUT` and `DELETE /account/listenbrainz-token`
+- `GET /stream/:trackFileId` (Stream permission; ranges, or `?transcode=mp3&t=`)
 - `GET` and `PUT /settings/notifications` (the link address), `PUT` and `DELETE /settings/notifications/:channel`, `POST /settings/notifications/:channel/test` (admins only)
 - `GET /users`, `POST /users` (answers with a temporary password), `PATCH /users/:id` (role and permissions), `POST /users/:id/password` (a new temporary password), `DELETE /users/:id`: admins only
 - `GET /library`, `POST /library/refresh`
@@ -207,7 +234,7 @@ All routes live under `/api/v1`. Implemented:
 - `GET /events` (Server-Sent Events: `activity` snapshots and `add-result`)
 - `GET /images/artist/:id`, `GET /images/album/:mbid`, `GET /images/remote` (signed)
 
-Planned: `/flows` and `/playlists` (phase 4). An OpenAPI spec generated from the Zod schemas is planned.
+Planned later: `/flows` and `/playlists`. An OpenAPI spec generated from the Zod schemas is planned.
 
 ## Details that save pain later
 

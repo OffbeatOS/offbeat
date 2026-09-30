@@ -24,6 +24,7 @@ import { type StoredLidarr, clientFor, loadLidarr } from '../integrations/lidarr
 import type { MbReleaseGroup, MusicBrainzClient } from '../integrations/musicbrainz/client.js';
 import type { ImageUrls } from '../library/image-urls.js';
 import type { Library } from '../library/library.js';
+import { mimeTypeFor } from '../library/music-files.js';
 import type { SettingsStore } from '../settings/store.js';
 import { SHOWN_TYPES, albumTrackTotal, lidarrStatus, normalize, releaseType, yearOf } from './releases.js';
 
@@ -168,7 +169,13 @@ export class Catalog {
 
     const album = row ? await this.findLidarrAlbum(row.lidarrId, releaseGroupMbid) : undefined;
     if (album) {
-      const tracks = await this.client().tracks(album.id);
+      // Track files give each track its stream and media type. Asked for every time: the cached
+      // album statistics can lag just after an import, and a playable album must not look empty.
+      const [tracks, files] = await Promise.all([
+        this.client().tracks(album.id),
+        this.client().trackFiles({ albumId: album.id }).catch(() => []),
+      ]);
+      const fileById = new Map(files.map((file) => [file.id, file]));
       return {
         ...this.lidarrAlbumSummary(album, credit.id, artistName),
         artistInLibrary: true,
@@ -182,12 +189,17 @@ export class Catalog {
               (a.mediumNumber ?? 1) - (b.mediumNumber ?? 1) || (a.absoluteTrackNumber ?? 0) - (b.absoluteTrackNumber ?? 0),
           )
           .map(
-            (t): Track => ({
-              position: t.trackNumber || String(t.absoluteTrackNumber ?? ''),
-              title: t.title,
-              durationMs: t.duration ?? null,
-              hasFile: t.hasFile ?? false,
-            }),
+            (t): Track => {
+              const file = t.trackFileId ? fileById.get(t.trackFileId) : undefined;
+              return {
+                position: t.trackNumber || String(t.absoluteTrackNumber ?? ''),
+                title: t.title,
+                durationMs: t.duration ?? null,
+                hasFile: t.hasFile ?? false,
+                trackFileId: file?.id ?? null,
+                mimeType: file ? mimeTypeFor(file) : null,
+              };
+            },
           ),
         more: await more(),
       };
@@ -201,7 +213,7 @@ export class Catalog {
       trackFileCount: null,
       trackCount: null,
       genres,
-      tracks: tracks.map((t) => ({ ...t, hasFile: null })),
+      tracks: tracks.map((t) => ({ ...t, hasFile: null, trackFileId: null, mimeType: null })),
       more: await more(),
     };
   }

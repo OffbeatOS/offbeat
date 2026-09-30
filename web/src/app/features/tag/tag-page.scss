@@ -142,14 +142,24 @@ section {
   --quick-add-size: 38px;
 }
 
+.preview {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  --preview-size: 38px;
+}
+
 @media (hover: hover) {
-  .add:not(.done) {
+  .add:not(.done),
+  .preview {
     opacity: 0;
     transition: opacity 120ms ease;
   }
 
   .artist:hover .add,
-  .artist:focus-within .add {
+  .artist:focus-within .add,
+  .artist:hover .preview,
+  .artist:focus-within .preview {
     opacity: 1;
   }
 }
