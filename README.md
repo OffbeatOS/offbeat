@@ -28,7 +28,7 @@ Self-hosted music discovery for Lidarr. Find new artists based on what you alrea
 - **Notifications.** Discord or any webhook when an album is imported, a download fails, an import is blocked, or a monitored artist has a new release. See [Notifications](#notifications).
 - **One small container.** One process, one port, SQLite. No external database or cache.
 
-Coming next: streaming to Subsonic apps. Flows and playlists come later.
+Coming next: streaming to Subsonic apps (Feishin, Symfonium, and others). Flows and playlists come later.
 
 Offbeat talks to Lidarr for everything in your library; it never writes to your music folders itself.
 

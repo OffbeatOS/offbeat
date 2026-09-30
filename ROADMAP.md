@@ -56,14 +56,21 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 - [x] Admin password reset CLI (`offbeat reset-password`, `list-users`, `make-admin`)
 - [x] Since 0.3.0: adding an artist monitors all their albums by default (0.3.1), and tag pages show their artists in about two seconds, with starting albums found much faster (0.3.2)
 
-## Phase 4: Streaming (in progress)
+## Phase 4: Streaming (done)
 
 - [x] Library access: read audio through a read-only music folder mount, indexed by Lidarr's track files (paths, durations, quality), with a path mapping setting and a health check
 - [x] Streaming: direct play with HTTP range requests, and ffmpeg transcoding for formats the browser cannot play
 - [x] Player in the bottom bar, full Now Playing view, queue drawer, play actions on every card and track row, lock screen and media keys, keyboard shortcuts, and a Stream permission
 - [x] Listening history: plays recorded locally and used as Discover seeds, with optional ListenBrainz submission
 - [x] Short previews for artists not yet in the library (from Deezer)
-- [ ] Subsonic API (OpenSubsonic), so existing third-party clients (mobile and desktop) can stream from Offbeat too, with per-user app passwords
+
+## Phase 5: Subsonic
+
+- [ ] Subsonic API (OpenSubsonic), so existing third-party clients (mobile and desktop) can stream from Offbeat too
+- [ ] Per-user app passwords in Settings, Account, stored encrypted and revocable; a user's main password is never accepted over Subsonic
+- [ ] Credentials redacted from every log (Subsonic clients send them in query strings)
+- [ ] Stable ids, so clients keep favorites and playlists across restarts
+- [ ] Verified with Feishin on desktop and a mobile client
 
 ## Distribution (ongoing)
 
@@ -73,11 +80,11 @@ How it is built is in [docs/architecture.md](docs/architecture.md); how it looks
 
 ## Open decisions
 
-- **Preview source (phase 4, decided).** Deezer: it matched more artists than iTunes (66 of 67 recommended and 18 of 19 lesser-known, against 64 and 16), and its terms fit a non-commercial open source project; iTunes only allows previews that promote sales on Apple's store.
+- **Preview source (decided in phase 4).** Deezer: it matched more artists than iTunes (66 of 67 recommended and 18 of 19 lesser-known, against 64 and 16), and its terms fit a non-commercial open source project; iTunes only allows previews that promote sales on Apple's store.
 
 ## Later
 
-Ideas for after Phase 4, roughly grouped. Not scheduled or committed.
+Ideas for after Phase 5, roughly grouped. Not scheduled or committed.
 
 - **Inbox:** a per-user feed of new and upcoming releases from library artists, nearby shows, and personalized discoveries, with read, saved and dismissed states
 - **Artist news:** optional RSS feeds matched against library and recommended artists, shown in the Inbox
