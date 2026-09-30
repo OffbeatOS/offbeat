@@ -21,7 +21,8 @@ Especially interesting:
 
 - Authentication or session bypass, including through `BASE_URL`, reverse-proxy headers, local network auto-login, or the Lidarr webhook
 - Anything that exposes the Lidarr API key (or other stored credentials) to a browser, a log, or another host
-- Making the image proxy or notifications fetch arbitrary URLs, or reach cloud metadata addresses
+- Making the image proxy, previews, or notifications fetch arbitrary URLs, or reach cloud metadata addresses
+- Streaming reading a file outside the mapped music folders, or without the Stream permission
 - Cross-site request forgery or scripting
 - Offbeat writing outside its config directory or into the music library directly
 
