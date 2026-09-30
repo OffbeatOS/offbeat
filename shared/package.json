@@ -1,6 +1,6 @@
 {
   "name": "@offbeat/shared",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": true,
   "license": "MIT",
   "type": "module",

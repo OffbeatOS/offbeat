@@ -2,7 +2,7 @@
 # reach it by service name (for example http://lidarr:8686) during onboarding.
 services:
   offbeat:
-    image: ghcr.io/offbeatos/offbeat:0.3  # pin while pre-1.0
+    image: ghcr.io/offbeatos/offbeat:0.4  # pin while pre-1.0
     container_name: offbeat
     restart: unless-stopped
     ports:

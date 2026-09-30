@@ -10,9 +10,9 @@
 [![Downloads](https://img.shields.io/badge/dynamic/json?url=https://ghcr-badge.elias.eu.org/api/OffbeatOS/offbeat/offbeat&query=downloadCount&label=downloads&logo=docker&logoColor=white&color=2496ed)](https://github.com/OffbeatOS/offbeat/pkgs/container/offbeat)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Self-hosted music discovery for Lidarr. Find new artists based on what you already have, add them to Lidarr in one click, and follow downloads as they land. Native streaming is planned.
+Self-hosted music discovery for Lidarr. Find new artists based on what you already have, add them to Lidarr in one click, and follow downloads as they land, then play them in the browser.
 
-> **Status: early.** Library, requests, discovery, and multiple users work today (see below). Versions before 1.0 may include breaking changes between releases, so read the release notes before upgrading. See the [roadmap](ROADMAP.md) for what is done and what is coming.
+> **Status: early.** Library, requests, discovery, streaming, and multiple users work today (see below). Versions before 1.0 may include breaking changes between releases, so read the release notes before upgrading. See the [roadmap](ROADMAP.md) for what is done and what is coming.
 
 ![Discover: top picks, each with the reason it was picked, and an album to start with from each](docs/screenshots/discover.png)
 
@@ -42,7 +42,7 @@ Offbeat talks to Lidarr for everything in your library; it never writes to your 
 
 ## Quick start (Docker)
 
-Images are published for `linux/amd64` and `linux/arm64` as `ghcr.io/offbeatos/offbeat`. Pin a version (`0.3`) rather than `latest` while Offbeat is pre-1.0.
+Images are published for `linux/amd64` and `linux/arm64` as `ghcr.io/offbeatos/offbeat`. Pin a version (`0.4`) rather than `latest` while Offbeat is pre-1.0.
 
 With `docker run`:
 
@@ -52,7 +52,7 @@ docker run -d --name offbeat --restart unless-stopped \
   -e PUID=1000 -e PGID=1000 -e TZ=Etc/UTC \
   -v "$(pwd)/config:/app/config" \
   -v /path/to/music:/music:ro \
-  ghcr.io/offbeatos/offbeat:0.3
+  ghcr.io/offbeatos/offbeat:0.4
 ```
 
 Or with Compose (the same file is in [docker-compose.yml](docker-compose.yml)):
@@ -60,7 +60,7 @@ Or with Compose (the same file is in [docker-compose.yml](docker-compose.yml)):
 ```yaml
 services:
   offbeat:
-    image: ghcr.io/offbeatos/offbeat:0.3
+    image: ghcr.io/offbeatos/offbeat:0.4
     restart: unless-stopped
     ports:
       - "3001:3001"
