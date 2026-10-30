@@ -21,7 +21,7 @@
     "bottleneck": "^2.19.5",
     "croner": "^10.0.1",
     "drizzle-orm": "^0.45.4",
-    "fastify": "^5.12.5",
+    "fastify": "^5.12.6",
     "zod": "^4.6.5"
   },
   "devDependencies": {
