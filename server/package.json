@@ -22,7 +22,7 @@
     "croner": "^10.0.1",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.5",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
